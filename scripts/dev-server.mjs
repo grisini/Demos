@@ -51,7 +51,12 @@ function runtimeConfig() {
     SIPASS_AUTHORITY: env.SIPASS_AUTHORITY || "https://sicas-test.sigov.si/",
     SIPASS_CLIENT_ID: env.SIPASS_CLIENT_ID || "",
     SIPASS_REDIRECT_URI:
-      env.SIPASS_REDIRECT_URI || `http://localhost:${env.PORT || defaultPort}/auth/sipass/callback`
+      env.SIPASS_REDIRECT_URI || `http://localhost:${env.PORT || defaultPort}/auth/sipass/callback`,
+    AI_PROVIDER: env.AI_PROVIDER || "local",
+    AI_REVIEW_ENDPOINT: env.AI_REVIEW_ENDPOINT || "",
+    HUGGINGFACE_ZERO_SHOT_MODEL:
+      env.HUGGINGFACE_ZERO_SHOT_MODEL || "MoritzLaurer/ModernBERT-large-zeroshot-v2.0",
+    HUGGINGFACE_EMBEDDING_MODEL: env.HUGGINGFACE_EMBEDDING_MODEL || "intfloat/multilingual-e5-small"
   };
 }
 
@@ -110,4 +115,3 @@ function listenOnAvailablePort(port) {
 }
 
 listenOnAvailablePort(defaultPort);
-

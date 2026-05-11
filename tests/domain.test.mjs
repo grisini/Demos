@@ -42,6 +42,21 @@ test("evaluateInitiative oznaci proracunsko tveganje", () => {
 
   assert.equal(review.risk, "high");
   assert.ok(review.checks.budgetHits.length >= 3);
+  assert.equal(review.checks.suitability, "needs_review");
+});
+
+test("evaluateInitiative pripravi predlog kategorije in popolnost", () => {
+  const review = evaluateInitiative({
+    ...validInput,
+    category: "Drugo",
+    title: "Register cakalnih dob za paciente",
+    summary: "Pobuda ureja javni register, kjer je cakalna doba vidna za paciente po izvajalcih.",
+    description: `${validInput.description} Register mora zajeti zdravstvo, pacient, zdravnik in ambulanta podatke.`
+  });
+
+  assert.equal(review.checks.categorySuggestion.category, "Zdravstvo");
+  assert.equal(review.checks.completeness.score, 100);
+  assert.ok(review.findings.some((finding) => finding.includes("AI predlaga kategorijo Zdravstvo")));
 });
 
 test("glasovanje in podpis ne podvajata istega uporabnika", () => {
@@ -65,13 +80,16 @@ test("komentar zahteva prijavljenega uporabnika in veljavno besedilo", () => {
 });
 
 test("analytics izracuna osnovne kazalnike", () => {
-  const first = signInitiative(voteForInitiative(createInitiative(validInput, actor), actor), actor);
+  const first = addComment(signInitiative(voteForInitiative(createInitiative(validInput, actor), actor), actor), actor, "Podpiram.");
   const second = createInitiative({ ...validInput, title: "Register javnih razpisov" }, actor);
   const analytics = calculateAnalytics([first, second]);
 
   assert.equal(analytics.initiativeCount, 2);
   assert.equal(analytics.totalVotes, 1);
   assert.equal(analytics.totalSignatures, 1);
+  assert.equal(analytics.totalComments, 1);
   assert.equal(analytics.topInitiatives[0].id, first.id);
+  assert.equal(analytics.initiativeStats[0].votes, 1);
+  assert.equal(analytics.voteDistribution.maxVotes, 1);
+  assert.equal(analytics.categoryStats[0].votes, 1);
 });
-

@@ -52,6 +52,16 @@ const legalKeywords = [
 
 const vagueKeywords = ["boljse", "bolj\u0161e", "urediti", "nekako", "problem", "slabo"];
 
+const categoryKeywords = {
+  "Javne finance": ["proracun", "prora\u010dun", "davek", "davki", "subvencija", "prispevek", "transfer", "razpis"],
+  Zdravstvo: ["zdravstvo", "pacient", "cakalna", "\u010dakalna", "zdravnik", "bolnisnica", "ambulanta"],
+  Okolje: ["okolje", "odpadki", "voda", "zrak", "emisije", "podnebje", "narava"],
+  Izobrazevanje: ["sola", "\u0161ola", "vrtec", "ucitelj", "u\u010ditelj", "student", "\u0161tudent", "ucni", "u\u010dni"],
+  Pravosodje: ["sodisce", "sodi\u0161\u010de", "tozilstvo", "to\u017eilstvo", "pravica", "postopek", "kazenski"],
+  "Digitalna drzava": ["digital", "podatki", "portal", "register", "strojno", "e-uprava", "splet"],
+  Drugo: []
+};
+
 export function validateInitiative(input) {
   const values = normalizeInput(input);
   const errors = {};
@@ -81,30 +91,47 @@ export function validateInitiative(input) {
 
 export function evaluateInitiative(input) {
   const values = normalizeInput(input);
-  const text = [values.title, values.summary, values.description].join(" ").toLowerCase();
+  const text = [
+    values.title,
+    values.summary,
+    values.description,
+    values.legalReference,
+    values.expectedImpact
+  ]
+    .join(" ")
+    .toLowerCase();
   const words = text.split(/\s+/).filter(Boolean);
 
   const budgetHits = findHits(text, budgetKeywords);
   const legalHits = findHits(text, legalKeywords);
   const vagueHits = findHits(text, vagueKeywords);
+  const categorySuggestion = suggestCategory(text, values.category);
+  const completeness = completenessChecks(values);
 
-  let score = 45;
+  let score = 42;
   score += Math.min(words.length, 220) / 6;
   score += legalHits.length * 8;
   score -= budgetHits.length * 7;
   score -= vagueHits.length * 4;
+  score += completeness.score / 8;
+  score += categorySuggestion.confidence >= 60 ? 4 : 0;
 
   if (values.description.length >= 500) score += 8;
   if (values.legalReference.length >= 8) score += 9;
   if (values.expectedImpact.length >= 40) score += 7;
 
   const boundedScore = Math.max(0, Math.min(100, Math.round(score)));
-  const risk = budgetHits.length >= 3 || boundedScore < 45 ? "high" : budgetHits.length > 0 ? "medium" : "low";
+  const risk = budgetHits.length >= 3 || boundedScore < 45 ? "high" : budgetHits.length > 0 || vagueHits.length > 1 ? "medium" : "low";
+  const suitability = boundedScore >= 72 && risk === "low" ? "ready" : boundedScore >= 50 ? "needs_review" : "insufficient";
 
   return {
     score: boundedScore,
     risk,
     findings: [
+      `Ustreznost: ${suitabilityLabel(suitability)} (${completeness.score}% popolnosti podatkov).`,
+      categorySuggestion.category && categorySuggestion.category !== values.category
+        ? `AI predlaga kategorijo ${categorySuggestion.category} z ${categorySuggestion.confidence}% ujemanjem.`
+        : "Izbrana kategorija je skladna z zaznanimi izrazi.",
       legalHits.length
         ? `Zaznane pravne oporne tocke: ${legalHits.join(", ")}.`
         : "Dodajte jasnejso pravno podlago ali navedbo zakona.",
@@ -119,7 +146,10 @@ export function evaluateInitiative(input) {
       length: words.length,
       budgetHits,
       legalHits,
-      vagueHits
+      vagueHits,
+      completeness,
+      categorySuggestion,
+      suitability
     }
   };
 }
@@ -249,6 +279,14 @@ export function riskLabel(value) {
   }[value] || "Ni ocene";
 }
 
+export function suitabilityLabel(value) {
+  return {
+    ready: "primerna za objavo",
+    needs_review: "potreben uredniski pregled",
+    insufficient: "nezadostna za oddajo"
+  }[value] || "ni ocene";
+}
+
 export function normalizeInput(input) {
   return {
     title: String(input?.title || "").trim(),
@@ -262,6 +300,48 @@ export function normalizeInput(input) {
 
 function findHits(text, keywords) {
   return keywords.filter((keyword) => text.includes(keyword));
+}
+
+function completenessChecks(values) {
+  const checks = {
+    title: values.title.length >= REQUIRED_MIN.title,
+    summary: values.summary.length >= REQUIRED_MIN.summary,
+    description: values.description.length >= REQUIRED_MIN.description,
+    legalReference: values.legalReference.length >= 8,
+    expectedImpact: values.expectedImpact.length >= 40
+  };
+  const passed = Object.values(checks).filter(Boolean).length;
+
+  return {
+    ...checks,
+    score: Math.round((passed / Object.keys(checks).length) * 100),
+    missing: Object.entries(checks)
+      .filter(([, value]) => !value)
+      .map(([key]) => key)
+  };
+}
+
+function suggestCategory(text, selectedCategory) {
+  const scored = Object.entries(categoryKeywords).map(([category, keywords]) => ({
+    category,
+    hits: findHits(text, keywords),
+    selected: category === selectedCategory
+  }));
+  const best = scored.sort((a, b) => b.hits.length - a.hits.length || Number(b.selected) - Number(a.selected))[0];
+
+  if (!best || best.hits.length === 0) {
+    return {
+      category: selectedCategory || "Drugo",
+      confidence: selectedCategory ? 50 : 0,
+      hits: []
+    };
+  }
+
+  return {
+    category: best.category,
+    confidence: Math.min(95, 45 + best.hits.length * 15),
+    hits: best.hits
+  };
 }
 
 function cryptoId() {

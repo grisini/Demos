@@ -2,6 +2,12 @@
 
 Projekt trenutno deluje lokalno z `localStorage`. Za Supabase preklop je pripravljen REST adapter v `src/lib/supabase.js` in SQL shema v `supabase/schema.sql`.
 
+Shema vsebuje tudi pripravo za Iteracijo 3:
+
+- `initiative_ai_reviews` za zgodovino AI presoj in audit surovih odgovorov,
+- `initiative_analytics` za stevilo glasov, podpisov, komentarjev in delez glasov na pobudo,
+- `category_analytics` za agregacijo pobud po kategorijah.
+
 ## Lokalni zagon s Supabase
 
 1. V Supabase projektu izvedite SQL iz `supabase/schema.sql`.
@@ -26,3 +32,4 @@ Za produkcijo je treba:
 - prepreciti spremembo statusov navadnim uporabnikom,
 - hraniti samo minimalne osebne podatke oziroma anonimizirane identifikatorje,
 - dodati rate limiting in revizijsko sled.
+- Hugging Face token hraniti izkljucno na backendu ali Supabase Edge Function, ne v brskalniku.

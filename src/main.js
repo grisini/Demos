@@ -6,6 +6,7 @@ import {
   createInitiative,
   evaluateInitiative,
   riskLabel,
+  suitabilityLabel,
   statusLabel,
   validateInitiative
 } from "./domain/validation.js";
@@ -141,8 +142,8 @@ class DemocracyApp {
     return `
       <section class="metric-grid" aria-label="Povzetek">
         ${this.metric("Pobude", analytics.initiativeCount, "Vse oddane pobude")}
-        ${this.metric("Glasovi", analytics.totalVotes, "Podpora uporabnikov")}
-        ${this.metric("Podpisi", analytics.totalSignatures, "Demo zbiranje podpisov")}
+        ${this.metric("Glasovi", analytics.totalVotes, "Oddani glasovi")}
+        ${this.metric("Komentarji", analytics.totalComments, "Razprava ob pobudah")}
         ${this.metric("AI ocena", `${analytics.averageScore}%`, "Povprecje skladnosti")}
       </section>
 
@@ -234,8 +235,15 @@ class DemocracyApp {
   }
 
   renderAnalyticsView(analytics) {
-    const maxCategory = Math.max(1, ...Object.values(analytics.byCategory));
+    const maxCategoryVotes = Math.max(1, ...analytics.categoryStats.map((item) => item.votes));
+    const maxVotes = Math.max(1, analytics.voteDistribution.maxVotes);
     return `
+      <section class="metric-grid analytics-metrics" aria-label="Napredni kazalniki">
+        ${this.metric("Najvec glasov", analytics.voteDistribution.maxVotes, "najbolj glasovana pobuda")}
+        ${this.metric("Povprecje", analytics.voteDistribution.averageVotes, "glasov na pobudo")}
+        ${this.metric("Mediana", analytics.voteDistribution.medianVotes, "sredinska vrednost glasov")}
+        ${this.metric("Brez glasov", analytics.voteDistribution.zeroVoteInitiatives, "pobude brez podpore")}
+      </section>
       <section class="analytics-grid">
         <div class="panel">
           <p class="eyebrow">Statusi</p>
@@ -247,7 +255,7 @@ class DemocracyApp {
                   <div class="bar-row">
                     <span>${item.label}</span>
                     <div class="bar-track"><div style="width:${analytics.initiativeCount ? (item.count / analytics.initiativeCount) * 100 : 0}%"></div></div>
-                    <strong>${item.count}</strong>
+                    <strong title="${item.votes} glasov">${item.count}</strong>
                   </div>
                 `
               )
@@ -256,19 +264,39 @@ class DemocracyApp {
         </div>
         <div class="panel">
           <p class="eyebrow">Kategorije</p>
-          <h2>Razporeditev</h2>
-          <div class="category-grid">
-            ${Object.entries(analytics.byCategory)
-              .map(
-                ([category, count]) => `
-                  <div class="category-chip">
-                    <span>${escapeHtml(category)}</span>
-                    <strong>${count}</strong>
-                    <div style="width:${(count / maxCategory) * 100}%"></div>
-                  </div>
-                `
-              )
-              .join("")}
+          <h2>Glasovi po kategorijah</h2>
+          <div class="category-analytics">
+            ${
+              analytics.categoryStats.length
+                ? analytics.categoryStats.map((item) => this.renderCategoryAnalytics(item, maxCategoryVotes)).join("")
+                : `<div class="empty-state">Ni kategorij za prikaz.</div>`
+            }
+          </div>
+        </div>
+        <div class="panel wide-panel">
+          <p class="eyebrow">AI presoja</p>
+          <h2>Tveganja pobud</h2>
+          <div class="risk-grid">
+            ${analytics.riskSummary.map((item) => this.renderRiskMetric(item, analytics.initiativeCount)).join("")}
+          </div>
+        </div>
+        <div class="panel wide-panel">
+          <p class="eyebrow">Glasovi na pobudo</p>
+          <h2>Napredna tabela pobud</h2>
+          <div class="initiative-analytics-table" role="table" aria-label="Glasovi na pobudo">
+            <div class="initiative-analytics-head" role="row">
+              <span>Pobuda</span>
+              <span>Glasovi</span>
+              <span>Delez</span>
+              <span>Podpisi</span>
+              <span>Komentarji</span>
+              <span>AI</span>
+            </div>
+            ${
+              analytics.initiativeStats.length
+                ? analytics.initiativeStats.map((item) => this.renderInitiativeAnalyticsRow(item, maxVotes)).join("")
+                : `<div class="empty-state">Ni pobud za analitiko.</div>`
+            }
           </div>
         </div>
         <div class="panel wide-panel">
@@ -279,6 +307,48 @@ class DemocracyApp {
           </div>
         </div>
       </section>
+    `;
+  }
+
+  renderCategoryAnalytics(item, maxVotes) {
+    return `
+      <div class="category-analytics-row">
+        <div>
+          <strong>${escapeHtml(item.category)}</strong>
+          <small>${item.count} pobud - ${item.votes} glasov - ${item.comments} komentarjev</small>
+        </div>
+        <em>${item.averageAiScore}% AI</em>
+        <div class="bar-track"><div style="width:${(item.votes / maxVotes) * 100}%"></div></div>
+      </div>
+    `;
+  }
+
+  renderRiskMetric(item, total) {
+    return `
+      <div class="risk-metric ${item.risk}">
+        <span>${riskLabel(item.risk)}</span>
+        <strong>${item.count}</strong>
+        <small>${percentageLabel(item.count, total)} pobud</small>
+      </div>
+    `;
+  }
+
+  renderInitiativeAnalyticsRow(item, maxVotes) {
+    return `
+      <div class="initiative-analytics-row" role="row">
+        <div>
+          <strong>${escapeHtml(item.title)}</strong>
+          <small>${escapeHtml(item.category)} - ${statusLabel(item.status)}</small>
+        </div>
+        <div>
+          <strong>${item.votes}</strong>
+          <div class="mini-bar"><div style="width:${(item.votes / maxVotes) * 100}%"></div></div>
+        </div>
+        <span>${item.voteShare}%</span>
+        <span>${item.signatures}</span>
+        <span>${item.comments}</span>
+        <span>${item.aiScore}%</span>
+      </div>
     `;
   }
 
@@ -305,21 +375,34 @@ class DemocracyApp {
           </dl>
           <button class="button secondary" data-action="sipass-placeholder">SI-PASS testni tok</button>
         </div>
+        <div class="panel">
+          <p class="eyebrow">AI presoja</p>
+          <h2>Hugging Face pot</h2>
+          <dl class="config-list">
+            <div><dt>Provider</dt><dd>${escapeHtml(this.config.AI_PROVIDER)}</dd></div>
+            <div><dt>Review endpoint</dt><dd>${this.config.AI_REVIEW_ENDPOINT ? "nastavljen" : "lokalni fallback"}</dd></div>
+            <div><dt>Zero-shot model</dt><dd>${escapeHtml(this.config.HUGGINGFACE_ZERO_SHOT_MODEL)}</dd></div>
+            <div><dt>Embedding model</dt><dd>${escapeHtml(this.config.HUGGINGFACE_EMBEDDING_MODEL)}</dd></div>
+          </dl>
+          <p class="note">Hugging Face token mora ostati na backendu ali edge funkciji; frontend uporablja samo lokalni predpregled ali varen review endpoint.</p>
+        </div>
       </section>
     `;
   }
 
   renderInitiativeCard(initiative) {
     const active = initiative.id === this.state.selectedId ? "active" : "";
+    const voteCount = initiative.votes.length;
+    const commentCount = initiative.comments.length;
     return `
       <article class="initiative-card ${active}">
         <button class="card-button" data-action="select" data-id="${initiative.id}">
           <span class="status-dot ${initiative.status}"></span>
           <span>
             <strong>${escapeHtml(initiative.title)}</strong>
-            <small>${escapeHtml(initiative.category)} - ${statusLabel(initiative.status)}</small>
+            <small>${escapeHtml(initiative.category)} - ${statusLabel(initiative.status)} - ${voteCount} glasov - ${commentCount} komentarjev</small>
           </span>
-          <span class="support-count">${initiative.votes.length + initiative.signatures.length}</span>
+          <span class="support-count" title="Glasovi">${voteCount}</span>
         </button>
       </article>
     `;
@@ -357,6 +440,7 @@ class DemocracyApp {
       <div class="detail-metrics">
         ${this.metric("Glasovi", initiative.votes.length, "en uporabnik, en glas")}
         ${this.metric("Podpisi", initiative.signatures.length, "priprava za SI-PASS")}
+        ${this.metric("Komentarji", initiative.comments.length, "javna razprava")}
         ${this.metric("AI ocena", `${review.score}%`, riskLabel(review.risk))}
       </div>
       <section class="detail-section">
@@ -375,6 +459,7 @@ class DemocracyApp {
       </section>
       <section class="detail-section">
         <h3>AI ugotovitve</h3>
+        ${this.renderReviewFacts(review)}
         <ul class="check-list">
           ${review.findings.map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")}
         </ul>
@@ -432,9 +517,25 @@ class DemocracyApp {
         <strong>${review.score}%</strong>
         <span>${riskLabel(review.risk)}</span>
       </div>
+      ${this.renderReviewFacts(review)}
       <ul class="check-list">
         ${review.findings.map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")}
       </ul>
+    `;
+  }
+
+  renderReviewFacts(review) {
+    const checks = review.checks || {};
+    const completeness = checks.completeness?.score ?? 0;
+    const suitability = checks.suitability || "insufficient";
+    const category = checks.categorySuggestion?.category || "Ni predloga";
+
+    return `
+      <dl class="review-facts">
+        <div><dt>Ustreznost</dt><dd>${suitabilityLabel(suitability)}</dd></div>
+        <div><dt>Popolnost</dt><dd>${completeness}%</dd></div>
+        <div><dt>AI kategorija</dt><dd>${escapeHtml(category)}</dd></div>
+      </dl>
     `;
   }
 
@@ -692,6 +793,10 @@ function emptyDraft() {
 
 function option(value, label, selected) {
   return `<option value="${escapeAttribute(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`;
+}
+
+function percentageLabel(value, total) {
+  return total ? Math.round((value / total) * 100) : 0;
 }
 
 function escapeHtml(value) {

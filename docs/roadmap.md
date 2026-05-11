@@ -17,9 +17,13 @@
 
 ## Iteracija 3
 
-- Lokalni AI predpregled pobude.
-- Kategorizacija, statusni tok in komentiranje.
+- Lokalni AI predpregled pobude s score, risk, suitability, completeness in categorySuggestion.
+- Kategorizacija, statusni tok, filtriranje in komentiranje.
 - Demo zbiranje elektronskih podpisov.
+- Napredna analitika glasov na pobudo, kategorije, komentarjev in AI tveganj.
+- Supabase audit tabela za AI presoje ter pogleda `initiative_analytics` in `category_analytics`.
+- Mermaid dokumentacija za uporabniski tok, UML, ER in zaporedne diagrame.
+- DevWork loop porocilo za sledljiv napredek.
 - Zacetni funkcionalni testi domenske logike.
 
 ## Nadaljevanje
