@@ -52,8 +52,9 @@ class DemocracyApp {
       this.state.loading = false;
       this.render();
     } catch (error) {
+      this.reportError("Napaka pri nalaganju pobud", error);
       this.state.loading = false;
-      this.toast(error.message || "Podatkov ni bilo mogoce naloziti.");
+      this.toast("Podatkov ni bilo mogoce naloziti.");
       this.render();
     }
   }
@@ -742,9 +743,15 @@ class DemocracyApp {
 
     const statusId = event.target.dataset.statusId;
     if (statusId) {
-      await this.repository.updateStatus(statusId, event.target.value);
-      await this.refresh();
-      this.toast("Status pobude je posodobljen.");
+      try {
+        await this.repository.updateStatus(statusId, event.target.value);
+        await this.refresh();
+        this.toast("Status pobude je posodobljen.");
+      } catch (error) {
+        this.reportError("Napaka pri posodobitvi statusa", error);
+        this.toast("Statusa pobude ni bilo mogoce posodobiti.");
+        this.render();
+      }
     }
   }
 
@@ -759,9 +766,14 @@ class DemocracyApp {
     try {
       await callback(actor);
     } catch (error) {
-      this.toast(error.message || "Dejanje ni uspelo.");
+      this.reportError("Napaka pri dejanju uporabnika", error);
+      this.toast(userFacingErrorMessage(error));
       this.render();
     }
+  }
+
+  reportError(context, error) {
+    console.error(`[Demokracija 2.0] ${context}`, error);
   }
 
   toast(message) {
@@ -810,6 +822,23 @@ function escapeHtml(value) {
 
 function escapeAttribute(value) {
   return escapeHtml(value).replace(/`/g, "&#096;");
+}
+
+function userFacingErrorMessage(error) {
+  const message = String(error?.message || "");
+
+  if (message.includes("Za glasovanje je potrebna prijava.")) return message;
+  if (message.includes("Za podpis je potrebna prijava.")) return message;
+  if (message.includes("Za komentiranje je potrebna prijava.")) return message;
+  if (message.includes("Komentar je prekratek.")) return message;
+  if (message.includes("Pobuda ne obstaja.")) return message;
+  if (message.includes("Status ni veljaven.")) return message;
+
+  if (message.includes("duplicate key value") || message.includes("23505")) {
+    return "To dejanje je ze bilo zabelezeno.";
+  }
+
+  return "Dejanje ni uspelo.";
 }
 
 const app = new DemocracyApp({
