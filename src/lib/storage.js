@@ -4,7 +4,6 @@ import {
   updateInitiativeStatus,
   voteForInitiative
 } from "../domain/validation.js";
-import { demoInitiatives } from "../data/demo-data.js";
 
 const STORAGE_KEY = "demos.initiatives";
 
@@ -42,15 +41,13 @@ export class LocalInitiativeRepository {
   read() {
     const raw = this.storage?.getItem(STORAGE_KEY);
     if (!raw) {
-      this.write(demoInitiatives);
-      return clone(demoInitiatives);
+      return [];
     }
 
     try {
       return JSON.parse(raw);
     } catch {
-      this.write(demoInitiatives);
-      return clone(demoInitiatives);
+      return [];
     }
   }
 
@@ -68,9 +65,5 @@ export class LocalInitiativeRepository {
     this.write(initiatives);
     return updated;
   }
-}
-
-function clone(value) {
-  return JSON.parse(JSON.stringify(value));
 }
 

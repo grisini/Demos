@@ -108,12 +108,27 @@ export class SupabaseInitiativeRepository {
     });
 
     if (!response.ok) {
-      const message = await response.text();
-      throw new Error(message || `Supabase request failed (${response.status})`);
+      const rawMessage = await response.text();
+      const error = new Error(`Supabase request failed (${response.status})`);
+      error.status = response.status;
+      error.path = path;
+      error.details = rawMessage;
+      throw error;
     }
 
     if (response.status === 204) return null;
-    return response.json();
+
+    const contentLength = response.headers.get("content-length");
+    const contentType = response.headers.get("content-type") || "";
+
+    if (contentLength === "0") return null;
+    if (!contentType.includes("application/json")) {
+      const text = await response.text();
+      return text ? text : null;
+    }
+
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
   }
 }
 
