@@ -34,4 +34,5 @@ npm test
 - `docs/diagrams.md` - Mermaid uporabniski, UML, ER in zaporedni diagrami,
 - `docs/devwork-loop.md` - sprotna porocila in kontrolne tocke,
 - `docs/supabase.md` - Supabase povezava,
+- `docs/baza-porocilo.md` - porocilo o zasnovi baze in razlogih za podatkovni model,
 - `docs/si-pass-testno-okolje.md` - razvojne opombe za SI-PASS.
