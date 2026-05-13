@@ -8,8 +8,8 @@ Ta dokument opisuje omejen obseg Iteracije 3: oddaja pobud, pregled/iskanje/filt
 - Pregled, iskanje, filtriranje po kategoriji/statusu in razvrscanje pobud.
 - Glasovanje po pravilu en uporabnik, en glas.
 - Komentiranje pobud z minimalno validacijo vsebine.
+- Hugging Face AI predpregled prek varnega backend/dev-server endpointa.
 - Lokalni AI predpregled kot fallback.
-- Pripravljena pot za Hugging Face presojo prek varnega backend/edge endpointa.
 - Napredna analitika stevila glasov na pobudo, kategorijo, status in AI tveganje.
 
 ## Napredna analitika
@@ -57,34 +57,39 @@ Za produkcijo naj zapisovanje v tabele ne gre neposredno iz frontenda. Frontend 
 Priporocen tok:
 
 1. Frontend pri pisanju pobude prikaze lokalni fallback `evaluateInitiative`.
-2. Ob oddaji backend/edge funkcija prejme naslov, povzetek, opis, pravno podlago, pricakovani ucinek in izbrano kategorijo.
-3. Backend poklice Hugging Face z zascitenim `HF_TOKEN`.
+2. Ob rocnem predpregledu ali oddaji frontend poklice `/api/ai/review-initiative`.
+3. Backend/dev server poklice Hugging Face Inference Providers z zascitenim `HF_TOKEN`.
 4. Rezultat se normalizira v isti format kot lokalni review: `score`, `risk`, `findings`, `checks`, `categorySuggestion`, `suitability`.
 5. V `initiatives` se shrani zadnja ocena, v `initiative_ai_reviews` pa celoten audit zapis.
-6. Ce HF klic odpove, backend vrne lokalni fallback in oznaci `provider = local`.
+6. Ce Hugging Face klic odpove, frontend/backend uporabi lokalni fallback in oznaci `provider = local`.
 
-Tokena za Hugging Face se ne sme poslati v brskalnik. V `.env.example` je zato samo `AI_REVIEW_ENDPOINT`, ne pa `HF_TOKEN`.
+Tokena za Hugging Face se ne sme poslati v brskalnik. Prava vrednost `HF_TOKEN` spada v `.env.local` ali sistemsko okolje.
 
 ## Hugging Face uporaba
 
 Prakticna izbira za zacetek:
 
-- Zero-shot klasifikacija za kategorijo in ustreznost. Kandidatne oznake: `Javne finance`, `Zdravstvo`, `Okolje`, `Izobrazevanje`, `Pravosodje`, `Digitalna drzava`, `Drugo`, `primerna`, `potreben pregled`, `nezadostna`.
-- Feature extraction za semantiko: zaznava podobnih pobud, naprednejse iskanje in gručenje pobud.
-- Opcijsko LLM/chat completion za strukturiran povzetek ugotovitev, vendar samo z jasno JSON shemo in validacijo odziva.
+- Zero-shot klasifikacija za kategorijo in ustreznost prek `/api/ai/review-initiative`.
+- Kandidatne kategorije: `Javne finance`, `Zdravstvo`, `Okolje`, `Izobrazevanje`, `Pravosodje`, `Digitalna drzava`, `Drugo`.
+- Kandidatne oznake ustreznosti: `primerna za objavo`, `potreben uredniski pregled`, `nezadostna za oddajo`.
+- Lokalni fallback `local-rule-engine-v1`, ce Hugging Face ni nastavljen, ni dosegljiv ali vrne neveljaven odgovor.
+- Model se nastavi z `HUGGINGFACE_ZERO_SHOT_MODEL`, privzeto `facebook/bart-large-mnli`.
 
-Predlagani modeli za prototip:
+Razvojna konfiguracija:
 
-- `MoritzLaurer/ModernBERT-large-zeroshot-v2.0` za vecjezicno zero-shot klasifikacijo.
-- `intfloat/multilingual-e5-small` za embeddinge in semantiko.
-- Lokalni fallback `local-rule-engine-v1`, ki je ze implementiran v `src/domain/validation.js`.
+```bash
+AI_PROVIDER=huggingface
+AI_REVIEW_ENDPOINT=/api/ai/review-initiative
+HUGGINGFACE_ZERO_SHOT_MODEL=facebook/bart-large-mnli
+HUGGINGFACE_EMBEDDING_MODEL=intfloat/multilingual-e5-small
+HF_TOKEN=hf_...
+```
 
 ## Primer backend pogodbe
 
 ```http
 POST /api/ai/review-initiative
 Content-Type: application/json
-Authorization: Bearer <aplikacijski-token>
 ```
 
 ```json
@@ -101,7 +106,7 @@ Authorization: Bearer <aplikacijski-token>
 ```json
 {
   "provider": "huggingface",
-  "model": "MoritzLaurer/ModernBERT-large-zeroshot-v2.0",
+  "model": "facebook/bart-large-mnli",
   "score": 81,
   "risk": "low",
   "suitability": "ready",
@@ -110,8 +115,8 @@ Authorization: Bearer <aplikacijski-token>
     "confidence": 91
   },
   "findings": [
-    "Pobuda je dovolj konkretna za objavo.",
-    "Predlagana kategorija se ujema z vsebino."
+    "Hugging Face ustreznost: primerna za objavo (88% zanesljivost).",
+    "Hugging Face potrjuje kategorijo Zdravstvo z 91% ujemanjem."
   ],
   "checks": {
     "completeness": 100,
@@ -132,7 +137,7 @@ Authorization: Bearer <aplikacijski-token>
 
 ## Viri
 
-- Hugging Face Inference Providers: https://huggingface.co/docs/hub/models-inference
-- Hugging Face Zero-Shot Classification: https://huggingface.co/docs/inference-providers/en/tasks/zero-shot-classification
+- Hugging Face Inference Providers: https://huggingface.co/docs/inference-providers/index
+- Hugging Face Zero-Shot Classification: https://huggingface.co/docs/inference-providers/tasks/zero-shot-classification
+- Hugging Face Inference API: https://huggingface.co/docs/api-inference/index
 - Hugging Face JavaScript InferenceClient: https://huggingface.co/docs/huggingface.js/en/inference/classes/InferenceClient
-- Transformers.js: https://huggingface.co/docs/transformers.js/en/index

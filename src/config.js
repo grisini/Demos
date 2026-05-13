@@ -9,7 +9,7 @@ export const config = {
   SIPASS_REDIRECT_URI: "http://localhost:5173/auth/sipass/callback",
   AI_PROVIDER: "local",
   AI_REVIEW_ENDPOINT: "",
-  HUGGINGFACE_ZERO_SHOT_MODEL: "MoritzLaurer/ModernBERT-large-zeroshot-v2.0",
+  HUGGINGFACE_ZERO_SHOT_MODEL: "facebook/bart-large-mnli",
   HUGGINGFACE_EMBEDDING_MODEL: "intfloat/multilingual-e5-small",
   ...(globalThis.DEMOS_CONFIG || {})
 };

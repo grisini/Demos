@@ -17,7 +17,7 @@
 
 ## Iteracija 3
 
-- Lokalni AI predpregled pobude s score, risk, suitability, completeness in categorySuggestion.
+- Hugging Face AI predpregled pobude s score, risk, suitability, completeness in categorySuggestion ter lokalni fallback.
 - Kategorizacija, statusni tok, filtriranje in komentiranje.
 - Demo zbiranje elektronskih podpisov.
 - Napredna analitika glasov na pobudo, kategorije, komentarjev in AI tveganj.

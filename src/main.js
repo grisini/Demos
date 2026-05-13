@@ -30,6 +30,8 @@ class DemocracyApp {
       draft: emptyDraft(),
       errors: {},
       toast: "",
+      aiPreviewReview: null,
+      aiPreviewLoading: false,
       loading: true
     };
 
@@ -200,7 +202,7 @@ class DemocracyApp {
   }
 
   renderSubmitView() {
-    const review = evaluateInitiative(this.state.draft);
+    const review = this.state.aiPreviewReview || evaluateInitiative(this.state.draft);
     return `
       <section class="submit-grid">
         <form class="panel form-panel" data-form="initiative">
@@ -229,7 +231,7 @@ class DemocracyApp {
           </div>
         </form>
         <aside class="panel review-panel">
-          ${this.renderReviewContent(review)}
+          ${this.renderReviewContent(review, { showRemoteAiAction: true })}
         </aside>
       </section>
     `;
@@ -378,14 +380,14 @@ class DemocracyApp {
         </div>
         <div class="panel">
           <p class="eyebrow">AI presoja</p>
-          <h2>Hugging Face pot</h2>
+          <h2>Napredna AI presoja</h2>
           <dl class="config-list">
-            <div><dt>Provider</dt><dd>${escapeHtml(this.config.AI_PROVIDER)}</dd></div>
+            <div><dt>Nacin</dt><dd>${this.config.AI_PROVIDER === "huggingface" ? "napredno AI preverjanje" : "lokalni fallback"}</dd></div>
             <div><dt>Review endpoint</dt><dd>${this.config.AI_REVIEW_ENDPOINT ? "nastavljen" : "lokalni fallback"}</dd></div>
             <div><dt>Zero-shot model</dt><dd>${escapeHtml(this.config.HUGGINGFACE_ZERO_SHOT_MODEL)}</dd></div>
             <div><dt>Embedding model</dt><dd>${escapeHtml(this.config.HUGGINGFACE_EMBEDDING_MODEL)}</dd></div>
           </dl>
-          <p class="note">Hugging Face token mora ostati na backendu ali edge funkciji; frontend uporablja samo lokalni predpregled ali varen review endpoint.</p>
+          <p class="note">AI token ostane na backendu oziroma v dev strezniku; frontend klice samo varen review endpoint.</p>
         </div>
       </section>
     `;
@@ -511,7 +513,12 @@ class DemocracyApp {
     `;
   }
 
-  renderReviewContent(review) {
+  renderReviewContent(review, options = {}) {
+    const provider = review.checks?.provider || review.provider || "local";
+    const providerLabel = provider === "huggingface" ? "Napredno AI preverjanje" : "Lokalni predpregled";
+    const model = review.checks?.model || review.model || "local-rule-engine-v1";
+    const modelLabel = provider === "huggingface" ? `Hugging Face / ${model}` : "lokalna pravila";
+    const canCallRemoteAi = options.showRemoteAiAction && this.config.AI_REVIEW_ENDPOINT;
     return `
       <p class="eyebrow">AI predpregled</p>
       <div class="score-ring" style="--score: ${review.score}">
@@ -519,9 +526,20 @@ class DemocracyApp {
         <span>${riskLabel(review.risk)}</span>
       </div>
       ${this.renderReviewFacts(review)}
+      <dl class="review-facts">
+        <div><dt>Nacin pregleda</dt><dd>${escapeHtml(providerLabel)}</dd></div>
+        <div><dt>Vir ocene</dt><dd>${escapeHtml(modelLabel)}</dd></div>
+      </dl>
       <ul class="check-list">
         ${review.findings.map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")}
       </ul>
+      ${
+        canCallRemoteAi
+          ? `<button class="button secondary full-width" type="button" data-action="ai-preview" ${this.state.aiPreviewLoading ? "disabled" : ""}>${
+              this.state.aiPreviewLoading ? "AI preverja ..." : "Preglej bolj podrobno z AI"
+            }</button>`
+          : ""
+      }
     `;
   }
 
@@ -645,7 +663,13 @@ class DemocracyApp {
     if (action === "clear-draft") {
       this.state.draft = emptyDraft();
       this.state.errors = {};
+      this.state.aiPreviewReview = null;
       this.render();
+      return;
+    }
+
+    if (action === "ai-preview") {
+      await this.updateRemoteAiPreview();
       return;
     }
 
@@ -696,10 +720,12 @@ class DemocracyApp {
           return;
         }
 
-        const initiative = createInitiative(validation.values, actor);
+        const review = await this.reviewInitiative(validation.values);
+        const initiative = createInitiative(validation.values, actor, review);
         await this.repository.create(initiative);
         this.state.draft = emptyDraft();
         this.state.errors = {};
+        this.state.aiPreviewReview = null;
         this.state.activeView = "dashboard";
         this.state.selectedId = initiative.id;
         await this.refresh();
@@ -724,6 +750,7 @@ class DemocracyApp {
 
     if (draftField) {
       this.state.draft[draftField] = event.target.value;
+      this.state.aiPreviewReview = null;
       this.updateReviewPreview();
     }
 
@@ -788,7 +815,61 @@ class DemocracyApp {
   updateReviewPreview() {
     const panel = this.root.querySelector(".review-panel");
     if (!panel) return;
-    panel.innerHTML = this.renderReviewContent(evaluateInitiative(this.state.draft));
+    panel.innerHTML = this.renderReviewContent(evaluateInitiative(this.state.draft), { showRemoteAiAction: true });
+  }
+
+  async updateRemoteAiPreview() {
+    this.state.aiPreviewLoading = true;
+    this.render();
+    try {
+      this.state.aiPreviewReview = await this.reviewInitiative(this.state.draft);
+      const provider = this.state.aiPreviewReview.checks?.provider || this.state.aiPreviewReview.provider || "local";
+      this.toast(
+        provider === "huggingface"
+          ? "Napredni AI pregled je pripravljen."
+          : "Napredni AI pregled ni uspel; uporabljen je lokalni fallback."
+      );
+    } catch (error) {
+      this.reportError("Napaka pri naprednem AI predpregledu", error);
+      this.toast("Napredni AI pregled ni uspel; uporabljen je lokalni fallback.");
+    } finally {
+      this.state.aiPreviewLoading = false;
+      this.render();
+    }
+  }
+
+  async reviewInitiative(values) {
+    const fallback = evaluateInitiative(values);
+    if (!this.config.AI_REVIEW_ENDPOINT || this.config.AI_PROVIDER !== "huggingface") {
+      return fallback;
+    }
+
+    try {
+      const response = await fetch(this.config.AI_REVIEW_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(values)
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI review endpoint failed (${response.status})`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      this.reportError("Hugging Face review fallback", error);
+      return {
+        ...fallback,
+        checks: {
+          ...fallback.checks,
+          provider: "local",
+          model: "local-rule-engine-v1",
+          fallbackReason: "huggingface_unavailable"
+        }
+      };
+    }
   }
 }
 

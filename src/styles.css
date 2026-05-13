@@ -253,6 +253,11 @@ h3 {
   font-size: 0.88rem;
 }
 
+.button.full-width {
+  width: 100%;
+  margin-top: 14px;
+}
+
 input,
 select,
 textarea {

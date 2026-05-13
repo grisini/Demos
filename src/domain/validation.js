@@ -154,8 +154,7 @@ export function evaluateInitiative(input) {
   };
 }
 
-export function createInitiative(input, actor) {
-  const review = evaluateInitiative(input);
+export function createInitiative(input, actor, review = evaluateInitiative(input)) {
   const values = normalizeInput(input);
   const now = new Date().toISOString();
 

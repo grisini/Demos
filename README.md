@@ -20,7 +20,8 @@ npm test
 
 - demo prijava brez SI-PASS,
 - oddaja pobude z osnovno validacijo,
-- lokalni AI predpregled besedila pobude s predlogom kategorije in oceno ustreznosti,
+- Hugging Face AI predpregled besedila pobude s score, risk, suitability, completeness in categorySuggestion,
+- lokalni AI predpregled kot fallback, kadar Hugging Face ni nastavljen ali ni dosegljiv,
 - pregled, iskanje, filtriranje in razvrscanje pobud,
 - glasovanje, demo podpisovanje, komentarji in statusi,
 - napredna statistika glasov na pobudo, kategorije, komentarje in AI tveganja,
@@ -36,3 +37,17 @@ npm test
 - `docs/supabase.md` - Supabase povezava,
 - `docs/baza-porocilo.md` - porocilo o zasnovi baze in razlogih za podatkovni model,
 - `docs/si-pass-testno-okolje.md` - razvojne opombe za SI-PASS.
+
+## Hugging Face
+
+Kljuc naj bo samo v `.env.local` ali okolju, ne v `src` datotekah:
+
+```bash
+AI_PROVIDER=huggingface
+AI_REVIEW_ENDPOINT=/api/ai/review-initiative
+HUGGINGFACE_ZERO_SHOT_MODEL=facebook/bart-large-mnli
+HUGGINGFACE_EMBEDDING_MODEL=intfloat/multilingual-e5-small
+HF_TOKEN=hf_...
+```
+
+Dev streznik izpostavi varen endpoint `/api/ai/review-initiative`, frontend pa ob oddaji pobude uporabi Hugging Face in ob napaki samodejno pade nazaj na lokalno presojo.
