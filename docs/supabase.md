@@ -2,6 +2,8 @@
 
 Projekt trenutno deluje lokalno z `localStorage`. Za Supabase preklop je pripravljen REST adapter v `src/lib/supabase.js` in SQL shema v `supabase/schema.sql`.
 
+AI predpregled je v razvojnem okolju ze povezan prek `POST /api/ai/review-initiative` v `scripts/dev-server.mjs`. Endpoint uporablja `HF_TOKEN` na strani streznika in zato tokena ne razkrije brskalniku.
+
 Shema vsebuje tudi pripravo za Iteracijo 3:
 
 - `initiative_ai_reviews` za zgodovino AI presoj in audit surovih odgovorov,
@@ -32,4 +34,4 @@ Za produkcijo je treba:
 - prepreciti spremembo statusov navadnim uporabnikom,
 - hraniti samo minimalne osebne podatke oziroma anonimizirane identifikatorje,
 - dodati rate limiting in revizijsko sled.
-- Hugging Face token hraniti izkljucno na backendu ali Supabase Edge Function, ne v brskalniku.
+- razvojni Hugging Face endpoint premakniti v backend ali Supabase Edge Function in token hraniti izkljucno tam, ne v brskalniku.

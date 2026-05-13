@@ -58,12 +58,14 @@ Priporocen tok:
 
 1. Frontend pri pisanju pobude prikaze lokalni fallback `evaluateInitiative`.
 2. Ob rocnem predpregledu ali oddaji frontend poklice `/api/ai/review-initiative`.
-3. Backend/dev server poklice Hugging Face Inference Providers z zascitenim `HF_TOKEN`.
+3. Razvojni streznik `scripts/dev-server.mjs` poklice Hugging Face Inference Providers z zascitenim `HF_TOKEN`.
 4. Rezultat se normalizira v isti format kot lokalni review: `score`, `risk`, `findings`, `checks`, `categorySuggestion`, `suitability`.
 5. V `initiatives` se shrani zadnja ocena, v `initiative_ai_reviews` pa celoten audit zapis.
 6. Ce Hugging Face klic odpove, frontend/backend uporabi lokalni fallback in oznaci `provider = local`.
 
 Tokena za Hugging Face se ne sme poslati v brskalnik. Prava vrednost `HF_TOKEN` spada v `.env.local` ali sistemsko okolje.
+
+Trenutno je endpoint implementiran v razvojnem strezniku za demo uporabo. Za produkcijo mora biti isti tok premaknjen v Supabase Edge Function ali namenski backend, kjer se dodajo preverjanje identitete, rate limiting in audit zapis v `initiative_ai_reviews`.
 
 ## Hugging Face uporaba
 
@@ -115,8 +117,8 @@ Content-Type: application/json
     "confidence": 91
   },
   "findings": [
-    "Hugging Face ustreznost: primerna za objavo (88% zanesljivost).",
-    "Hugging Face potrjuje kategorijo Zdravstvo z 91% ujemanjem."
+    "Napredno preverjanje ocenjuje: primerna za objavo (88% zanesljivost).",
+    "Napredno preverjanje potrjuje kategorijo Zdravstvo z 91% ujemanjem."
   ],
   "checks": {
     "completeness": 100,

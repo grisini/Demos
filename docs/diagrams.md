@@ -30,7 +30,8 @@ sequenceDiagram
   actor Uporabnik
   participant UI as Frontend
   participant Domain as Domenska logika
-  participant AI as AI review endpoint
+  participant AI as Dev AI endpoint
+  participant HF as Hugging Face
   participant Repo as Repozitorij
   participant DB as Supabase/localStorage
 
@@ -39,7 +40,9 @@ sequenceDiagram
   Domain-->>UI: napake ali normalizirane vrednosti
   UI->>Domain: evaluateInitiative(draft)
   Domain-->>UI: lokalni AI fallback
-  UI->>AI: review pobude (produkcijski tok)
+  UI->>AI: POST /api/ai/review-initiative
+  AI->>HF: zero-shot kategorija in ustreznost
+  HF-->>AI: labels in scores
   AI-->>UI: score, risk, suitability, categorySuggestion
   UI->>Repo: create(initiative)
   Repo->>DB: insert initiative

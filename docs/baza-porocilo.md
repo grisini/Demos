@@ -138,9 +138,9 @@ Nad poljem `body` je dodan `check`, ki omeji dolzino komentarja med 3 in 2000 zn
 
 ### `initiative_ai_reviews`
 
-Tabela `initiative_ai_reviews` je pripravljena za kasnejso razsiritev AI funkcionalnosti.
+Tabela `initiative_ai_reviews` je pripravljena za revizijsko sled AI funkcionalnosti.
 
-Trenutno aplikacija uporablja osnovno lokalno oceno pobude, vendar je smiselno hraniti tudi zgodovino AI pregledov, zato tabela vsebuje:
+Trenutno aplikacija v razvojnem okolju uporablja Hugging Face predpregled prek varnega endpointa `/api/ai/review-initiative`, ob napaki pa lokalno oceno pobude. Smiselno je hraniti tudi zgodovino AI pregledov, zato tabela vsebuje:
 
 - ponudnika AI storitve (`provider`),
 - model (`model`),
@@ -152,7 +152,7 @@ Trenutno aplikacija uporablja osnovno lokalno oceno pobude, vendar je smiselno h
 - dodatne kontrole (`checks`),
 - surov odgovor modela (`raw_response`).
 
-Ta zasnova omogoca revizijsko sled, ce bi kasneje AI pregled tekocih pobud izvajali prek zunanjega modela ali backend storitve.
+Ta zasnova omogoca revizijsko sled zunanjega modela, ko bo razvojni endpoint premaknjen v produkcijsko backend ali Supabase Edge Function okolje.
 
 ## Uporaba enum tipov
 
@@ -322,7 +322,7 @@ Glavne prednosti te baze so:
 - model je dovolj enostaven za prototip,
 - relacije so logicne in dobro podpirajo funkcionalnosti aplikacije,
 - podatki so normalizirani,
-- AI podatki so pripravljeni za razsiritev,
+- AI podatki podpirajo lokalni fallback in zunanji Hugging Face pregled,
 - analitika je podprta ze na nivoju SQL pogledov,
 - zasnova je primerna za nadaljnji prehod v produkcijsko resitev.
 
