@@ -208,7 +208,7 @@ class DemocracyApp {
         <form class="panel form-panel" data-form="initiative">
           <div class="panel-header">
             <div>
-              <p class="eyebrow">Iteraciji 1-3</p>
+              <p class="eyebrow">Nova zakonodajna pobuda</p>
               <h2>Oddaja pobude</h2>
             </div>
           </div>
@@ -462,7 +462,7 @@ class DemocracyApp {
       </section>
       <section class="detail-section">
         <h3>AI ugotovitve</h3>
-        ${this.renderReviewFacts(review)}
+        ${this.renderReviewFacts(review, { detailed: true })}
         <ul class="check-list">
           ${review.findings.map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")}
         </ul>
@@ -543,17 +543,35 @@ class DemocracyApp {
     `;
   }
 
-  renderReviewFacts(review) {
+  renderReviewFacts(review, options = {}) {
     const checks = review.checks || {};
     const completeness = checks.completeness?.score ?? 0;
     const suitability = checks.suitability || "insufficient";
     const category = checks.categorySuggestion?.category || "Ni predloga";
+    const confidence = checks.categorySuggestion?.confidence;
+    const legalHits = Array.isArray(checks.legalHits) ? checks.legalHits : [];
+    const budgetHits = Array.isArray(checks.budgetHits) ? checks.budgetHits : [];
+    const wordCount = checks.length ?? 0;
+    const provider = checks.provider || review.provider || "local";
+    const source = provider === "huggingface" ? `Hugging Face / ${checks.model || review.model || "AI model"}` : "lokalna pravila";
 
     return `
       <dl class="review-facts">
+        ${options.detailed ? `<div><dt>Risk level</dt><dd>${riskLabel(review.risk)}</dd></div>` : ""}
         <div><dt>Ustreznost</dt><dd>${suitabilityLabel(suitability)}</dd></div>
         <div><dt>Popolnost</dt><dd>${completeness}%</dd></div>
         <div><dt>AI kategorija</dt><dd>${escapeHtml(category)}</dd></div>
+        ${
+          options.detailed
+            ? `
+              <div><dt>Zanesljivost kategorije</dt><dd>${confidence ?? 0}%</dd></div>
+              <div><dt>Pravne oporne tocke</dt><dd>${legalHits.length ? escapeHtml(legalHits.join(", ")) : "ni zaznanih"}</dd></div>
+              <div><dt>Proracunska opozorila</dt><dd>${budgetHits.length ? escapeHtml(budgetHits.join(", ")) : "ni zaznanih"}</dd></div>
+              <div><dt>Obseg besedila</dt><dd>${wordCount} besed</dd></div>
+              <div><dt>Vir ocene</dt><dd>${escapeHtml(source)}</dd></div>
+            `
+            : ""
+        }
       </dl>
     `;
   }
