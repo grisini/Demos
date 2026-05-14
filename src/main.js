@@ -1,6 +1,12 @@
 import { config, isSupabaseEnabled } from "./config.js";
 import { calculateAnalytics } from "./domain/analytics.js";
 import {
+  NOTIFICATION_EVENTS,
+  buildCategoryMatchEmailNotifications,
+  buildInitiativeChangeEmailNotifications,
+  isValidEmail
+} from "./domain/notifications.js";
+import {
   CATEGORIES,
   STATUSES,
   createInitiative,
@@ -11,13 +17,15 @@ import {
   validateInitiative
 } from "./domain/validation.js";
 import { DemoAuth } from "./lib/auth.js";
+import { EmailNotificationClient } from "./lib/notifications.js";
 import { createRepository } from "./lib/supabase.js";
 
 class DemocracyApp {
-  constructor({ root, repository, auth, config: appConfig }) {
+  constructor({ root, repository, auth, notificationClient, config: appConfig }) {
     this.root = root;
     this.repository = repository;
     this.auth = auth;
+    this.notificationClient = notificationClient;
     this.config = appConfig;
     this.state = {
       initiatives: [],
@@ -389,6 +397,18 @@ class DemocracyApp {
           </dl>
           <p class="note">AI token ostane na backendu oziroma v dev strezniku; frontend klice samo varen review endpoint.</p>
         </div>
+        <div class="panel">
+          <p class="eyebrow">Obvestila</p>
+          <h2>E-posta</h2>
+          <dl class="config-list">
+            <div><dt>Endpoint</dt><dd>${this.config.EMAIL_NOTIFICATIONS_ENDPOINT ? "nastavljen" : "ni nastavljen"}</dd></div>
+            <div><dt>Dostava</dt><dd>${this.config.EMAIL_DELIVERY_MODE === "smtp" ? "SMTP" : "outbox log"}</dd></div>
+            <div><dt>Test akterja</dt><dd>${this.config.EMAIL_NOTIFY_ACTOR ? "vklopljen" : "izklopljen"}</dd></div>
+            <div><dt>Dogodki</dt><dd>status, komentar, podpora, nova sorodna pobuda</dd></div>
+          </dl>
+          <button class="button secondary" data-action="test-email">Test email obvestila</button>
+          <p class="note">V dev nacinu endpoint obvestila zapise v outbox ali jih poslje prek SMTP, ce je nastavljen.</p>
+        </div>
       </section>
     `;
   }
@@ -704,11 +724,27 @@ class DemocracyApp {
       return;
     }
 
+    if (action === "test-email") {
+      await this.sendTestEmailNotification();
+      return;
+    }
+
     if (action === "vote" || action === "sign") {
       await this.withActor(async (actor) => {
         const id = target.dataset.id;
-        if (action === "vote") await this.repository.vote(id, actor);
-        if (action === "sign") await this.repository.sign(id, actor, this.config.AUTH_MODE === "sipass" ? "sipass" : "demo");
+        const updated =
+          action === "vote"
+            ? await this.repository.vote(id, actor)
+            : await this.repository.sign(id, actor, this.config.AUTH_MODE === "sipass" ? "sipass" : "demo");
+        await this.sendEmailNotifications(
+          buildInitiativeChangeEmailNotifications({
+            initiative: updated,
+            actor,
+            eventType: action === "vote" ? NOTIFICATION_EVENTS.VOTE_ADDED : NOTIFICATION_EVENTS.SIGNATURE_ADDED,
+            siteUrl: this.appUrl(),
+            includeActor: this.config.EMAIL_NOTIFY_ACTOR
+          })
+        );
         await this.refresh();
         this.toast(action === "vote" ? "Glas je zabelezen." : "Podpis je evidentiran.");
       });
@@ -740,7 +776,17 @@ class DemocracyApp {
 
         const review = await this.reviewInitiative(validation.values);
         const initiative = createInitiative(validation.values, actor, review);
+        const existingInitiatives = this.state.initiatives;
         await this.repository.create(initiative);
+        await this.sendEmailNotifications(
+          buildCategoryMatchEmailNotifications({
+            newInitiative: initiative,
+            initiatives: existingInitiatives,
+            actor,
+            siteUrl: this.appUrl(),
+            includeActor: this.config.EMAIL_NOTIFY_ACTOR
+          })
+        );
         this.state.draft = emptyDraft();
         this.state.errors = {};
         this.state.aiPreviewReview = null;
@@ -755,7 +801,17 @@ class DemocracyApp {
     if (form.dataset.form === "comment") {
       await this.withActor(async (actor) => {
         const body = new FormData(form).get("body");
-        await this.repository.comment(form.dataset.id, actor, body);
+        const updated = await this.repository.comment(form.dataset.id, actor, body);
+        await this.sendEmailNotifications(
+          buildInitiativeChangeEmailNotifications({
+            initiative: updated,
+            actor,
+            eventType: NOTIFICATION_EVENTS.COMMENT_ADDED,
+            commentBody: body,
+            siteUrl: this.appUrl(),
+            includeActor: this.config.EMAIL_NOTIFY_ACTOR
+          })
+        );
         await this.refresh();
         this.toast("Komentar je objavljen.");
       });
@@ -789,7 +845,18 @@ class DemocracyApp {
     const statusId = event.target.dataset.statusId;
     if (statusId) {
       try {
-        await this.repository.updateStatus(statusId, event.target.value);
+        const previous = this.state.initiatives.find((initiative) => initiative.id === statusId);
+        const updated = await this.repository.updateStatus(statusId, event.target.value);
+        await this.sendEmailNotifications(
+          buildInitiativeChangeEmailNotifications({
+            initiative: updated,
+            actor: this.currentUser(),
+            eventType: NOTIFICATION_EVENTS.STATUS_CHANGED,
+            previousStatus: previous?.status,
+            siteUrl: this.appUrl(),
+            includeActor: this.config.EMAIL_NOTIFY_ACTOR
+          })
+        );
         await this.refresh();
         this.toast("Status pobude je posodobljen.");
       } catch (error) {
@@ -815,6 +882,75 @@ class DemocracyApp {
       this.toast(userFacingErrorMessage(error));
       this.render();
     }
+  }
+
+  async sendEmailNotifications(notifications) {
+    const items = Array.isArray(notifications) ? notifications.filter(Boolean) : [];
+    console.info("[Demokracija 2.0] Email UI: dogodek je pripravil obvestila", {
+      count: items.length,
+      recipients: items.map((item) => maskEmail(item.to)),
+      types: [...new Set(items.map((item) => item.type).filter(Boolean))]
+    });
+
+    try {
+      const result = await this.notificationClient?.send(items);
+      if (result && !result.skipped) {
+        console.info("[Demokracija 2.0] Email obvestila", result);
+      } else {
+        console.info("[Demokracija 2.0] Email UI: posiljanje preskoceno", result);
+      }
+    } catch (error) {
+      this.reportError("Email obvestila niso bila poslana", error);
+    }
+  }
+
+  async sendTestEmailNotification() {
+    const user = this.currentUser();
+    const email = user?.email || user?.id || "";
+
+    if (!isValidEmail(email)) {
+      this.toast("Za test emaila se prijavite z veljavnim email naslovom.");
+      this.render();
+      return;
+    }
+
+    try {
+      const result = await this.notificationClient.send([
+        {
+          id: `test-${Date.now()}`,
+          type: "test_email",
+          to: email,
+          toName: user.name || email,
+          subject: "Testno obvestilo Demokracija 2.0",
+          text: [
+            `Pozdravljeni ${user.name || email},`,
+            "",
+            "To je testno email obvestilo iz razvojnega okolja Demokracija 2.0."
+          ].join("\n"),
+          metadata: {
+            eventType: "test_email",
+            createdAt: new Date().toISOString()
+          }
+        }
+      ]);
+
+      if (result.mode === "smtp") {
+        this.toast("Testni email je bil poslan prek SMTP.");
+      } else if (result.mode === "outbox") {
+        this.toast("Testno obvestilo je zapisano v outbox log; SMTP ni nastavljen.");
+      } else {
+        this.toast("Testno obvestilo ni imelo prejemnika.");
+      }
+    } catch (error) {
+      this.reportError("Test email obvestila ni uspel", error);
+      this.toast("Test email ni uspel. Preverite SMTP nastavitve in dev-server log.");
+    } finally {
+      this.render();
+    }
+  }
+
+  appUrl() {
+    return `${window.location.origin}${window.location.pathname}`.replace(/\/$/, "");
   }
 
   reportError(context, error) {
@@ -923,6 +1059,13 @@ function escapeAttribute(value) {
   return escapeHtml(value).replace(/`/g, "&#096;");
 }
 
+function maskEmail(value) {
+  const email = String(value || "");
+  const [name, domain] = email.split("@");
+  if (!name || !domain) return email || "(brez)";
+  return `${name.slice(0, 2)}***@${domain}`;
+}
+
 function userFacingErrorMessage(error) {
   const message = String(error?.message || "");
 
@@ -944,6 +1087,7 @@ const app = new DemocracyApp({
   root: document.querySelector("#app"),
   repository: createRepository(config),
   auth: new DemoAuth(),
+  notificationClient: new EmailNotificationClient(config),
   config
 });
 
