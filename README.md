@@ -35,9 +35,12 @@ npm test
 - `docs/iteracija-3-analitika-ai.md` - analitika, AI predpregled, shema in Hugging Face pot,
 - `docs/diagrams.md` - Mermaid uporabniski, UML, ER in zaporedni diagrami,
 - `docs/devwork-loop.md` - sprotna porocila in kontrolne tocke,
+- `docs/ci-cd-pipeline.md` - predlagan GitHub Actions pipeline,
 - `docs/supabase.md` - Supabase povezava,
 - `docs/baza-porocilo.md` - porocilo o zasnovi baze in razlogih za podatkovni model,
-- `docs/si-pass-testno-okolje.md` - razvojne opombe za SI-PASS.
+- `docs/si-pass-testno-okolje.md` - razvojne opombe za SI-PASS,
+- `docs/sipass-sicas-ces-priklop.md` - checklist za SI-CAS metadata in SI-CES potrdila.
+- `docs/sicas-sices-vps-checklist.md` - kratek VPS checklist za SI-CAS/SI-CES.
 
 ## Hugging Face
 
