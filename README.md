@@ -24,6 +24,7 @@ npm test
 - lokalni AI predpregled kot fallback, kadar Hugging Face ni nastavljen ali ni dosegljiv,
 - pregled, iskanje, filtriranje in razvrscanje pobud,
 - glasovanje, demo podpisovanje, komentarji in statusi,
+- email obvestila za glasovalce ob spremembah pobude in novih pobudah v isti kategoriji,
 - napredna statistika glasov na pobudo, kategorije, komentarje in AI tveganja,
 - Supabase SQL shema in konfiguracijski nastavki,
 - povzetek SI-PASS testnega okolja.
@@ -51,3 +52,26 @@ HF_TOKEN=hf_...
 ```
 
 Dev streznik izpostavi varen endpoint `/api/ai/review-initiative`, frontend pa ob oddaji pobude uporabi Hugging Face in ob napaki samodejno pade nazaj na lokalno presojo.
+
+## Email obvestila
+
+Frontend poklice `POST /api/notifications/email`, kadar se spremeni pobuda, za katero je uporabnik glasoval, ali kadar nastane nova pobuda v kategoriji, kjer je uporabnik ze glasoval.
+
+Privzeto razvojni streznik obvestila zapise v `demos-email-outbox.log`. Za dejansko posiljanje nastavite SMTP podatke v `.env.local`:
+
+```bash
+EMAIL_NOTIFICATIONS_ENDPOINT=/api/notifications/email
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_STARTTLS=true
+SMTP_USER=...
+SMTP_PASS=...
+SMTP_FROM="Demokracija 2.0 <no-reply@example.com>"
+```
+
+Za testiranje vseh obvestil na en naslov in tudi dogodkov, ki jih sprozi isti uporabnik, lahko dodate:
+
+```bash
+EMAIL_TEST_RECIPIENT=test@example.com
+EMAIL_NOTIFY_ACTOR=true
+```
