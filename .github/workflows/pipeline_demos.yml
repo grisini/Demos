@@ -1,0 +1,66 @@
+name: Demos CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test project
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Check required files
+        run: |
+          test -f index.html
+          test -f package.json
+          test -f package-lock.json
+          test -f src/main.js
+          test -f src/config.js
+          test -f src/domain/validation.js
+          test -f src/domain/analytics.js
+          test -f docs/roadmap.md
+          test -f docs/iteracija-3-analitika-ai.md
+          test -f docs/sipass-sicas-ces-priklop.md
+
+      - name: Check that local secrets are not committed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -f ".env.local" ]; then
+            echo ".env.local must not be committed."
+            exit 1
+          fi
+
+          if grep -RInE "(hf_[A-Za-z0-9]{20,}|sk-or-v1-[A-Za-z0-9]{20,}|BEGIN (RSA |EC |)PRIVATE KEY)" \
+            --exclude-dir=.git \
+            --exclude-dir=node_modules \
+            --exclude-dir=.codex_extracts \
+            --exclude="*.log" \
+            .; then
+            echo "Potential secret found in repository files."
+            exit 1
+          fi
