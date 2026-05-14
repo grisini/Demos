@@ -2,6 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { calculateAnalytics } from "../src/domain/analytics.js";
 import {
+  NOTIFICATION_EVENTS,
+  buildCategoryMatchEmailNotifications,
+  buildInitiativeChangeEmailNotifications
+} from "../src/domain/notifications.js";
+import {
   addComment,
   createInitiative,
   evaluateInitiative,
@@ -24,6 +29,7 @@ const actor = {
   id: "demo@demos.local",
   name: "Demo uporabnik"
 };
+const hardcodedNotificationRecipient = "janezpederka@gmail.com";
 
 test("validateInitiative zavrne prekratko pobudo", () => {
   const result = validateInitiative({ title: "Test", category: "Drugo", summary: "", description: "" });
@@ -92,4 +98,54 @@ test("analytics izracuna osnovne kazalnike", () => {
   assert.equal(analytics.initiativeStats[0].votes, 1);
   assert.equal(analytics.voteDistribution.maxVotes, 1);
   assert.equal(analytics.categoryStats[0].votes, 1);
+});
+
+test("obvestila o spremembi pobude ciljajo glasovalce brez akterja", () => {
+  const otherActor = { id: "ana@example.test", name: "Ana" };
+  const initiative = voteForInitiative(voteForInitiative(createInitiative(validInput, actor), actor), otherActor);
+  const notifications = buildInitiativeChangeEmailNotifications({
+    initiative,
+    actor,
+    eventType: NOTIFICATION_EVENTS.COMMENT_ADDED,
+    commentBody: "Dodana je nova razlaga predloga."
+  });
+
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0].to, hardcodedNotificationRecipient);
+  assert.match(notifications[0].subject, /Nov komentar/);
+  assert.match(notifications[0].text, /Javna sledljivost/);
+});
+
+test("hardcodan prejemnik dobi spremembo tudi brez glasov", () => {
+  const initiative = createInitiative(validInput, actor);
+  const notifications = buildInitiativeChangeEmailNotifications({
+    initiative,
+    actor,
+    eventType: NOTIFICATION_EVENTS.STATUS_CHANGED,
+    previousStatus: "review"
+  });
+
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0].to, hardcodedNotificationRecipient);
+});
+
+test("nova pobuda obvesti glasovalce pobud iste kategorije", () => {
+  const firstVoter = { id: "ana@example.test", name: "Ana" };
+  const secondVoter = { id: "bor@example.test", name: "Bor" };
+  const related = voteForInitiative(voteForInitiative(createInitiative(validInput, actor), firstVoter), secondVoter);
+  const unrelated = voteForInitiative(
+    createInitiative({ ...validInput, title: "Cistejsi zrak v mestih", category: "Okolje" }, firstVoter),
+    firstVoter
+  );
+  const newInitiative = createInitiative({ ...validInput, title: "Odprti podatki javnih storitev" }, actor);
+  const notifications = buildCategoryMatchEmailNotifications({
+    newInitiative,
+    initiatives: [related, unrelated],
+    actor: firstVoter
+  });
+
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0].to, hardcodedNotificationRecipient);
+  assert.equal(notifications[0].metadata.category, validInput.category);
+  assert.match(notifications[0].subject, /Nova pobuda/);
 });
