@@ -4,31 +4,38 @@ Kratek checklist za projekt, kjer bo avtentikacija tekla na VPS strezniku.
 
 ## 1. VPS in domena
 
-- [ ] Kupiti oziroma pridobiti VPS.
-- [ ] Izbrati Linux distribucijo, priporoceno Ubuntu LTS.
+- [x] Kupiti oziroma pridobiti VPS.
+- [x] Izbrati Linux distribucijo, priporoceno Ubuntu LTS.
 - [ ] Urediti dostop prek SSH.
-- [ ] Ustvariti domeno ali subdomeno, npr. `demos.example.si`.
-- [ ] DNS `A` zapis usmeriti na IPv4 naslov VPS-ja.
-- [ ] Namestiti HTTPS certifikat, npr. Let's Encrypt.
+- [x] Ustvariti domeno `demokracija-20.si`.
+- [x] Ustvariti avtentikacijsko subdomeno `auth.demokracija-20.si`.
+- [x] DNS `A` zapis usmeriti na IPv4 naslov VPS-ja `67.221.249.29`.
+- [x] Namestiti oziroma preveriti HTTPS dostop za `auth.demokracija-20.si`.
 
 ## 2. Shibboleth SP za SI-CAS
 
-- [ ] Namestiti Apache.
-- [ ] Namestiti Shibboleth SP.
-- [ ] Preveriti, da `shibd` tece.
-- [ ] Nastaviti `entityID`, ki ga potrdi SI-CAS ekipa.
-- [ ] V Shibboleth dodati SI-CAS test metadata:
-  `https://sicas-test.sigov.si/static/idp-metadata.xml`
-- [ ] Ustvariti ali uporabiti SAML SP certifikat.
+- [x] Namestiti Apache.
+- [x] Namestiti Shibboleth SP.
+- [x] Preveriti, da se konfiguracija nalozi z `shibd -t`.
+- [x] Nastaviti lokalni SP `entityID`: `https://auth.demokracija-20.si/shibboleth`.
+- [x] V Shibboleth dodati SI-CAS test metadata:
+      `https://sicas-test.sigov.si/static/idp-metadata.xml`
+- [x] Nastaviti SI-CAS IdP `entityID`: `SICAS`.
+- [x] Ustvariti SAML SP certifikat in zasebni kljuc:
+      `/etc/shibboleth/sp-cert.pem`, `/etc/shibboleth/sp-key.pem`
+- [x] Nastaviti pravice za SP kljuc/certifikat za `root:_shibd`.
+- [x] Nastaviti `CredentialResolver` za signing in encryption.
 - [ ] Urediti `attribute-map.xml` za atribute, ki jih potrebujemo.
-- [ ] Preveriti lokalno Shibboleth konfiguracijo z `shibd -t`.
 
 ## 3. SP metadata za SI-CAS
 
-- [ ] Odpreti metadata URL, npr. `https://demos.example.si/Shibboleth.sso/Metadata`.
-- [ ] Preveriti, da metadata vsebuje pravi `entityID`.
-- [ ] Preveriti, da metadata vsebuje javni certifikat.
-- [ ] Preveriti, da ACS URL kaze na pravi VPS HTTPS naslov.
+- [x] Odpreti metadata URL:
+      `https://auth.demokracija-20.si/Shibboleth.sso/Metadata`
+- [x] Preveriti, da metadata vsebuje pravi `entityID`.
+- [x] Preveriti, da metadata vsebuje javni certifikat.
+- [x] Preveriti, da metadata vsebuje `KeyDescriptor` za signing in encryption.
+- [x] Preveriti, da ACS URL kaze na pravi VPS HTTPS naslov:
+      `https://auth.demokracija-20.si/Shibboleth.sso/SAML2/POST`
 - [ ] Metadata poslati SI-CAS ekipi.
 - [ ] Pocakati, da SI-CAS ekipa vkljuci nase metapodatke v testno okolje.
 
@@ -56,7 +63,7 @@ Kratek checklist za projekt, kjer bo avtentikacija tekla na VPS strezniku.
 - [ ] Pripraviti klient certifikat za TLS klice.
 - [ ] Zasebni kljuc hraniti samo na VPS-ju, ne v git in ne v frontend kodi.
 - [ ] Implementirati backend klic `putRequest` na:
-  `https://sicas-test.sigov.si/CES-Sign/SicesSign`
+      `https://sicas-test.sigov.si/CES-Sign/SicesSign`
 - [ ] Narediti testni klic s klient certifikatom.
 - [ ] SI-CES ekipi poslati tocen cas klica do minute in uporabljeni `serviceProvider`.
 - [ ] Pocakati, da vpisujejo pravice za certifikat.
@@ -64,9 +71,9 @@ Kratek checklist za projekt, kjer bo avtentikacija tekla na VPS strezniku.
 
 ## 7. Varnost in konfiguracija
 
-- [ ] Noben private key ne sme biti v repozitoriju.
-- [ ] Noben certifikat z zasebnim kljucem ne sme biti v frontend buildu.
-- [ ] Secrets hraniti v VPS datotekah z omejenimi pravicami ali v secret managerju.
+- [x] Noben private key ne sme biti v repozitoriju.
+- [x] Noben certifikat z zasebnim kljucem ne sme biti v frontend buildu.
+- [x] Shibboleth SP zasebni kljuc hraniti samo na VPS-ju z omejenimi pravicami.
 - [ ] Nastaviti backup konfiguracije brez zasebnih kljucev.
 - [ ] Omejiti dostop do admin/SSH.
 - [ ] Vklopiti osnovni firewall.
@@ -74,11 +81,13 @@ Kratek checklist za projekt, kjer bo avtentikacija tekla na VPS strezniku.
 
 ## 8. Dokumentacija za oddajo
 
-- [ ] Shraniti koncni SI-CAS metadata XML.
-- [ ] Zapisati `entityID`.
-- [ ] Zapisati javni URL aplikacije.
-- [ ] Zapisati ACS/logout URL-je.
+- [x] Shraniti oziroma pripraviti SI-CAS SP metadata XML.
+- [x] Shraniti staticni SP metadata XML brez opozorilnega komentarja:
+      `docs/sicas-sp-metadata.xml`
+- [x] Zapisati `entityID`: `https://auth.demokracija-20.si/shibboleth`.
+- [x] Zapisati javni metadata URL:
+      `https://auth.demokracija-20.si/Shibboleth.sso/Metadata`
+- [x] Zapisati ACS/logout URL-je iz Shibboleth metadata.
 - [ ] Zapisati seznam prejetih atributov.
 - [ ] Zapisati SI-CES `serviceProvider`.
 - [ ] Zapisati cas in rezultat testnega SI-CES klica.
-

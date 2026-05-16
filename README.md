@@ -39,8 +39,9 @@ npm test
 - `docs/supabase.md` - Supabase povezava,
 - `docs/baza-porocilo.md` - porocilo o zasnovi baze in razlogih za podatkovni model,
 - `docs/si-pass-testno-okolje.md` - razvojne opombe za SI-PASS,
-- `docs/sipass-sicas-ces-priklop.md` - checklist za SI-CAS metadata in SI-CES potrdila.
-- `docs/sicas-sices-vps-checklist.md` - kratek VPS checklist za SI-CAS/SI-CES.
+- `docs/sipass-sicas-ces-priklop.md` - checklist za SI-CAS metadata in SI-CES potrdila,
+- `docs/sicas-sices-vps-checklist.md` - kratek VPS checklist za SI-CAS/SI-CES,
+- `docs/sicas-vps-vzpostavitev.md` - zapisnik izvedene VPS/Shibboleth vzpostavitve,
 
 ## Hugging Face
 
