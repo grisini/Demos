@@ -1,0 +1,58 @@
+classDiagram
+  class Initiative {
+    string id
+    string title
+    string category
+    string status
+    string summary
+    string description
+    string legalReference
+    string expectedImpact
+    AiReview aiReview
+    Vote[] votes
+    Signature[] signatures
+    Comment[] comments
+  }
+
+  class AiReview {
+    number score
+    string risk
+    string suitability
+    string[] findings
+    object checks
+  }
+
+  class Vote {
+    string userId
+    string userName
+    datetime createdAt
+  }
+
+  class Signature {
+    string userId
+    string userName
+    string method
+    datetime createdAt
+  }
+
+  class Comment {
+    string id
+    string userId
+    string userName
+    string body
+    datetime createdAt
+  }
+
+  class InitiativeAnalytics {
+    number votes
+    number voteShare
+    number signatures
+    number comments
+    number engagementScore
+  }
+
+  Initiative "1" --> "1" AiReview
+  Initiative "1" --> "*" Vote
+  Initiative "1" --> "*" Signature
+  Initiative "1" --> "*" Comment
+  Initiative "1" --> "1" InitiativeAnalytics

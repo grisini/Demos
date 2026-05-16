@@ -18,7 +18,7 @@ SI-CAS in SI-CES se trenutno se ne izvajata v pipeline-u, ker prava integracija 
 Workflow naj bo v:
 
 ```text
-.github/workflows/pipelin_demos.yml
+.github/workflows/pipeline_demos.yml
 ```
 
 ## Predlagana konfiguracija
@@ -67,6 +67,9 @@ jobs:
           test -f src/config.js
           test -f src/domain/validation.js
           test -f src/domain/analytics.js
+          test -f docs/pregled-projekta.md
+          test -f docs/funkcionalnosti.md
+          test -f docs/git-zgodovina.md
           test -f docs/roadmap.md
           test -f docs/iteracija-3-analitika-ai.md
           test -f docs/sipass-sicas-ces-priklop.md
