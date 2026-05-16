@@ -1,0 +1,55 @@
+erDiagram
+  INITIATIVES ||--o{ VOTES : has
+  INITIATIVES ||--o{ SIGNATURES : has
+  INITIATIVES ||--o{ COMMENTS : has
+  INITIATIVES ||--o{ INITIATIVE_AI_REVIEWS : reviewed_by
+
+  INITIATIVES {
+    uuid id PK
+    text title
+    text category
+    initiative_status status
+    integer ai_score
+    text ai_risk
+    jsonb ai_findings
+    jsonb ai_checks
+    timestamptz created_at
+  }
+
+  VOTES {
+    uuid id PK
+    uuid initiative_id FK
+    text voter_ref
+    text voter_name
+    timestamptz created_at
+  }
+
+  SIGNATURES {
+    uuid id PK
+    uuid initiative_id FK
+    text signer_ref
+    text signer_name
+    text method
+    timestamptz created_at
+  }
+
+  COMMENTS {
+    uuid id PK
+    uuid initiative_id FK
+    text author_ref
+    text body
+    timestamptz created_at
+  }
+
+  INITIATIVE_AI_REVIEWS {
+    uuid id PK
+    uuid initiative_id FK
+    text provider
+    text model
+    integer score
+    text risk
+    text suitability
+    text suggested_category
+    jsonb checks
+    jsonb raw_response
+  }

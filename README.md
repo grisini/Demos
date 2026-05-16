@@ -31,17 +31,33 @@ npm test
 
 ## Dokumentacija
 
+- `docs/pregled-projekta.md` - celovit tehnicni in funkcionalni pregled projekta,
+- `docs/funkcionalnosti.md` - zivi register funkcionalnosti, statusov, dokazov v kodi in preverjanja,
+- `docs/git-zgodovina.md` - kronoloski povzetek razvoja iz git zgodovine,
 - `docs/roadmap.md` - izvedba po iteracijah,
+- `docs/devwork-loop.md` - sprotna porocila in kontrolne tocke,
 - `docs/iteracija-3-analitika-ai.md` - analitika, AI predpregled, shema in Hugging Face pot,
 - `docs/diagrams.md` - Mermaid uporabniski, UML, ER in zaporedni diagrami,
-- `docs/devwork-loop.md` - sprotna porocila in kontrolne tocke,
+- `docs/classDiagram.mmd` - izvor UML class diagrama,
+- `docs/erDiagram.mmd` - izvor ER diagrama,
+- `docs/sequenceDiagram.mmd` - izvor zaporednega diagrama,
+- `docs/flowchart LR.mmd` - izvor uporabniskega flow diagrama,
 - `docs/ci-cd-pipeline.md` - predlagan GitHub Actions pipeline,
 - `docs/supabase.md` - Supabase povezava,
 - `docs/baza-porocilo.md` - porocilo o zasnovi baze in razlogih za podatkovni model,
 - `docs/si-pass-testno-okolje.md` - razvojne opombe za SI-PASS,
-- `docs/sipass-sicas-ces-priklop.md` - checklist za SI-CAS metadata in SI-CES potrdila,
-- `docs/sicas-sices-vps-checklist.md` - kratek VPS checklist za SI-CAS/SI-CES,
+- `docs/sipass-sicas-ces-priklop.md` - podrobnejsi opis SI-PASS, SI-CAS in SI-CES priklopa,
 - `docs/sicas-vps-vzpostavitev.md` - zapisnik izvedene VPS/Shibboleth vzpostavitve,
+- `docs/sicas-sices-vps-checklist.md` - kratek VPS checklist za SI-CAS/SI-CES,
+- `docs/sicas-sp-metadata.xml` - staticni SI-CAS SP metadata izvoz brez Shibboleth opozorilnega komentarja.
+
+## Hitri pregled za ocenjevanje
+
+1. Preberite `docs/pregled-projekta.md` za arhitekturo, DevWork koncept in znane omejitve.
+2. Preverite `docs/funkcionalnosti.md` za seznam implementiranih, delnih in pripravljenih funkcionalnosti.
+3. Preverite `docs/git-zgodovina.md` za dokaz iterativnega razvoja.
+4. Zazenite `npm test`.
+5. Zazenite `npm run dev` in rocno preverite oddajo pobude, glasovanje, podpis, komentar, AI predpregled in analitiko.
 
 ## Hugging Face
 

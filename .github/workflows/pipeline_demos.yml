@@ -31,6 +31,24 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Check required project files
+        run: |
+          test -f index.html
+          test -f package.json
+          test -f package-lock.json
+          test -f src/main.js
+          test -f src/config.js
+          test -f src/domain/validation.js
+          test -f src/domain/analytics.js
+          test -f src/domain/notifications.js
+          test -f docs/pregled-projekta.md
+          test -f docs/funkcionalnosti.md
+          test -f docs/git-zgodovina.md
+          test -f docs/devwork-loop.md
+          test -f docs/roadmap.md
+          test -f docs/iteracija-3-analitika-ai.md
+          test -f docs/sipass-sicas-ces-priklop.md
         
       - name: Check that local secrets are not committed
         shell: bash
