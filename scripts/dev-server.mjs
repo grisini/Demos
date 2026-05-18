@@ -50,8 +50,8 @@ function runtimeConfig() {
   return {
     DATA_SOURCE: env.DATA_SOURCE || "local",
     AUTH_MODE: env.AUTH_MODE || "demo",
-    SUPABASE_URL: env.SUPABASE_URL || "",
-    SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY || "",
+    SUPABASE_URL: env.SUPABASE_URL || env.VITE_SUPABASE_URL || "",
+    SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY || "",
     SIPASS_ENV: env.SIPASS_ENV || "test",
     SIPASS_AUTHORITY: env.SIPASS_AUTHORITY || "https://sicas-test.sigov.si/",
     SIPASS_CLIENT_ID: env.SIPASS_CLIENT_ID || "",
