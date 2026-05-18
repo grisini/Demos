@@ -48,22 +48,28 @@ function runtimeConfig() {
   };
 
   return {
-    DATA_SOURCE: env.DATA_SOURCE || "local",
-    AUTH_MODE: env.AUTH_MODE || "demo",
+    DATA_SOURCE: env.DATA_SOURCE || env.VITE_DATA_SOURCE || "local",
+    AUTH_MODE: env.AUTH_MODE || env.VITE_AUTH_MODE || "demo",
     SUPABASE_URL: env.SUPABASE_URL || env.VITE_SUPABASE_URL || "",
     SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY || "",
-    SIPASS_ENV: env.SIPASS_ENV || "test",
-    SIPASS_AUTHORITY: env.SIPASS_AUTHORITY || "https://sicas-test.sigov.si/",
-    SIPASS_CLIENT_ID: env.SIPASS_CLIENT_ID || "",
+    SIPASS_ENV: env.SIPASS_ENV || env.VITE_SIPASS_ENV || "test",
+    SIPASS_AUTHORITY: env.SIPASS_AUTHORITY || env.VITE_SIPASS_AUTHORITY || "https://sicas-test.sigov.si/",
+    SIPASS_CLIENT_ID: env.SIPASS_CLIENT_ID || env.VITE_SIPASS_CLIENT_ID || "",
     SIPASS_REDIRECT_URI:
-      env.SIPASS_REDIRECT_URI || `http://localhost:${env.PORT || defaultPort}/auth/sipass/callback`,
-    AI_PROVIDER: env.AI_PROVIDER || (env.HF_TOKEN ? "huggingface" : "local"),
-    AI_REVIEW_ENDPOINT: env.AI_REVIEW_ENDPOINT || (env.HF_TOKEN ? "/api/ai/review-initiative" : ""),
-    EMAIL_NOTIFICATIONS_ENDPOINT: env.EMAIL_NOTIFICATIONS_ENDPOINT || "/api/notifications/email",
+      env.SIPASS_REDIRECT_URI ||
+      env.VITE_SIPASS_REDIRECT_URI ||
+      `http://localhost:${env.PORT || defaultPort}/auth/sipass/callback`,
+    AI_PROVIDER: env.AI_PROVIDER || env.VITE_AI_PROVIDER || (env.HF_TOKEN ? "huggingface" : "local"),
+    AI_REVIEW_ENDPOINT:
+      env.AI_REVIEW_ENDPOINT || env.VITE_AI_REVIEW_ENDPOINT || (env.HF_TOKEN ? "/api/ai/review-initiative" : ""),
+    EMAIL_NOTIFICATIONS_ENDPOINT:
+      env.EMAIL_NOTIFICATIONS_ENDPOINT || env.VITE_EMAIL_NOTIFICATIONS_ENDPOINT || "/api/notifications/email",
     EMAIL_DELIVERY_MODE: env.SMTP_HOST ? "smtp" : "outbox",
-    EMAIL_NOTIFY_ACTOR: env.EMAIL_NOTIFY_ACTOR === "true",
-    HUGGINGFACE_ZERO_SHOT_MODEL: env.HUGGINGFACE_ZERO_SHOT_MODEL || defaultHuggingFaceZeroShotModel,
-    HUGGINGFACE_EMBEDDING_MODEL: env.HUGGINGFACE_EMBEDDING_MODEL || "intfloat/multilingual-e5-small"
+    EMAIL_NOTIFY_ACTOR: (env.EMAIL_NOTIFY_ACTOR || env.VITE_EMAIL_NOTIFY_ACTOR) === "true",
+    HUGGINGFACE_ZERO_SHOT_MODEL:
+      env.HUGGINGFACE_ZERO_SHOT_MODEL || env.VITE_HUGGINGFACE_ZERO_SHOT_MODEL || defaultHuggingFaceZeroShotModel,
+    HUGGINGFACE_EMBEDDING_MODEL:
+      env.HUGGINGFACE_EMBEDDING_MODEL || env.VITE_HUGGINGFACE_EMBEDDING_MODEL || "intfloat/multilingual-e5-small"
   };
 }
 
