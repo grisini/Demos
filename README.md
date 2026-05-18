@@ -101,7 +101,7 @@ HUGGINGFACE_EMBEDDING_MODEL=intfloat/multilingual-e5-small
 HF_TOKEN=hf_...
 ```
 
-Dev streznik izpostavi varen endpoint `/api/ai/review-initiative`, frontend pa ob oddaji pobude uporabi Hugging Face in ob napaki samodejno pade nazaj na lokalno presojo.
+Lokalno endpoint `/api/ai/review-initiative` zagotovi `scripts/dev-server.mjs`, na Vercelu pa `api/ai/review-initiative.js`. Frontend vidi samo endpoint, `HF_TOKEN` ostane server-only. Ob napaki aplikacija samodejno pade nazaj na lokalno presojo.
 
 ## Email obvestila
 

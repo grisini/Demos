@@ -22,8 +22,14 @@ function publicRuntimeConfig(env) {
     SIPASS_AUTHORITY: firstValue(env.SIPASS_AUTHORITY, env.VITE_SIPASS_AUTHORITY, "https://sicas-test.sigov.si/"),
     SIPASS_CLIENT_ID: firstValue(env.SIPASS_CLIENT_ID, env.VITE_SIPASS_CLIENT_ID),
     SIPASS_REDIRECT_URI: firstValue(env.SIPASS_REDIRECT_URI, env.VITE_SIPASS_REDIRECT_URI),
-    AI_PROVIDER: firstValue(env.AI_PROVIDER, env.VITE_AI_PROVIDER, "local"),
-    AI_REVIEW_ENDPOINT: firstValue(env.AI_REVIEW_ENDPOINT, env.VITE_AI_REVIEW_ENDPOINT),
+    AI_PROVIDER: firstValue(env.AI_PROVIDER, env.VITE_AI_PROVIDER, env.HF_TOKEN ? "huggingface" : "local"),
+    AI_REVIEW_ENDPOINT: firstValue(
+      env.AI_REVIEW_ENDPOINT,
+      env.VITE_AI_REVIEW_ENDPOINT,
+      env.AI_PROVIDER === "huggingface" || env.VITE_AI_PROVIDER === "huggingface" || env.HF_TOKEN
+        ? "/api/ai/review-initiative"
+        : ""
+    ),
     EMAIL_NOTIFICATIONS_ENDPOINT: firstValue(
       env.EMAIL_NOTIFICATIONS_ENDPOINT,
       env.VITE_EMAIL_NOTIFICATIONS_ENDPOINT,
