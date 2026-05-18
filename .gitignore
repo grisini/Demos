@@ -2,7 +2,6 @@ node_modules/
 .env
 .env.local
 .env.example
-config.local.js
 .codex_extracts/
 *.log
 
