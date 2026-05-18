@@ -10,6 +10,27 @@ npm run dev
 
 Privzeti naslov je `http://localhost:5173`. Ce je port zaseden, razvojni streznik uporabi naslednji prosti port.
 
+Za Render/Railway-style runtime zagon je na voljo tudi:
+
+```bash
+npm start
+```
+
+## Deployment env
+
+Ce aplikacija tece prek `scripts/dev-server.mjs` oziroma `npm start`, lahko javne nastavitve nastavite kot `DATA_SOURCE`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` itd. Streznik jih ob zahtevi `/config.local.js` poslje v brskalnik.
+
+Ce deployment uporablja static/Vite-style build, morajo biti frontend nastavitve prefiksane z `VITE_`, ker so zapecene v bundle ob buildu:
+
+```bash
+VITE_DATA_SOURCE=supabase
+VITE_SUPABASE_URL=https://PROJECT_REF.supabase.co
+VITE_SUPABASE_ANON_KEY=PUBLIC_ANON_KEY
+VITE_AI_PROVIDER=huggingface
+```
+
+Po spremembi env varov na hostingu je potreben nov deploy oziroma clear-cache redeploy. `SUPABASE_SERVICE_ROLE_KEY`, `HF_TOKEN`, SMTP gesla in podobni privatni kljuci ne smejo biti `VITE_*` in ne smejo v frontend.
+
 ## Testi
 
 ```bash
