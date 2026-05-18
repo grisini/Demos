@@ -36,7 +36,7 @@ function optionConfigValue(name, fallback) {
 }
 
 export const config = {
-  DATA_SOURCE: optionConfigValue("DATA_SOURCE", "local"),
+  DATA_SOURCE: optionConfigValue("DATA_SOURCE", "supabase"),
   AUTH_MODE: optionConfigValue("AUTH_MODE", "demo"),
   SUPABASE_URL: publicConfigValue("SUPABASE_URL"),
   SUPABASE_ANON_KEY: publicConfigValue("SUPABASE_ANON_KEY"),

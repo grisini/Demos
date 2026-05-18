@@ -14,7 +14,7 @@ function firstValue(...values) {
 
 function publicRuntimeConfig(env) {
   return {
-    DATA_SOURCE: firstValue(env.DATA_SOURCE, env.VITE_DATA_SOURCE, "local"),
+    DATA_SOURCE: firstValue(env.DATA_SOURCE, env.VITE_DATA_SOURCE, "supabase"),
     AUTH_MODE: firstValue(env.AUTH_MODE, env.VITE_AUTH_MODE, "demo"),
     SUPABASE_URL: firstValue(env.SUPABASE_URL, env.VITE_SUPABASE_URL),
     SUPABASE_ANON_KEY: firstValue(env.SUPABASE_ANON_KEY, env.VITE_SUPABASE_ANON_KEY),
