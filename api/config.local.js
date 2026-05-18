@@ -1,5 +1,3 @@
-import { config } from "../src/config";
-
 function firstValue(...values) {
   for (const value of values) {
     if (value === undefined || value === null) continue;
