@@ -107,7 +107,7 @@ Dev streznik izpostavi varen endpoint `/api/ai/review-initiative`, frontend pa o
 
 Frontend poklice `POST /api/notifications/email`, kadar se spremeni pobuda, za katero je uporabnik glasoval, ali kadar nastane nova pobuda v kategoriji, kjer je uporabnik ze glasoval.
 
-Privzeto razvojni streznik obvestila zapise v `demos-email-outbox.log`. Za dejansko posiljanje nastavite SMTP podatke v `.env.local`:
+Lokalno endpoint zagotovi `scripts/dev-server.mjs`, na Vercelu pa `api/notifications/email.js`. Brez SMTP nastavitev se obvestila samo zabelezijo v log; za dejansko posiljanje nastavite SMTP podatke v `.env.local` ali v deployment env:
 
 ```bash
 EMAIL_NOTIFICATIONS_ENDPOINT=/api/notifications/email

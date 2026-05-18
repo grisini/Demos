@@ -26,9 +26,14 @@ function publicRuntimeConfig(env) {
     AI_REVIEW_ENDPOINT: firstValue(env.AI_REVIEW_ENDPOINT, env.VITE_AI_REVIEW_ENDPOINT),
     EMAIL_NOTIFICATIONS_ENDPOINT: firstValue(
       env.EMAIL_NOTIFICATIONS_ENDPOINT,
-      env.VITE_EMAIL_NOTIFICATIONS_ENDPOINT
+      env.VITE_EMAIL_NOTIFICATIONS_ENDPOINT,
+      "/api/notifications/email"
     ),
-    EMAIL_DELIVERY_MODE: firstValue(env.EMAIL_DELIVERY_MODE, env.VITE_EMAIL_DELIVERY_MODE, "outbox"),
+    EMAIL_DELIVERY_MODE: firstValue(
+      env.EMAIL_DELIVERY_MODE,
+      env.VITE_EMAIL_DELIVERY_MODE,
+      env.SMTP_HOST ? "smtp" : "outbox"
+    ),
     EMAIL_NOTIFY_ACTOR: firstValue(env.EMAIL_NOTIFY_ACTOR, env.VITE_EMAIL_NOTIFY_ACTOR, "false") === "true",
     HUGGINGFACE_ZERO_SHOT_MODEL: firstValue(
       env.HUGGINGFACE_ZERO_SHOT_MODEL,
