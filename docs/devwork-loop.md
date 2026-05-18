@@ -2,7 +2,67 @@
 
 Namen tega dokumenta je, da je po vsakem razvojnem ciklu viden napredek: kaj je bilo pregledano, kaj spremenjeno, kako je preverjeno in kaj ostaja odprto.
 
-## Trenutni cikel: 2026-05-11
+## DevWork koncept programiranja
+
+DevWork loop je razvojni koncept projekta: vsaka sprememba mora imeti jasen cilj, omejen obseg, dokaz v kodi, preverjanje in zapis odprtih tveganj. Namen ni samo "dodajanje funkcij", ampak sledljiv razvoj, kjer je mogoce razloziti, zakaj je bila posamezna tehnicna odlocitev sprejeta.
+
+Osnovni krog:
+
+1. **Raziskava**: pregled zahtev, kode, dokumentacije in po potrebi git zgodovine.
+2. **Omejitev obsega**: dolocitev, kaj se v ciklu spremeni in cesa se ne spreminja.
+3. **Implementacija**: sprememba naj sledi obstojeci arhitekturi in locitvi UI, domene, adapterjev in podatkov.
+4. **Preverjanje**: testi, rocni pregled ali dokumentiran kriterij sprejemljivosti.
+5. **Dokumentiranje**: posodobitev README, registra funkcionalnosti, diagramov ali razvojnega dnevnika.
+6. **Naslednji korak**: zapis odprtih tveganj in produkcijskih dolgov.
+
+Kakovostna pravila tega koncepta:
+
+- domenska pravila naj bodo v `src/domain`, ker jih je mogoce testirati,
+- zunanji ponudniki morajo imeti fallback ali jasno dokumentirano napako,
+- skrivnosti ne smejo biti v frontendu ali gitu,
+- prototipne omejitve se dokumentirajo odkrito,
+- vsaka funkcionalnost naj ima dokaz v kodi in po moznosti test ali sprejemni kriterij.
+
+## Trenutni cikel: 2026-05-16
+
+### Cilj
+
+Raziskati projekt in git zgodovino ter dokumentacijo dopolniti tako, da so funkcionalnosti, arhitektura, razvojni koncept in odprte omejitve jasno razvidni za zahteven strokovni pregled.
+
+### Izvedeno
+
+- Pregledana struktura projekta, `README.md`, `src`, `scripts`, `supabase`, `tests`, `.github` in obstojeca dokumentacija.
+- Pregledana git zgodovina z razvojem od zacetnega prototipa do Supabase, AI, email obvestil in CI/CD.
+- Dodan register funkcionalnosti v `docs/funkcionalnosti.md`.
+- Dodan tehnicni pregled projekta v `docs/pregled-projekta.md`.
+- Dodan povzetek git zgodovine v `docs/git-zgodovina.md`.
+- Dodan podrobnejsi dokument za SI-PASS, SI-CAS in SI-CES priklop v `docs/sipass-sicas-ces-priklop.md`.
+- V `docs/devwork-loop.md` je eksplicitno razlozen DevWork koncept programiranja.
+- `README.md` je dopolnjen s potjo za hiter ocenjevalni pregled.
+- CI dokumentacija in GitHub Actions workflow sta usklajena s kljucnimi dokumentacijskimi datotekami.
+
+### Preverjanje
+
+- `npm test` - 9/9 testov uspesnih.
+- Pregled git statusa je pokazal, da so bile pred ciklom ze prisotne nekomitirane Mermaid datoteke; niso bile brisane ali prepisane.
+
+### Kontrolne tocke
+
+- [x] Funkcionalnosti imajo enoten register s statusom in dokazom v kodi.
+- [x] Arhitektura in datotecna karta sta dokumentirani.
+- [x] Git zgodovina je povzeta po commitih in razvojnih fazah.
+- [x] DevWork koncept je razlozen kot ponovljiv razvojni proces.
+- [x] Znane omejitve prototipa so zapisane brez prikrivanja.
+- [x] Testi po dokumentacijskih spremembah se vedno uspejo.
+
+### Naslednji koraki
+
+- Odstraniti zacasnega hardkodanega email prejemnika in ga nadomestiti s konfiguracijo.
+- Dodati E2E test za tok oddaja pobude -> glasovanje -> podpis -> komentar.
+- Produkcijsko utrditi SI-PASS/SI-CAS prijavo in SI-CES podpisovanje.
+- Premakniti AI in pisanje v Supabase v backend ali Edge Function.
+
+## Cikel: 2026-05-11
 
 ### Cilj
 
