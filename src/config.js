@@ -53,6 +53,9 @@ export const config = {
   HUGGINGFACE_EMBEDDING_MODEL: publicConfigValue("HUGGINGFACE_EMBEDDING_MODEL", "intfloat/multilingual-e5-small")
 };
 
+console.log(config);
+
+
 if (booleanValue(publicConfigValue("DEBUG_CONFIG"), false)) {
   console.info("Demos config", {
     ...config,
