@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/config.local.js",
+      "destination": "/api/config.local"
+    }
+  ]
+}

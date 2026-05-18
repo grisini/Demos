@@ -18,9 +18,18 @@ npm start
 
 ## Deployment env
 
-Ce aplikacija tece prek `scripts/dev-server.mjs` oziroma `npm start`, lahko javne nastavitve nastavite kot `DATA_SOURCE`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` itd. Streznik jih ob zahtevi `/config.local.js` poslje v brskalnik.
+Projekt uporablja runtime config skripto `/config.local.js`, ki v brskalnik poslje samo javne nastavitve. Lokalno jo generira `scripts/dev-server.mjs`, na Vercelu pa jo generira `api/config.local.js` prek pravila v `vercel.json`.
 
-Ce deployment uporablja static/Vite-style build, morajo biti frontend nastavitve prefiksane z `VITE_`, ker so zapecene v bundle ob buildu:
+Za Vercel, Render ali Railway nastavite vsaj:
+
+```bash
+DATA_SOURCE=supabase
+SUPABASE_URL=https://PROJECT_REF.supabase.co
+SUPABASE_ANON_KEY=PUBLIC_ANON_KEY
+AI_PROVIDER=huggingface
+```
+
+Koda podpira tudi `VITE_*` alias kljuce, ce deployment uporablja pravi Vite build:
 
 ```bash
 VITE_DATA_SOURCE=supabase
@@ -29,7 +38,7 @@ VITE_SUPABASE_ANON_KEY=PUBLIC_ANON_KEY
 VITE_AI_PROVIDER=huggingface
 ```
 
-Po spremembi env varov na hostingu je potreben nov deploy oziroma clear-cache redeploy. `SUPABASE_SERVICE_ROLE_KEY`, `HF_TOKEN`, SMTP gesla in podobni privatni kljuci ne smejo biti `VITE_*` in ne smejo v frontend.
+Po spremembi env varov na hostingu je potreben nov deploy oziroma redeploy. `SUPABASE_SERVICE_ROLE_KEY`, `HF_TOKEN`, SMTP gesla in podobni privatni kljuci ne smejo biti `VITE_*` in ne smejo v frontend.
 
 ## Testi
 

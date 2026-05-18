@@ -25,7 +25,9 @@ SUPABASE_ANON_KEY=PUBLIC_ANON_KEY
 
 ## Deployment
 
-Za deployment prek `npm start` oziroma `scripts/dev-server.mjs` so podprta tako ne-prefiksana imena kot `VITE_*` aliasi:
+Frontend vedno najprej nalozi `/config.local.js`. Lokalno to pot generira `scripts/dev-server.mjs`; na Vercelu jo `vercel.json` preusmeri na `api/config.local.js`, ki iz env varov sestavi samo javni config.
+
+Za Vercel, Render ali Railway nastavite:
 
 ```env
 DATA_SOURCE=supabase
@@ -33,7 +35,7 @@ SUPABASE_URL=https://PROJECT_REF.supabase.co
 SUPABASE_ANON_KEY=PUBLIC_ANON_KEY
 ```
 
-Za static/Vite-style deployment morajo biti javne frontend nastavitve nastavljene kot `VITE_*`, ker jih build orodje zapise v JavaScript bundle:
+Podprti so tudi `VITE_*` aliasi, ce deployment uporablja pravi Vite build:
 
 ```env
 VITE_DATA_SOURCE=supabase
@@ -41,7 +43,7 @@ VITE_SUPABASE_URL=https://PROJECT_REF.supabase.co
 VITE_SUPABASE_ANON_KEY=PUBLIC_ANON_KEY
 ```
 
-Po spremembi env varov na hostingu je potreben redeploy. Ce je v integracijskem pogledu `URL nastavljen` ali `Anon kljuc nastavljen` se vedno `ne`, deployment ni prejel teh vrednosti v runtime oziroma build okolje.
+Po spremembi env varov na hostingu je potreben redeploy. Ce je v integracijskem pogledu `URL nastavljen` ali `Anon kljuc nastavljen` se vedno `ne`, najprej preverite Network odziv za `/config.local.js`.
 
 ## Varnostna opomba
 
