@@ -1,3 +1,5 @@
+import { config } from "../src/config";
+
 function firstValue(...values) {
   for (const value of values) {
     if (value === undefined || value === null) continue;
@@ -43,6 +45,7 @@ function publicRuntimeConfig(env) {
   };
 }
 
+console.log(config);
 export default function handler(_request, response) {
   response.setHeader("Content-Type", "text/javascript; charset=utf-8");
   response.setHeader("Cache-Control", "no-store");
