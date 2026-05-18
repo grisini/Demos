@@ -23,6 +23,26 @@ SUPABASE_ANON_KEY=PUBLIC_ANON_KEY
 
 3. Zazenite `npm run dev`.
 
+## Deployment
+
+Za deployment prek `npm start` oziroma `scripts/dev-server.mjs` so podprta tako ne-prefiksana imena kot `VITE_*` aliasi:
+
+```env
+DATA_SOURCE=supabase
+SUPABASE_URL=https://PROJECT_REF.supabase.co
+SUPABASE_ANON_KEY=PUBLIC_ANON_KEY
+```
+
+Za static/Vite-style deployment morajo biti javne frontend nastavitve nastavljene kot `VITE_*`, ker jih build orodje zapise v JavaScript bundle:
+
+```env
+VITE_DATA_SOURCE=supabase
+VITE_SUPABASE_URL=https://PROJECT_REF.supabase.co
+VITE_SUPABASE_ANON_KEY=PUBLIC_ANON_KEY
+```
+
+Po spremembi env varov na hostingu je potreben redeploy. Ce je v integracijskem pogledu `URL nastavljen` ali `Anon kljuc nastavljen` se vedno `ne`, deployment ni prejel teh vrednosti v runtime oziroma build okolje.
+
 ## Varnostna opomba
 
 Shema vsebuje prototipne RLS politike, ki dovolijo javno branje in pisanje z anon kljucem. To je primerno za razvojni demo, ne za produkcijo.

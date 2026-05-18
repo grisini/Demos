@@ -2,7 +2,17 @@ const viteEnv = import.meta.env || {};
 const runtimeConfig = globalThis.DEMOS_CONFIG || {};
 
 function firstValue(...values) {
-  return values.find((value) => value !== undefined && value !== null && value !== "") || "";
+  for (const value of values) {
+    if (value === undefined || value === null) continue;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed) return trimmed;
+      continue;
+    }
+    return value;
+  }
+
+  return "";
 }
 
 function booleanValue(value, fallback = false) {
@@ -10,45 +20,46 @@ function booleanValue(value, fallback = false) {
   if (value === undefined || value === null || value === "") return fallback;
   return String(value).toLowerCase() === "true";
 }
+
+function publicConfigValue(name, ...fallbacks) {
+  return firstValue(
+    runtimeConfig[name],
+    runtimeConfig[`VITE_${name}`],
+    viteEnv[`VITE_${name}`],
+    viteEnv[name],
+    ...fallbacks
+  );
+}
+
+function optionConfigValue(name, fallback) {
+  return String(publicConfigValue(name, fallback)).toLowerCase();
+}
+
 export const config = {
-  DATA_SOURCE: firstValue(runtimeConfig.DATA_SOURCE, viteEnv.VITE_DATA_SOURCE, "local"),
-  AUTH_MODE: firstValue(runtimeConfig.AUTH_MODE, viteEnv.VITE_AUTH_MODE, "demo"),
-  SUPABASE_URL: firstValue(runtimeConfig.SUPABASE_URL, viteEnv.VITE_SUPABASE_URL),
-  SUPABASE_ANON_KEY: firstValue(runtimeConfig.SUPABASE_ANON_KEY, viteEnv.VITE_SUPABASE_ANON_KEY),
-  SIPASS_ENV: firstValue(runtimeConfig.SIPASS_ENV, viteEnv.VITE_SIPASS_ENV, "test"),
-  SIPASS_AUTHORITY: firstValue(
-    runtimeConfig.SIPASS_AUTHORITY,
-    viteEnv.VITE_SIPASS_AUTHORITY,
-    "https://sicas-test.sigov.si/"
-  ),
-  SIPASS_CLIENT_ID: firstValue(runtimeConfig.SIPASS_CLIENT_ID, viteEnv.VITE_SIPASS_CLIENT_ID),
-  SIPASS_REDIRECT_URI: firstValue(
-    runtimeConfig.SIPASS_REDIRECT_URI,
-    viteEnv.VITE_SIPASS_REDIRECT_URI,
-    "http://localhost:5173/auth/sipass/callback"
-  ),
-  AI_PROVIDER: firstValue(runtimeConfig.AI_PROVIDER, viteEnv.VITE_AI_PROVIDER, "local"),
-  AI_REVIEW_ENDPOINT: firstValue(runtimeConfig.AI_REVIEW_ENDPOINT, viteEnv.VITE_AI_REVIEW_ENDPOINT),
-  EMAIL_NOTIFICATIONS_ENDPOINT: firstValue(
-    runtimeConfig.EMAIL_NOTIFICATIONS_ENDPOINT,
-    viteEnv.VITE_EMAIL_NOTIFICATIONS_ENDPOINT
-  ),
-  EMAIL_DELIVERY_MODE: firstValue(runtimeConfig.EMAIL_DELIVERY_MODE, viteEnv.VITE_EMAIL_DELIVERY_MODE, "outbox"),
-  EMAIL_NOTIFY_ACTOR: booleanValue(runtimeConfig.EMAIL_NOTIFY_ACTOR, viteEnv.VITE_EMAIL_NOTIFY_ACTOR === "true"),
-  HUGGINGFACE_ZERO_SHOT_MODEL: firstValue(
-    runtimeConfig.HUGGINGFACE_ZERO_SHOT_MODEL,
-    viteEnv.VITE_HUGGINGFACE_ZERO_SHOT_MODEL,
-    "facebook/bart-large-mnli"
-  ),
-  HUGGINGFACE_EMBEDDING_MODEL: firstValue(
-    runtimeConfig.HUGGINGFACE_EMBEDDING_MODEL,
-    viteEnv.VITE_HUGGINGFACE_EMBEDDING_MODEL,
-    "intfloat/multilingual-e5-small"
-  )
+  DATA_SOURCE: optionConfigValue("DATA_SOURCE", "local"),
+  AUTH_MODE: optionConfigValue("AUTH_MODE", "demo"),
+  SUPABASE_URL: publicConfigValue("SUPABASE_URL"),
+  SUPABASE_ANON_KEY: publicConfigValue("SUPABASE_ANON_KEY"),
+  SIPASS_ENV: optionConfigValue("SIPASS_ENV", "test"),
+  SIPASS_AUTHORITY: publicConfigValue("SIPASS_AUTHORITY", "https://sicas-test.sigov.si/"),
+  SIPASS_CLIENT_ID: publicConfigValue("SIPASS_CLIENT_ID"),
+  SIPASS_REDIRECT_URI: publicConfigValue("SIPASS_REDIRECT_URI", "http://localhost:5173/auth/sipass/callback"),
+  AI_PROVIDER: optionConfigValue("AI_PROVIDER", "local"),
+  AI_REVIEW_ENDPOINT: publicConfigValue("AI_REVIEW_ENDPOINT"),
+  EMAIL_NOTIFICATIONS_ENDPOINT: publicConfigValue("EMAIL_NOTIFICATIONS_ENDPOINT"),
+  EMAIL_DELIVERY_MODE: optionConfigValue("EMAIL_DELIVERY_MODE", "outbox"),
+  EMAIL_NOTIFY_ACTOR: booleanValue(publicConfigValue("EMAIL_NOTIFY_ACTOR"), false),
+  HUGGINGFACE_ZERO_SHOT_MODEL: publicConfigValue("HUGGINGFACE_ZERO_SHOT_MODEL", "facebook/bart-large-mnli"),
+  HUGGINGFACE_EMBEDDING_MODEL: publicConfigValue("HUGGINGFACE_EMBEDDING_MODEL", "intfloat/multilingual-e5-small")
 };
 
-  console.log(config);
-  
+if (booleanValue(publicConfigValue("DEBUG_CONFIG"), false)) {
+  console.info("Demos config", {
+    ...config,
+    SUPABASE_ANON_KEY: config.SUPABASE_ANON_KEY ? "set" : "missing"
+  });
+}
+
 export function isSupabaseEnabled(appConfig = config) {
   return (
     appConfig.DATA_SOURCE === "supabase" &&
