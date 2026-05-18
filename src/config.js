@@ -47,6 +47,8 @@ export const config = {
   )
 };
 
+  console.log(config);
+  
 export function isSupabaseEnabled(appConfig = config) {
   return (
     appConfig.DATA_SOURCE === "supabase" &&
