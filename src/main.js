@@ -40,6 +40,7 @@ class DemocracyApp {
       toast: "",
       aiPreviewReview: null,
       aiPreviewLoading: false,
+      sidebarOpen: defaultSidebarOpen(),
       loading: true
     };
 
@@ -103,16 +104,30 @@ class DemocracyApp {
     const analytics = calculateAnalytics(this.state.initiatives);
     const selected = this.selectedInitiative();
     const dataMode = isSupabaseEnabled(this.config) ? "Supabase" : "Lokalni prototip";
+    const sidebarState = this.state.sidebarOpen ? "sidebar-open" : "sidebar-closed";
+
+    this.root.className = `app-shell ${sidebarState}`;
 
     this.root.innerHTML = `
-      <aside class="sidebar">
-        <a class="brand" href="#" data-action="view" data-view="dashboard" aria-label="Demokracija 2.0">
-          <span class="brand-mark" aria-hidden="true">D2</span>
-          <span>
-            <strong>Demokracija 2.0</strong>
-            <small>${dataMode}</small>
-          </span>
-        </a>
+      <button class="sidebar-backdrop" type="button" data-action="close-sidebar" aria-label="Zapri meni"></button>
+      <button class="sidebar-edge-toggle" type="button" data-action="toggle-sidebar" aria-controls="app-sidebar" aria-expanded="${this.state.sidebarOpen ? "true" : "false"}" aria-label="${this.state.sidebarOpen ? "Zapri meni" : "Odpri meni"}">
+        <span class="toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+
+      <aside id="app-sidebar" class="sidebar" aria-label="Stranski meni" aria-hidden="${this.state.sidebarOpen ? "false" : "true"}">
+        <div class="sidebar-header">
+          <a class="brand" href="#" data-action="view" data-view="dashboard" aria-label="Demokracija 2.0">
+            <span class="brand-mark" aria-hidden="true">D2</span>
+            <span>
+              <strong>Demokracija 2.0</strong>
+              <small>${dataMode}</small>
+            </span>
+          </a>
+        </div>
         <nav class="nav-list" aria-label="Glavna navigacija">
           ${this.navButton("dashboard", "Pregled", "01")}
           ${this.navButton("submit", "Nova pobuda", "02")}
@@ -126,9 +141,11 @@ class DemocracyApp {
 
       <main class="content">
         <header class="topbar">
-          <div>
-            <p class="eyebrow">Projekt Demos</p>
-            <h1>${this.pageTitle()}</h1>
+          <div class="topbar-title">
+            <div>
+              <p class="eyebrow">Projekt Demos</p>
+              <h1>${this.pageTitle()}</h1>
+            </div>
           </div>
           <div class="topbar-actions">
             <span class="env-pill">${this.config.SIPASS_ENV === "test" ? "SI-PASS test" : "SI-PASS prod"}</span>
@@ -683,6 +700,21 @@ class DemocracyApp {
     if (action === "view") {
       event.preventDefault();
       this.state.activeView = target.dataset.view;
+      if (isSmallViewport()) {
+        this.state.sidebarOpen = false;
+      }
+      this.render();
+      return;
+    }
+
+    if (action === "toggle-sidebar") {
+      this.state.sidebarOpen = !this.state.sidebarOpen;
+      this.render();
+      return;
+    }
+
+    if (action === "close-sidebar") {
+      this.state.sidebarOpen = false;
       this.render();
       return;
     }
@@ -1036,6 +1068,18 @@ function emptyDraft() {
     legalReference: "",
     expectedImpact: ""
   };
+}
+
+function defaultSidebarOpen() {
+  return !isSmallViewport();
+}
+
+function isSmallViewport() {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(max-width: 860px)").matches
+  );
 }
 
 function option(value, label, selected) {
