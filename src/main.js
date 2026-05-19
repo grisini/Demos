@@ -997,10 +997,12 @@ class DemocracyApp {
   }
 
   renderUser(user) {
+    const admin = this.isAdminUser(user);
     return `
       <div class="signed-user">
         <span>${escapeHtml(user.name)}</span>
-        <small>${escapeHtml(this.isAdminUser(user) ? "Admin" : user.provider === "demo" ? "Demo identiteta" : user.provider)}</small>
+        <small>${escapeHtml(admin ? "Demo admin" : user.provider === "demo" ? "Demo identiteta" : user.provider || "Uporabnik")}</small>
+        ${admin ? "" : `<button class="button secondary compact" type="button" data-action="demo-admin-login">Demo admin</button>`}
         <button class="button secondary compact" data-action="logout">Odjava</button>
       </div>
     `;
@@ -1682,7 +1684,7 @@ function maskEmail(value) {
 }
 
 function isDemoAdminUser(user) {
-  if (!user || user.provider !== "demo") return false;
+  if (!user) return false;
   return isDemoAdminEmail(user.email) || isDemoAdminEmail(user.id);
 }
 
