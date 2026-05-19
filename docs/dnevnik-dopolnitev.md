@@ -21,7 +21,11 @@ Izvedeno:
 - Razsirjen `src/domain/analytics.js` z uporabnisko in sistemsko analitiko.
 - Zavihek `Analitika pobud` zdaj prikazuje splosno statistiko in osebni del za prijavljenega uporabnika.
 - Dodan admin-only pogled `Sistemska analitika`.
+- Sistemska analitika je razsirjena s tehnicnimi in uporabniskimi podatki: udelezenci, anonimni akterji, anonimni glasovi, telemetry seje, javno vidne pobude, statusi, teme in dogodki po tipu.
+- Neprijavljen uporabnik vidi samo aktualne pobude in javni detail brez komentarjev, podpisov, AI podrobnosti in osebne analitike.
+- Dodano anonimno glasovanje z lokalnim ID `demos.anonymousVoterId`, zato isti brskalnik ne more dvakrat glasovati za isto pobudo.
 - Clarity dobi `identify`, custom tags in events za poglede, prijavo, pobude, glasove, podpise, komentarje in AI predpregled.
+- Glavni pogledi aplikacije posodabljajo URL prek `?view=...`, da Clarity lazje locuje heatmape enostranske aplikacije.
 - README in dokumentacija sta dopolnjena z navodili za analitike.
 - Testi so razsirjeni za uporabnisko in sistemsko analitiko.
 
@@ -36,6 +40,7 @@ Preverjanje:
 Opombe:
 
 - Sistemska poraba tokenov je trenutno ocena, ker Hugging Face endpoint ne vraca racunskega usage polja.
+- Anonimno glasovanje je prototipna zascita na lokalni ID; za produkcijo potrebuje backend omejitve, rate-limit in po moznosti povezavo z realno identiteto ali podpisom.
 - Prava produkcijska sistemska analitika naj se kasneje poveze z backend audit tabelo, Vercel logs, Supabase metrikami in AI provider usage podatki.
 
 ## Kronologija commitov

@@ -57,6 +57,8 @@ npm test
 - Hugging Face AI predpregled besedila pobude s score, risk, suitability, completeness in categorySuggestion,
 - lokalni AI predpregled kot fallback, kadar Hugging Face ni nastavljen ali ni dosegljiv,
 - pregled, iskanje, filtriranje in razvrscanje pobud,
+- javni pregled aktualnih pobud za neprijavljene uporabnike,
+- anonimno glasovanje z omejitvijo enega glasu na pobudo na lokalni brskalniski ID,
 - glasovanje, demo podpisovanje, komentarji in statusi,
 - email obvestila za glasovalce ob spremembah pobude in novih pobudah v isti kategoriji,
 - napredna statistika glasov na pobudo, kategorije, komentarje in AI tveganja,
@@ -118,8 +120,12 @@ Lokalno endpoint `/api/ai/review-initiative` zagotovi `scripts/dev-server.mjs`, 
 Projekt uporablja tri locene analiticne plasti:
 
 - **Vercel Web Analytics**: promet, strani in SEO pogled v Vercel dashboardu; vidi ga lastnik hostinga.
-- **Sistemska analitika**: pogled samo za demo admina `admin@demos.local`; namenjen je oceni obremenitev, AI klicev, tokenov in email dogodkov.
-- **Analitika pobud**: javni aplikacijski pogled za splosne metrike pobud in osebno statistiko prijavljenega uporabnika. Microsoft Clarity dodatno belezi seje, custom tags in dogodke.
+- **Sistemska analitika**: pogled samo za demo admina `admin@demos.local`; namenjen je oceni obremenitev, AI klicev, tokenov, email dogodkov, uporabniskih sledi in javne vidnosti pobud.
+- **Analitika pobud**: aplikacijski pogled za splosne metrike pobud in osebno statistiko prijavljenega uporabnika. Microsoft Clarity dodatno belezi seje, custom tags in dogodke.
+
+Brez prijave je vidna samo zacetna stran z aktualnimi pobudami. Neprijavljen uporabnik lahko odda en anonimen glas na pobudo, ne vidi pa oddaje pobude, podpisovanja, komentarjev, osebne analitike, integracij ali sistemske analitike.
+
+Za interni pogled uporabite gumb `Demo admin` v prijavnem obrazcu ali se prijavite z emailom `admin@demos.local`.
 
 Za Clarity nastavite:
 

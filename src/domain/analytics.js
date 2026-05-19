@@ -126,6 +126,33 @@ export function calculateSystemAnalytics(initiatives, telemetryEvents = [], reso
   const reviewRows = initiatives.filter((initiative) => initiative.aiReview).length;
   const telemetryAiEvents = telemetryEvents.filter((event) => event.type === "ai_review");
   const telemetryEmailEvents = telemetryEvents.filter((event) => event.type === "email_notifications");
+  const telemetryVoteEvents = telemetryEvents.filter((event) => event.type === "vote");
+  const participantRefs = uniqueParticipantRefs(initiatives);
+  const anonymousRefs = participantRefs.filter((ref) => ref.startsWith("anon-"));
+  const registeredRefs = participantRefs.filter((ref) => !ref.startsWith("anon-"));
+  const sessionRefs = uniqueValues(telemetryEvents.map((event) => event.sessionId).filter(Boolean));
+  const eventTypes = Object.values(
+    telemetryEvents.reduce((acc, event) => {
+      const key = event.type || "unknown";
+      acc[key] ||= { type: key, count: 0 };
+      acc[key].count += 1;
+      return acc;
+    }, {})
+  ).sort((a, b) => b.count - a.count || a.type.localeCompare(b.type));
+  const statusRows = STATUSES.map((status) => ({
+    ...status,
+    count: initiatives.filter((initiative) => initiative.status === status.value).length
+  }));
+  const categoryRows = Object.values(
+    initiatives.reduce((acc, initiative) => {
+      const key = initiative.category || "Nekategorizirano";
+      acc[key] ||= { category: key, initiatives: 0, votes: 0, comments: 0 };
+      acc[key].initiatives += 1;
+      acc[key].votes += count(initiative.votes);
+      acc[key].comments += count(initiative.comments);
+      return acc;
+    }, {})
+  ).sort((a, b) => b.initiatives - a.initiatives || b.votes - a.votes || a.category.localeCompare(b.category));
 
   return {
     dataRows: initiativeRows + voteRows + signatureRows + commentRows,
@@ -141,6 +168,20 @@ export function calculateSystemAnalytics(initiatives, telemetryEvents = [], reso
     averageAiDurationMs: average(telemetryAiEvents.map((event) => Number(event.durationMs) || 0)),
     emailNotificationEvents: telemetryEmailEvents.length,
     emailNotificationItems: telemetryEmailEvents.reduce((total, event) => total + (Number(event.count) || 0), 0),
+    telemetryEventCount: telemetryEvents.length,
+    telemetryEventTypes: eventTypes,
+    uniqueSessionCount: sessionRefs.length,
+    uniqueParticipantCount: participantRefs.length,
+    registeredParticipantCount: registeredRefs.length,
+    anonymousParticipantCount: anonymousRefs.length,
+    anonymousVoteRows: initiatives.reduce(
+      (total, initiative) => total + count((initiative.votes || []).filter((vote) => String(vote.userId || "").startsWith("anon-"))),
+      0
+    ),
+    anonymousVoteEvents: telemetryVoteEvents.filter((event) => event.anonymous === true).length,
+    publicInitiativeRows: initiatives.filter((initiative) => ["active", "signature_collection"].includes(initiative.status)).length,
+    statusRows,
+    categoryRows,
     resourceSnapshot: {
       resourceCount: resourceSnapshot.resourceCount || 0,
       transferKb: resourceSnapshot.transferKb || 0,
@@ -317,6 +358,21 @@ function latestActivityAt(initiative) {
 
 function supportCount(initiative) {
   return count(initiative.votes) + count(initiative.signatures);
+}
+
+function uniqueParticipantRefs(initiatives) {
+  return uniqueValues(
+    initiatives.flatMap((initiative) => [
+      initiative.author?.id,
+      ...(initiative.votes || []).map((vote) => vote.userId),
+      ...(initiative.signatures || []).map((signature) => signature.userId),
+      ...(initiative.comments || []).map((comment) => comment.userId)
+    ])
+  );
+}
+
+function uniqueValues(values) {
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
 }
 
 function count(items) {

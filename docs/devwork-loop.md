@@ -78,6 +78,8 @@ Vzpostaviti tri jasno locene analiticne plasti: Vercel za hosting/SEO, admin not
 - Zavihek `Analitika pobud` prikaze splosno statistiko iz baze in osebni del za prijavljenega uporabnika.
 - Dodan admin-only zavihek `Sistemska analitika` z oceno AI klicev, tokenov, email dogodkov, podatkovnih zapisov in frontend virov.
 - Dostop do interne sistemske analitike je omejen na demo admina `admin@demos.local`.
+- Sistemska analitika je razsirjena z uporabniskimi sledmi, anonimnimi glasovi, javno vidnimi pobudami, statusi, temami, telemetry sejami in dogodki po tipu.
+- Neprijavljenim uporabnikom je omejen UI: vidijo samo aktualne pobude, javni detail in en anonimni glas na pobudo.
 - Dodana Vercel funkcija `api/analytics/system.js`, da sistemska telemetrija na deployu ni odvisna samo od `localStorage`.
 - Dodana Supabase tabela `system_analytics_events` za centralni zapis admin dogodkov prek server-only `SUPABASE_SERVICE_ROLE_KEY`.
 - Dodana dokumenta `docs/analitika.md` in `docs/dnevnik-dopolnitev.md`.
@@ -96,6 +98,7 @@ Vzpostaviti tri jasno locene analiticne plasti: Vercel za hosting/SEO, admin not
 
 - Sistemska poraba tokenov je ocena iz besedila, ne uradni racun AI ponudnika.
 - Clarity dashboard je zunanji Microsoftov pogled; aplikacijska analitika pobud se se vedno racuna iz baze.
+- Anonimni glas je omejen z lokalnim brskalniskim ID, zato ni produkcijsko trdna varnostna meja.
 - Demo admin pravica prek emaila je primerna za prototip, produkcijsko mora biti vezana na SI-PASS/backend avtorizacijo.
 
 ### Naslednji koraki

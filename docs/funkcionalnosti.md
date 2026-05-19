@@ -50,7 +50,9 @@ Statusi v tabeli:
 | F-30 | Vercel Web Analytics | Implementirano | `src/lib/vercel-analytics.js`, `src/main.js`, `package.json` | Deploy na Vercel in obisk strani | Namenjeno je hostingu, prometu in SEO pogledu; vidi ga lastnik Vercel projekta. |
 | F-31 | Microsoft Clarity vedenjska analitika | Pripravljeno | `src/lib/clarity.js`, `src/main.js`, `src/config.js` | Nastavi `MICROSOFT_CLARITY_PROJECT_ID` in preveri Clarity dashboard | Clarity belezi seje, tags in events; podatki pobud ostanejo v aplikacijski bazi. |
 | F-32 | Osebna analitika pobud | Implementirano | `calculateUserAnalytics()`, `renderAnalyticsView()` | `npm test` | Vsak prijavljen uporabnik vidi svoje pobude, glasove, podpise, komentarje, podporo in zadnjo aktivnost. |
-| F-33 | Admin sistemska analitika | Delno implementirano | `calculateSystemAnalytics()`, `src/lib/telemetry.js`, `api/analytics/system.js`, `renderSystemAnalyticsView()` | `npm test`, prijava kot `admin@demos.local` | Dostop ima samo demo admin. Na Vercelu sprejema dogodke prek API funkcije; s `SUPABASE_SERVICE_ROLE_KEY` jih zapise v `system_analytics_events`. Ocena tokenov ostaja priblizek. |
+| F-33 | Admin sistemska analitika | Delno implementirano | `calculateSystemAnalytics()`, `src/lib/telemetry.js`, `api/analytics/system.js`, `renderSystemAnalyticsView()` | `npm test`, prijava kot `admin@demos.local` | Dostop ima samo demo admin. Na Vercelu sprejema dogodke prek API funkcije; s `SUPABASE_SERVICE_ROLE_KEY` jih zapise v `system_analytics_events`. Zajema tehnicne metrike, uporabniske sledi, javni rezim, statuse in teme. Ocena tokenov ostaja priblizek. |
+| F-34 | Javni pogled za neprijavljene | Implementirano | `visibleInitiatives()`, `renderDashboardView()`, `renderPublicInitiativeDetail()` | Rocni zagon aplikacije | Brez prijave so vidne samo pobude s statusom `active` ali `signature_collection`; oddaja pobude, komentarji, podpisi in analitike ostanejo zaklenjeni. |
+| F-35 | Anonimno enkratno glasovanje | Delno implementirano | `anonymousActor()`, `voteForInitiative()`, `LocalInitiativeRepository.vote()` | `npm test`, rocni zagon aplikacije | Uporablja lokalni ID `demos.anonymousVoterId` in domensko pravilo en glas na pobudo. To je prototipna zascita; produkcijsko mora biti podprta z backend omejitvami. |
 
 ## Sprejemni kriteriji po funkcionalnih sklopih
 
@@ -64,6 +66,8 @@ Statusi v tabeli:
 ### Pregled in sodelovanje
 
 - Dashboard prikaze seznam pobud in osnovne metrike.
+- Neprijavljen uporabnik vidi samo aktualne pobude in javni detail brez komentarjev, podpisov, AI podrobnosti in osebne analitike.
+- Neprijavljen uporabnik lahko odda najvec en anonimen glas na posamezno aktualno pobudo.
 - Iskanje in filtri delujejo brez ponovnega nalaganja strani.
 - Glasovanje istega uporabnika se ne podvoji.
 - Podpis istega uporabnika se ne podvoji.

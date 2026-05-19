@@ -28,7 +28,7 @@ Vir: https://vercel.com/docs/analytics/package
 
 ## 2. Notranja sistemska analitika
 
-**Namen:** admin pogled za oceno obremenitve, AI klicev, ocenjene porabe tokenov, email dogodkov, stevila zapisov in frontend virov.
+**Namen:** admin pogled za oceno obremenitve, AI klicev, ocenjene porabe tokenov, email dogodkov, stevila zapisov, frontend virov, uporabniskih sledi in javnega rezima aplikacije.
 
 **Kdo vidi:** samo admin uporabnik.
 
@@ -42,6 +42,19 @@ Vir: https://vercel.com/docs/analytics/package
 - `src/main.js` prikaze admin-only zavihek `Sistemska analitika`,
 - dostop ima samo demo admin `admin@demos.local`.
 
+**Kaj zavihek prikaze tudi brez Supabase povezave:**
+
+- stevilo pobud, glasov, podpisov, komentarjev in AI zapisov iz trenutnega repozitorija,
+- ocenjeno porabo AI tokenov in trajanje AI klicev iz telemetry dogodkov,
+- email dogodke in stevilo obvestil,
+- frontend vire iz brskalnika: stevilo virov, preneseni KB, skripte, slogi, fetch klici in cas nalaganja,
+- unikatne udelezence iz avtorjev, glasovalcev, podpisnikov in komentarjev,
+- locitev registriranih/demo in anonimnih akterjev,
+- anonimne glasove iz podatkov pobud in telemetry dogodkov,
+- javno vidne pobude po statusih `active` in `signature_collection`,
+- porazdelitev pobud po statusih in temah,
+- zadnje sistemske dogodke v seji brskalnika oziroma iz Vercel/Supabase endpointa.
+
 **Navodila za uporabo lokalno:**
 
 ```bash
@@ -49,7 +62,7 @@ SYSTEM_ANALYTICS_ENDPOINT=/api/analytics/system
 npm run dev
 ```
 
-Nato se v demo prijavi uporabite email `admin@demos.local`. V stranskem meniju se prikaze `Sistemska analitika`.
+Nato uporabite gumb `Demo admin` v stranskem prijavnem obrazcu ali se rocno prijavite z emailom `admin@demos.local`. V stranskem meniju se prikaze `Sistemska analitika`.
 
 **Navodila za Vercel/Supabase skupni admin pogled:**
 
@@ -63,13 +76,21 @@ SUPABASE_SERVICE_ROLE_KEY=...
 3. Preverite, da `SUPABASE_SERVICE_ROLE_KEY` ni nastavljen kot `VITE_*`.
 4. Po redeployu bo frontend posiljal dogodke na `/api/analytics/system`; admin pogled jih bo bral nazaj prek iste Vercel funkcije.
 
-**Pomembna omejitev:** trenutni podatki o tokenih so ocena iz dolzine besedila, ne racun ponudnika. Za produkcijo morajo pravi podatki priti iz backend logov, AI provider usage podatkov, Vercel observability in Supabase metrik.
+**Pomembna omejitev:** trenutni podatki o tokenih so ocena iz dolzine besedila, ne racun ponudnika. Anonimno glasovanje uporablja lokalni brskalniski ID, zato je to prototipna zascita in ne prava produkcijska identiteta. Za produkcijo morajo pravi podatki priti iz backend logov, AI provider usage podatkov, Vercel observability, Supabase metrik in server-side omejitev.
 
 ## 3. Analitika pobud za uporabnike in Microsoft Clarity
 
 **Namen:** javna platforma mora uporabnikom pokazati splosno statistiko pobud in osebno prilagojeno statistiko njihove aktivnosti.
 
 **Kdo vidi:** vsak uporabnik v zavihku `Analitika pobud`; neprijavljeni uporabnik vidi splosno statistiko, prijavljeni vidi se osebni del.
+
+Trenutna pravila dostopa v aplikaciji:
+
+- neprijavljen uporabnik vidi samo zacetni pregled aktualnih pobud,
+- aktualne so pobude s statusom `active` ali `signature_collection`,
+- neprijavljen uporabnik lahko odda en anonimen glas na pobudo,
+- za oddajo pobude, podpis, komentar, celoten detail, analitiko pobud, integracije in sistemsko analitiko je potrebna prijava,
+- sistemska analitika dodatno zahteva demo admina `admin@demos.local`.
 
 **Kaj prikazuje aplikacija iz baze:**
 
@@ -105,6 +126,14 @@ MICROSOFT_CLARITY_PROJECT_ID=vas_project_id
 4. Lokalno znova zazenite `npm run dev`; na Vercelu naredite redeploy.
 5. Obiscite aplikacijo, se prijavite in uporabite pobude.
 6. V Clarity dashboardu preverite sessions, heatmaps, recordings, custom tags in events.
+
+V aplikaciji lahko runtime stanje preverite tudi v zavihku `Integracije`, kjer Microsoft Clarity prikaze:
+
+- ali je `Project ID` prisoten v `/config.local.js`,
+- ali je `window.clarity` inicializiran,
+- ali je Clarity script tag vstavljen v dokument.
+
+Ker je aplikacija enostranska, frontend pri preklopu pogleda posodobi URL z `?view=dashboard`, `?view=analytics`, `?view=integrations`, `?view=submit` oziroma `?view=systemAnalytics`. To Clarityju pomaga lociti heatmape in posnetke po glavnih pogledih aplikacije.
 
 Microsoftova dokumentacija pravi, da ima vsak Clarity projekt svojo tracking kodo, Identify API pa omogoca povezovanje sej z vasim internim uporabniskim identifikatorjem. Custom tags in events so namenjeni filtriranju sej in vedenjskih vzorcev.
 

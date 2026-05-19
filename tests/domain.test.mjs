@@ -119,20 +119,28 @@ test("uporabniska analitika locuje moje pobude in aktivnost", () => {
 });
 
 test("sistemska analitika povzame ocenjeno porabo in dogodke", () => {
-  const initiative = createInitiative(validInput, actor);
+  const initiative = voteForInitiative(createInitiative(validInput, actor), {
+    id: "anon-browser-1",
+    name: "Anonimni glasovalec"
+  });
   const analytics = calculateSystemAnalytics(
     [initiative],
     [
       { type: "ai_review", estimatedTokens: 120, durationMs: 320, provider: "huggingface" },
-      { type: "email_notifications", count: 2, mode: "outbox" }
+      { type: "email_notifications", count: 2, mode: "outbox" },
+      { type: "vote", anonymous: true, sessionId: "session-1" }
     ],
     { resourceCount: 4, transferKb: 12.5, scriptCount: 2, stylesheetCount: 1, fetchCount: 1, loadMs: 80 }
   );
 
   assert.equal(analytics.initiativeRows, 1);
+  assert.equal(analytics.voteRows, 1);
   assert.equal(analytics.aiRequestCount, 1);
   assert.equal(analytics.aiEstimatedTokens, 120);
   assert.equal(analytics.emailNotificationItems, 2);
+  assert.equal(analytics.anonymousVoteRows, 1);
+  assert.equal(analytics.anonymousVoteEvents, 1);
+  assert.equal(analytics.uniqueSessionCount, 1);
   assert.equal(analytics.resourceSnapshot.transferKb, 12.5);
 });
 
