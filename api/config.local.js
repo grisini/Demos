@@ -41,6 +41,16 @@ function publicRuntimeConfig(env) {
       env.SMTP_HOST ? "smtp" : "outbox"
     ),
     EMAIL_NOTIFY_ACTOR: firstValue(env.EMAIL_NOTIFY_ACTOR, env.VITE_EMAIL_NOTIFY_ACTOR, "false") === "true",
+    SYSTEM_ANALYTICS_ENDPOINT: firstValue(
+      env.SYSTEM_ANALYTICS_ENDPOINT,
+      env.VITE_SYSTEM_ANALYTICS_ENDPOINT,
+      "/api/analytics/system"
+    ),
+    MICROSOFT_CLARITY_PROJECT_ID: firstValue(
+      env.MICROSOFT_CLARITY_PROJECT_ID,
+      env.VITE_MICROSOFT_CLARITY_PROJECT_ID,
+      env.CLARITY_PROJECT_ID
+    ),
     HUGGINGFACE_ZERO_SHOT_MODEL: firstValue(
       env.HUGGINGFACE_ZERO_SHOT_MODEL,
       env.VITE_HUGGINGFACE_ZERO_SHOT_MODEL,

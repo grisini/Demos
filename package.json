@@ -8,5 +8,8 @@
     "start": "node scripts/dev-server.mjs",
     "test": "node tests/domain.test.mjs",
     "check": "npm test"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^2.0.1"
   }
 }

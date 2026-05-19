@@ -47,6 +47,10 @@ Statusi v tabeli:
 | F-27 | Mermaid diagrami | Implementirano | `docs/diagrams.md`, `docs/*.mmd` | Pregled dokumentacije | Diagrami pokrivajo uporabniski tok, zaporedje, UML, ER in DevWork loop. |
 | F-28 | Domenski testi | Implementirano | `tests/domain.test.mjs` | `npm test` | Pokrivajo validacijo, AI presojo, glasovanje, podpis, komentarje, analitiko in email domensko logiko. |
 | F-29 | CI/CD pipeline | Implementirano | `.github/workflows/pipeline_demos.yml` | GitHub Actions ali lokalni pregled YAML | Pipeline namesti odvisnosti, zazene teste in preveri odsotnost lokalnih skrivnosti. |
+| F-30 | Vercel Web Analytics | Implementirano | `src/lib/vercel-analytics.js`, `src/main.js`, `package.json` | Deploy na Vercel in obisk strani | Namenjeno je hostingu, prometu in SEO pogledu; vidi ga lastnik Vercel projekta. |
+| F-31 | Microsoft Clarity vedenjska analitika | Pripravljeno | `src/lib/clarity.js`, `src/main.js`, `src/config.js` | Nastavi `MICROSOFT_CLARITY_PROJECT_ID` in preveri Clarity dashboard | Clarity belezi seje, tags in events; podatki pobud ostanejo v aplikacijski bazi. |
+| F-32 | Osebna analitika pobud | Implementirano | `calculateUserAnalytics()`, `renderAnalyticsView()` | `npm test` | Vsak prijavljen uporabnik vidi svoje pobude, glasove, podpise, komentarje, podporo in zadnjo aktivnost. |
+| F-33 | Admin sistemska analitika | Delno implementirano | `calculateSystemAnalytics()`, `src/lib/telemetry.js`, `api/analytics/system.js`, `renderSystemAnalyticsView()` | `npm test`, prijava kot `admin@demos.local` | Dostop ima samo demo admin. Na Vercelu sprejema dogodke prek API funkcije; s `SUPABASE_SERVICE_ROLE_KEY` jih zapise v `system_analytics_events`. Ocena tokenov ostaja priblizek. |
 
 ## Sprejemni kriteriji po funkcionalnih sklopih
 
@@ -71,6 +75,9 @@ Statusi v tabeli:
 - Hugging Face endpoint se uporabi samo, kadar je konfiguriran.
 - Ob napaki zunanjega AI modela aplikacija ostane uporabna.
 - Analitika prikaze skupne glasove, komentarje, podpise, porazdelitev glasov, kategorije in AI tveganja.
+- Prijavljen uporabnik vidi osebno analitiko svojih pobud in aktivnosti.
+- Admin vidi locen sistemski pogled za AI klice, oceno tokenov, email dogodke in frontend vire.
+- Clarity prejme custom tags in events za vedenjsko analitiko sej.
 
 ### Podatki in integracije
 

@@ -9,6 +9,8 @@ const root = resolve(process.cwd());
 const defaultPort = Number(process.env.PORT || 5173);
 const huggingFaceRouterBase = "https://router.huggingface.co/hf-inference/models";
 const defaultHuggingFaceZeroShotModel = "facebook/bart-large-mnli";
+const demoAdminEmail = "admin@demos.local";
+const systemTelemetryEvents = [];
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -66,6 +68,10 @@ function runtimeConfig() {
       env.EMAIL_NOTIFICATIONS_ENDPOINT || env.VITE_EMAIL_NOTIFICATIONS_ENDPOINT || "/api/notifications/email",
     EMAIL_DELIVERY_MODE: env.SMTP_HOST ? "smtp" : "outbox",
     EMAIL_NOTIFY_ACTOR: (env.EMAIL_NOTIFY_ACTOR || env.VITE_EMAIL_NOTIFY_ACTOR) === "true",
+    SYSTEM_ANALYTICS_ENDPOINT:
+      env.SYSTEM_ANALYTICS_ENDPOINT || env.VITE_SYSTEM_ANALYTICS_ENDPOINT || "/api/analytics/system",
+    MICROSOFT_CLARITY_PROJECT_ID:
+      env.MICROSOFT_CLARITY_PROJECT_ID || env.VITE_MICROSOFT_CLARITY_PROJECT_ID || env.CLARITY_PROJECT_ID || "",
     HUGGINGFACE_ZERO_SHOT_MODEL:
       env.HUGGINGFACE_ZERO_SHOT_MODEL || env.VITE_HUGGINGFACE_ZERO_SHOT_MODEL || defaultHuggingFaceZeroShotModel,
     HUGGINGFACE_EMBEDDING_MODEL:
@@ -348,6 +354,56 @@ async function deliverEmailNotifications(payload) {
     mode: "outbox",
     outbox: relative(root, outboxPath)
   };
+}
+
+function handleSystemAnalytics(payload) {
+  const events = normalizeSystemAnalyticsEvents(payload);
+  systemTelemetryEvents.unshift(...events);
+  systemTelemetryEvents.splice(200);
+
+  console.log("[Demokracija 2.0] System analytics dev endpoint", {
+    accepted: events.length,
+    stored: systemTelemetryEvents.length
+  });
+
+  return {
+    accepted: events.length,
+    storage: "dev_memory",
+    persisted: events.length
+  };
+}
+
+function normalizeSystemAnalyticsEvents(payload) {
+  const rawEvents = Array.isArray(payload?.events)
+    ? payload.events
+    : payload?.event
+      ? [payload.event]
+      : Array.isArray(payload)
+        ? payload
+        : [];
+
+  return rawEvents.slice(0, 20).map((event) => {
+    const data = primitiveSystemProperties(event);
+    return {
+      id: String(data.id || cryptoRandomId()),
+      type: String(data.type || "system_event").slice(0, 80),
+      createdAt: safeIsoDate(data.createdAt),
+      source: String(data.source || "frontend").slice(0, 80),
+      userRef: String(data.userRef || "").slice(0, 200),
+      userRole: String(data.userRole || "").slice(0, 80),
+      sessionId: String(data.sessionId || "").slice(0, 200),
+      path: String(data.path || "").slice(0, 300),
+      ...data
+    };
+  });
+}
+
+function primitiveSystemProperties(value) {
+  return Object.fromEntries(
+    Object.entries(value || {}).filter(([, item]) =>
+      item === null || ["string", "number", "boolean"].includes(typeof item)
+    )
+  );
 }
 
 function normalizeEmailNotifications(payload, env = {}) {
@@ -688,6 +744,21 @@ function isEmailAddress(value) {
   return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(value || "").trim());
 }
 
+function safeIsoDate(value) {
+  const date = value ? new Date(value) : new Date();
+  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+}
+
+function cryptoRandomId() {
+  return globalThis.crypto?.randomUUID
+    ? globalThis.crypto.randomUUID()
+    : `event-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function isDemoAdminRequest(req) {
+  return String(req.headers["x-demos-admin"] || "").trim().toLowerCase() === demoAdminEmail;
+}
+
 function createAppServer() {
   return createServer(async (req, res) => {
     const requestedUrl = new URL(req.url || "/", `http://${req.headers.host}`);
@@ -707,6 +778,39 @@ function createAppServer() {
         console.error("[Demokracija 2.0] AI review failed", error);
         json(res, error.status || 500, {
           error: error.message || "AI review failed"
+        });
+      }
+      return;
+    }
+
+    if (pathname === "/api/analytics/system") {
+      if (req.method === "GET") {
+        if (!isDemoAdminRequest(req)) {
+          json(res, 403, { error: "Forbidden" });
+          return;
+        }
+
+        json(res, 200, {
+          events: systemTelemetryEvents,
+          storage: "dev_memory",
+          persisted: true
+        });
+        return;
+      }
+
+      if (req.method !== "POST") {
+        json(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      try {
+        const payload = await readJsonBody(req, 128 * 1024);
+        const result = handleSystemAnalytics(payload);
+        json(res, 202, result);
+      } catch (error) {
+        console.error("[Demokracija 2.0] System analytics failed", error);
+        json(res, error.status || 500, {
+          error: error.message || "System analytics failed"
         });
       }
       return;

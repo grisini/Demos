@@ -27,6 +27,8 @@ DATA_SOURCE=supabase
 SUPABASE_URL=https://PROJECT_REF.supabase.co
 SUPABASE_ANON_KEY=PUBLIC_ANON_KEY
 AI_PROVIDER=huggingface
+MICROSOFT_CLARITY_PROJECT_ID=...
+SYSTEM_ANALYTICS_ENDPOINT=/api/analytics/system
 ```
 
 Koda podpira tudi `VITE_*` alias kljuce, ce deployment uporablja pravi Vite build:
@@ -39,6 +41,8 @@ VITE_AI_PROVIDER=huggingface
 ```
 
 Po spremembi env varov na hostingu je potreben nov deploy oziroma redeploy. `SUPABASE_SERVICE_ROLE_KEY`, `HF_TOKEN`, SMTP gesla in podobni privatni kljuci ne smejo biti `VITE_*` in ne smejo v frontend.
+
+Ce zelite, da admin sistemska analitika na Vercelu bere skupne dogodke vseh uporabnikov, dodajte tudi server-only `SUPABASE_SERVICE_ROLE_KEY` in v Supabase izvedite zadnjo verzijo `supabase/schema.sql`, ki vsebuje tabelo `system_analytics_events`.
 
 ## Testi
 
@@ -56,6 +60,10 @@ npm test
 - glasovanje, demo podpisovanje, komentarji in statusi,
 - email obvestila za glasovalce ob spremembah pobude in novih pobudah v isti kategoriji,
 - napredna statistika glasov na pobudo, kategorije, komentarje in AI tveganja,
+- osebna analitika pobud za prijavljenega uporabnika,
+- admin sistemska analitika za oceno AI klicev, tokenov, email dogodkov in frontend virov,
+- Vercel Web Analytics za hosting/SEO statistiko,
+- Microsoft Clarity za vedenjsko analitiko sej, custom tags in events,
 - Supabase SQL shema in konfiguracijski nastavki,
 - povzetek SI-PASS testnega okolja.
 
@@ -63,6 +71,8 @@ npm test
 
 - `docs/pregled-projekta.md` - celovit tehnicni in funkcionalni pregled projekta,
 - `docs/funkcionalnosti.md` - zivi register funkcionalnosti, statusov, dokazov v kodi in preverjanja,
+- `docs/analitika.md` - tri analiticne plasti in navodila za Vercel, Clarity in admin pogled,
+- `docs/dnevnik-dopolnitev.md` - sprotni dnevnik dopolnitev in kronologija commitov,
 - `docs/git-zgodovina.md` - kronoloski povzetek razvoja iz git zgodovine,
 - `docs/roadmap.md` - izvedba po iteracijah,
 - `docs/devwork-loop.md` - sprotna porocila in kontrolne tocke,
@@ -102,6 +112,22 @@ HF_TOKEN=hf_...
 ```
 
 Lokalno endpoint `/api/ai/review-initiative` zagotovi `scripts/dev-server.mjs`, na Vercelu pa `api/ai/review-initiative.js`. Frontend vidi samo endpoint, `HF_TOKEN` ostane server-only. Ob napaki aplikacija samodejno pade nazaj na lokalno presojo.
+
+## Analitike
+
+Projekt uporablja tri locene analiticne plasti:
+
+- **Vercel Web Analytics**: promet, strani in SEO pogled v Vercel dashboardu; vidi ga lastnik hostinga.
+- **Sistemska analitika**: pogled samo za demo admina `admin@demos.local`; namenjen je oceni obremenitev, AI klicev, tokenov in email dogodkov.
+- **Analitika pobud**: javni aplikacijski pogled za splosne metrike pobud in osebno statistiko prijavljenega uporabnika. Microsoft Clarity dodatno belezi seje, custom tags in dogodke.
+
+Za Clarity nastavite:
+
+```bash
+MICROSOFT_CLARITY_PROJECT_ID=...
+```
+
+Podrobna navodila so v `docs/analitika.md`.
 
 ## Email obvestila
 

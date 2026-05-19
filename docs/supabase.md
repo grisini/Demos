@@ -9,6 +9,7 @@ Shema vsebuje tudi pripravo za Iteracijo 3:
 - `initiative_ai_reviews` za zgodovino AI presoj in audit surovih odgovorov,
 - `initiative_analytics` za stevilo glasov, podpisov, komentarjev in delez glasov na pobudo,
 - `category_analytics` za agregacijo pobud po kategorijah.
+- `system_analytics_events` za admin sistemsko telemetrijo, ki jo na Vercelu zapisuje serverless funkcija z `SUPABASE_SERVICE_ROLE_KEY`.
 
 ## Lokalni zagon s Supabase
 

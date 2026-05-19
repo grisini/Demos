@@ -1,5 +1,9 @@
 import { config, isSupabaseEnabled } from "./config.js";
-import { calculateAnalytics } from "./domain/analytics.js";
+import {
+  calculateAnalytics,
+  calculateSystemAnalytics,
+  calculateUserAnalytics
+} from "./domain/analytics.js";
 import {
   NOTIFICATION_EVENTS,
   buildCategoryMatchEmailNotifications,
@@ -17,15 +21,26 @@ import {
   validateInitiative
 } from "./domain/validation.js";
 import { DemoAuth } from "./lib/auth.js";
+import {
+  identifyClarityUser,
+  initializeMicrosoftClarity,
+  setClarityTag,
+  trackClarityEvent
+} from "./lib/clarity.js";
 import { EmailNotificationClient } from "./lib/notifications.js";
 import { createRepository } from "./lib/supabase.js";
+import { browserResourceSnapshot, estimateTextTokens, SystemTelemetry } from "./lib/telemetry.js";
+import { initializeVercelAnalytics, trackVercelEvent } from "./lib/vercel-analytics.js";
+
+const DEMO_ADMIN_EMAIL = "admin@demos.local";
 
 class DemocracyApp {
-  constructor({ root, repository, auth, notificationClient, config: appConfig }) {
+  constructor({ root, repository, auth, notificationClient, telemetry, config: appConfig }) {
     this.root = root;
     this.repository = repository;
     this.auth = auth;
     this.notificationClient = notificationClient;
+    this.telemetry = telemetry;
     this.config = appConfig;
     this.state = {
       initiatives: [],
@@ -40,6 +55,8 @@ class DemocracyApp {
       toast: "",
       aiPreviewReview: null,
       aiPreviewLoading: false,
+      systemTelemetryEvents: [],
+      systemTelemetryLoading: false,
       sidebarOpen: defaultSidebarOpen(),
       loading: true
     };
@@ -51,14 +68,23 @@ class DemocracyApp {
   }
 
   async init() {
+    initializeVercelAnalytics();
+    initializeMicrosoftClarity(this.config.MICROSOFT_CLARITY_PROJECT_ID);
+    this.syncExternalAnalytics();
     await this.refresh();
   }
 
   async refresh() {
     this.state.loading = true;
     this.render();
+    const startedAt = performance.now();
     try {
       this.state.initiatives = await this.repository.list();
+      this.recordSystemEvent("data_load", {
+        count: this.state.initiatives.length,
+        durationMs: Math.round(performance.now() - startedAt),
+        dataSource: this.config.DATA_SOURCE
+      });
       this.state.selectedId ||= this.state.initiatives[0]?.id || null;
       this.state.loading = false;
       this.render();
@@ -72,6 +98,10 @@ class DemocracyApp {
 
   currentUser() {
     return this.auth.currentUser();
+  }
+
+  isAdminUser(user = this.currentUser()) {
+    return isDemoAdminUser(user);
   }
 
   filteredInitiatives() {
@@ -131,8 +161,9 @@ class DemocracyApp {
         <nav class="nav-list" aria-label="Glavna navigacija">
           ${this.navButton("dashboard", "Pregled", "01")}
           ${this.navButton("submit", "Nova pobuda", "02")}
-          ${this.navButton("analytics", "Analitika", "03")}
+          ${this.navButton("analytics", "Analitika pobud", "03")}
           ${this.navButton("integrations", "Integracije", "04")}
+          ${this.isAdminUser(user) ? this.navButton("systemAnalytics", "Sistemska analitika", "05") : ""}
         </nav>
         <div class="user-panel">
           ${user ? this.renderUser(user) : this.renderLogin()}
@@ -156,12 +187,14 @@ class DemocracyApp {
         ${this.state.loading ? this.renderLoading() : this.renderView(analytics, selected)}
       </main>
     `;
+    this.syncExternalAnalytics();
   }
 
   renderView(analytics, selected) {
     if (this.state.activeView === "submit") return this.renderSubmitView();
     if (this.state.activeView === "analytics") return this.renderAnalyticsView(analytics);
     if (this.state.activeView === "integrations") return this.renderIntegrationsView();
+    if (this.state.activeView === "systemAnalytics") return this.renderSystemAnalyticsView();
     return this.renderDashboardView(analytics, selected);
   }
 
@@ -263,9 +296,17 @@ class DemocracyApp {
   }
 
   renderAnalyticsView(analytics) {
+    const user = this.currentUser();
+    const userAnalytics = calculateUserAnalytics(this.state.initiatives, user);
     const maxCategoryVotes = Math.max(1, ...analytics.categoryStats.map((item) => item.votes));
     const maxVotes = Math.max(1, analytics.voteDistribution.maxVotes);
     return `
+      <section class="metric-grid analytics-metrics" aria-label="Kazalniki pobud">
+        ${this.metric("Pobude", analytics.initiativeCount, "vse oddane pobude")}
+        ${this.metric("Glasovi", analytics.totalVotes, "skupna podpora")}
+        ${this.metric("Podpisi", analytics.totalSignatures, "evidentirani podpisi")}
+        ${this.metric("Komentarji", analytics.totalComments, "razprava v aplikaciji")}
+      </section>
       <section class="metric-grid analytics-metrics" aria-label="Napredni kazalniki">
         ${this.metric("Najvec glasov", analytics.voteDistribution.maxVotes, "najbolj glasovana pobuda")}
         ${this.metric("Povprecje", analytics.voteDistribution.averageVotes, "glasov na pobudo")}
@@ -273,6 +314,7 @@ class DemocracyApp {
         ${this.metric("Brez glasov", analytics.voteDistribution.zeroVoteInitiatives, "pobude brez podpore")}
       </section>
       <section class="analytics-grid">
+        ${this.renderPersonalInitiativeAnalytics(user, userAnalytics)}
         <div class="panel">
           <p class="eyebrow">Statusi</p>
           <h2>Tok pobud</h2>
@@ -338,6 +380,132 @@ class DemocracyApp {
     `;
   }
 
+  renderPersonalInitiativeAnalytics(user, userAnalytics) {
+    if (!user) {
+      return `
+        <div class="panel wide-panel">
+          <p class="eyebrow">Moj racun</p>
+          <h2>Osebna analitika pobud</h2>
+          <div class="empty-state">Za osebno statistiko pobud se prijavite.</div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="panel wide-panel">
+        <p class="eyebrow">Moj racun</p>
+        <h2>Moje pobude in aktivnost</h2>
+        <div class="analytics-summary-strip">
+          ${this.summaryCell("Moje pobude", userAnalytics.authoredCount)}
+          ${this.summaryCell("Moji glasovi", userAnalytics.votedCount)}
+          ${this.summaryCell("Moji podpisi", userAnalytics.signedCount)}
+          ${this.summaryCell("Moji komentarji", userAnalytics.commentsWritten)}
+          ${this.summaryCell("Podpora mojim pobudam", userAnalytics.supportReceived)}
+          ${this.summaryCell("AI povprecje", `${userAnalytics.averageAiScore}%`)}
+        </div>
+        <div class="personal-analytics-grid">
+          <div>
+            <h3>Moje teme</h3>
+            <div class="category-analytics">
+              ${
+                userAnalytics.authoredCategoryStats.length
+                  ? userAnalytics.authoredCategoryStats.map((item) => this.renderUserCategoryAnalytics(item)).join("")
+                  : `<div class="empty-state">Niste oddali pobude.</div>`
+              }
+            </div>
+          </div>
+          <div>
+            <h3>Zadnja moja aktivnost</h3>
+            <div class="activity-list">
+              ${
+                userAnalytics.recentActivity.length
+                  ? userAnalytics.recentActivity.map((item) => this.renderActivityItem(item)).join("")
+                  : `<div class="empty-state">Ni aktivnosti.</div>`
+              }
+            </div>
+          </div>
+        </div>
+        <div class="ranking">
+          ${
+            userAnalytics.topAuthoredInitiatives.length
+              ? userAnalytics.topAuthoredInitiatives.map((initiative, index) => this.renderRanking(initiative, index)).join("")
+              : ""
+          }
+        </div>
+      </div>
+    `;
+  }
+
+  renderSystemAnalyticsView() {
+    if (!this.isAdminUser()) {
+      return `
+        <section class="panel">
+          <p class="eyebrow">Admin</p>
+          <h2>Sistemska analitika</h2>
+          <div class="empty-state">Ta pogled je namenjen samo administratorju.</div>
+        </section>
+      `;
+    }
+
+    const system = calculateSystemAnalytics(this.state.initiatives, this.systemTelemetryEvents(), browserResourceSnapshot());
+
+    return `
+      <section class="metric-grid analytics-metrics" aria-label="Sistemski kazalniki">
+        ${this.metric("Zapisi v aplikaciji", system.dataRows, "pobude, glasovi, podpisi, komentarji")}
+        ${this.metric("AI pregledi", system.aiRequestCount, "zabelezeni klici v tej seji brskalnika")}
+        ${this.metric("Ocenjeni tokeni", system.aiEstimatedTokens || system.estimatedStoredAiTokens, "ocena porabe AI vnosa")}
+        ${this.metric("Prenos virov", `${system.resourceSnapshot.transferKb} KB`, "frontend viri v brskalniku")}
+      </section>
+      <section class="analytics-grid">
+        <div class="panel">
+          <p class="eyebrow">Viri</p>
+          <h2>Obremenitev strani</h2>
+          <dl class="config-list">
+            <div><dt>Resource requesti</dt><dd>${system.resourceSnapshot.resourceCount}</dd></div>
+            <div><dt>Scripti</dt><dd>${system.resourceSnapshot.scriptCount}</dd></div>
+            <div><dt>CSS/link viri</dt><dd>${system.resourceSnapshot.stylesheetCount}</dd></div>
+            <div><dt>Fetch requesti</dt><dd>${system.resourceSnapshot.fetchCount}</dd></div>
+            <div><dt>Load event</dt><dd>${system.resourceSnapshot.loadMs} ms</dd></div>
+          </dl>
+        </div>
+        <div class="panel">
+          <p class="eyebrow">AI in sporocila</p>
+          <h2>Poraba storitev</h2>
+          <dl class="config-list">
+            <div><dt>AI fallbacki</dt><dd>${system.aiFallbackCount}</dd></div>
+            <div><dt>Povprecen AI cas</dt><dd>${system.averageAiDurationMs} ms</dd></div>
+            <div><dt>Email dogodki</dt><dd>${system.emailNotificationEvents}</dd></div>
+            <div><dt>Email postavke</dt><dd>${system.emailNotificationItems}</dd></div>
+            <div><dt>AI review zapisi</dt><dd>${system.reviewRows}</dd></div>
+          </dl>
+        </div>
+        <div class="panel wide-panel">
+          <p class="eyebrow">Podatkovni obseg</p>
+          <h2>Zapisi po tipu</h2>
+          <div class="analytics-summary-strip">
+            ${this.summaryCell("Pobude", system.initiativeRows)}
+            ${this.summaryCell("Glasovi", system.voteRows)}
+            ${this.summaryCell("Podpisi", system.signatureRows)}
+            ${this.summaryCell("Komentarji", system.commentRows)}
+            ${this.summaryCell("Stored AI tokeni", system.estimatedStoredAiTokens)}
+          </div>
+        </div>
+        <div class="panel wide-panel">
+          <p class="eyebrow">Audit</p>
+          <h2>Zadnji sistemski dogodki</h2>
+          ${this.state.systemTelemetryLoading ? `<p class="note">Nalaganje Vercel/Supabase sistemskih dogodkov ...</p>` : ""}
+          <div class="system-event-list">
+            ${
+              system.recentEvents.length
+                ? system.recentEvents.map((event) => this.renderSystemEvent(event)).join("")
+                : `<div class="empty-state">Sistemski dogodki se niso zabelezeni.</div>`
+            }
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
   renderCategoryAnalytics(item, maxVotes) {
     return `
       <div class="category-analytics-row">
@@ -347,6 +515,37 @@ class DemocracyApp {
         </div>
         <em>${item.averageAiScore}% AI</em>
         <div class="bar-track"><div style="width:${(item.votes / maxVotes) * 100}%"></div></div>
+      </div>
+    `;
+  }
+
+  renderUserCategoryAnalytics(item) {
+    return `
+      <div class="category-analytics-row">
+        <div>
+          <strong>${escapeHtml(item.category)}</strong>
+          <small>${item.count} pobud - ${item.support} podpore - ${item.comments} komentarjev</small>
+        </div>
+      </div>
+    `;
+  }
+
+  renderActivityItem(item) {
+    return `
+      <div class="activity-item">
+        <strong>${escapeHtml(item.label)}</strong>
+        <span>${escapeHtml(item.title)}</span>
+        <small>${escapeHtml(item.category)} - ${formatDate(item.createdAt)}</small>
+      </div>
+    `;
+  }
+
+  renderSystemEvent(event) {
+    return `
+      <div class="system-event">
+        <strong>${escapeHtml(event.type)}</strong>
+        <span>${formatDate(event.createdAt)}</span>
+        <small>${escapeHtml(systemEventDetails(event))}</small>
       </div>
     `;
   }
@@ -413,6 +612,26 @@ class DemocracyApp {
             <div><dt>Embedding model</dt><dd>${escapeHtml(this.config.HUGGINGFACE_EMBEDDING_MODEL)}</dd></div>
           </dl>
           <p class="note">AI token ostane na backendu oziroma v dev strezniku; frontend klice samo varen review endpoint.</p>
+        </div>
+        <div class="panel">
+          <p class="eyebrow">Hosting analitika</p>
+          <h2>Vercel Web Analytics</h2>
+          <dl class="config-list">
+            <div><dt>Namen</dt><dd>SEO, obiski, strani</dd></div>
+            <div><dt>Dostop</dt><dd>lastnik Vercel projekta</dd></div>
+            <div><dt>Script</dt><dd>vklopljen</dd></div>
+          </dl>
+          <p class="note">Podatki so vidni v Vercel dashboardu po deployu in obisku strani.</p>
+        </div>
+        <div class="panel">
+          <p class="eyebrow">Vedenjska analitika</p>
+          <h2>Microsoft Clarity</h2>
+          <dl class="config-list">
+            <div><dt>Project ID</dt><dd>${this.config.MICROSOFT_CLARITY_PROJECT_ID ? "nastavljen" : "ni nastavljen"}</dd></div>
+            <div><dt>Dogodki</dt><dd>pogledi, pobude, glasovi, komentarji</dd></div>
+            <div><dt>Osebna statistika</dt><dd>iz aplikacijske baze</dd></div>
+          </dl>
+          <p class="note">Clarity oznacuje seje in dogodke, analitika pobud v aplikaciji pa uporablja podatke iz baze.</p>
         </div>
         <div class="panel">
           <p class="eyebrow">Obvestila</p>
@@ -633,7 +852,7 @@ class DemocracyApp {
     return `
       <div class="signed-user">
         <span>${escapeHtml(user.name)}</span>
-        <small>${escapeHtml(user.provider === "demo" ? "Demo identiteta" : user.provider)}</small>
+        <small>${escapeHtml(this.isAdminUser(user) ? "Admin" : user.provider === "demo" ? "Demo identiteta" : user.provider)}</small>
         <button class="button secondary compact" data-action="logout">Odjava</button>
       </div>
     `;
@@ -655,6 +874,15 @@ class DemocracyApp {
         <span>${label}</span>
         <strong>${value}</strong>
         <small>${hint}</small>
+      </div>
+    `;
+  }
+
+  summaryCell(label, value) {
+    return `
+      <div>
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
       </div>
     `;
   }
@@ -687,8 +915,9 @@ class DemocracyApp {
     return {
       dashboard: "Pregled pobud",
       submit: "Oddaja nove pobude",
-      analytics: "Statistika in analitika",
-      integrations: "Nastavitve integracij"
+      analytics: "Analitika pobud",
+      integrations: "Nastavitve integracij",
+      systemAnalytics: "Sistemska analitika"
     }[this.state.activeView];
   }
 
@@ -699,9 +928,20 @@ class DemocracyApp {
 
     if (action === "view") {
       event.preventDefault();
+      if (target.dataset.view === "systemAnalytics" && !this.isAdminUser()) {
+        this.toast("Sistemska analitika je namenjena administratorju.");
+        this.render();
+        return;
+      }
       this.state.activeView = target.dataset.view;
       if (isSmallViewport()) {
         this.state.sidebarOpen = false;
+      }
+      trackClarityEvent(`view_${this.state.activeView}`);
+      setClarityTag("app_view", this.state.activeView);
+      trackVercelEvent("ViewChanged", { view: this.state.activeView });
+      if (this.state.activeView === "systemAnalytics") {
+        await this.loadSystemTelemetry();
       }
       this.render();
       return;
@@ -726,6 +966,11 @@ class DemocracyApp {
 
     if (action === "select") {
       this.state.selectedId = target.dataset.id;
+      const selected = this.state.initiatives.find((initiative) => initiative.id === target.dataset.id);
+      if (selected) {
+        setClarityTag("initiative_category", selected.category);
+        trackClarityEvent("initiative_selected");
+      }
       this.render();
       return;
     }
@@ -739,6 +984,7 @@ class DemocracyApp {
     }
 
     if (action === "ai-preview") {
+      trackClarityEvent("ai_preview_requested");
       await this.updateRemoteAiPreview();
       return;
     }
@@ -778,6 +1024,7 @@ class DemocracyApp {
           })
         );
         await this.refresh();
+        trackClarityEvent(action === "vote" ? "initiative_voted" : "initiative_signed");
         this.toast(action === "vote" ? "Glas je zabelezen." : "Podpis je evidentiran.");
       });
     }
@@ -790,7 +1037,13 @@ class DemocracyApp {
 
     if (form.dataset.form === "login") {
       const data = Object.fromEntries(new FormData(form));
-      this.auth.signIn(data);
+      const user = this.auth.signIn({
+        ...data,
+        role: isDemoAdminEmail(data.email) ? "admin" : "citizen"
+      });
+      identifyClarityUser(user, this.state.activeView);
+      setClarityTag("user_role", user.role);
+      trackClarityEvent("demo_login");
       this.toast("Prijava je uspela.");
       this.render();
       return;
@@ -825,6 +1078,8 @@ class DemocracyApp {
         this.state.activeView = "dashboard";
         this.state.selectedId = initiative.id;
         await this.refresh();
+        setClarityTag("initiative_category", initiative.category);
+        trackClarityEvent("initiative_created");
         this.toast("Pobuda je oddana.");
       });
       return;
@@ -845,6 +1100,7 @@ class DemocracyApp {
           })
         );
         await this.refresh();
+        trackClarityEvent("comment_created");
         this.toast("Komentar je objavljen.");
       });
     }
@@ -926,6 +1182,11 @@ class DemocracyApp {
 
     try {
       const result = await this.notificationClient?.send(items);
+      this.recordSystemEvent("email_notifications", {
+        count: items.length,
+        mode: result?.mode || "unknown",
+        skipped: result?.skipped === true
+      });
       if (result && !result.skipped) {
         console.info("[Demokracija 2.0] Email obvestila", result);
       } else {
@@ -1026,7 +1287,21 @@ class DemocracyApp {
 
   async reviewInitiative(values) {
     const fallback = evaluateInitiative(values);
+    const startedAt = performance.now();
+    const estimatedTokens = estimateTextTokens([
+      values?.title,
+      values?.summary,
+      values?.description,
+      values?.legalReference,
+      values?.expectedImpact
+    ].join(" "));
     if (!this.config.AI_REVIEW_ENDPOINT || this.config.AI_PROVIDER !== "huggingface") {
+      this.recordSystemEvent("ai_review", {
+        provider: "local",
+        estimatedTokens,
+        durationMs: Math.round(performance.now() - startedAt),
+        fallback: true
+      });
       return fallback;
     }
 
@@ -1043,9 +1318,22 @@ class DemocracyApp {
         throw new Error(`AI review endpoint failed (${response.status})`);
       }
 
-      return await response.json();
+      const review = await response.json();
+      this.recordSystemEvent("ai_review", {
+        provider: review.checks?.provider || review.provider || "huggingface",
+        estimatedTokens,
+        durationMs: Math.round(performance.now() - startedAt),
+        fallback: false
+      });
+      return review;
     } catch (error) {
       this.reportError("Hugging Face review fallback", error);
+      this.recordSystemEvent("ai_review", {
+        provider: "local",
+        estimatedTokens,
+        durationMs: Math.round(performance.now() - startedAt),
+        fallback: true
+      });
       return {
         ...fallback,
         checks: {
@@ -1056,6 +1344,53 @@ class DemocracyApp {
         }
       };
     }
+  }
+
+  syncExternalAnalytics() {
+    const user = this.currentUser();
+    setClarityTag("app_view", this.state.activeView);
+    setClarityTag("data_source", isSupabaseEnabled(this.config) ? "supabase" : "local");
+    setClarityTag("auth_state", user ? "signed_in" : "anonymous");
+
+    if (user) {
+      identifyClarityUser(user, this.state.activeView);
+      setClarityTag("user_role", this.isAdminUser(user) ? "admin" : "citizen");
+    }
+  }
+
+  recordSystemEvent(type, data = {}) {
+    const user = this.currentUser();
+    return this.telemetry.record(type, {
+      source: "frontend",
+      userRef: user?.id || "",
+      userRole: user ? (this.isAdminUser(user) ? "admin" : "citizen") : "anonymous",
+      sessionId: sessionTelemetryId(),
+      path: `${window.location.pathname}${window.location.hash || ""}`,
+      ...data
+    });
+  }
+
+  async loadSystemTelemetry() {
+    if (!this.isAdminUser()) return;
+
+    this.state.systemTelemetryLoading = true;
+    this.render();
+    try {
+      this.state.systemTelemetryEvents = await this.telemetry.readRemote(this.currentUser());
+    } catch {
+      this.state.systemTelemetryEvents = [];
+    } finally {
+      this.state.systemTelemetryLoading = false;
+    }
+  }
+
+  systemTelemetryEvents() {
+    const byId = new Map();
+    for (const event of [...this.state.systemTelemetryEvents, ...this.telemetry.read()]) {
+      byId.set(event.id || `${event.type}-${event.createdAt}`, event);
+    }
+
+    return [...byId.values()].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   }
 }
 
@@ -1110,6 +1445,63 @@ function maskEmail(value) {
   return `${name.slice(0, 2)}***@${domain}`;
 }
 
+function isDemoAdminUser(user) {
+  if (!user || user.provider !== "demo") return false;
+  return isDemoAdminEmail(user.email) || isDemoAdminEmail(user.id);
+}
+
+function isDemoAdminEmail(value) {
+  return String(value || "").trim().toLowerCase() === DEMO_ADMIN_EMAIL;
+}
+
+function formatDate(value) {
+  if (!value) return "ni datuma";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "ni datuma";
+  return date.toLocaleDateString("sl-SI", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function systemEventDetails(event) {
+  if (event.type === "ai_review") {
+    return `${event.provider || "unknown"} - ${event.estimatedTokens || 0} tokenov - ${event.durationMs || 0} ms`;
+  }
+
+  if (event.type === "email_notifications") {
+    return `${event.count || 0} obvestil - ${event.mode || "unknown"}`;
+  }
+
+  if (event.type === "data_load") {
+    return `${event.count || 0} pobud - ${event.durationMs || 0} ms - ${event.dataSource || event.source || "unknown"}`;
+  }
+
+  return Object.entries(event)
+    .filter(([key]) => !["id", "type", "createdAt"].includes(key))
+    .map(([key, value]) => `${key}: ${value}`)
+    .join(", ");
+}
+
+function sessionTelemetryId() {
+  const key = "demos.systemTelemetrySessionId";
+  try {
+    const existing = sessionStorage.getItem(key);
+    if (existing) return existing;
+
+    const id = globalThis.crypto?.randomUUID
+      ? globalThis.crypto.randomUUID()
+      : `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    sessionStorage.setItem(key, id);
+    return id;
+  } catch {
+    return "session-unavailable";
+  }
+}
+
 function userFacingErrorMessage(error) {
   const message = String(error?.message || "");
 
@@ -1132,6 +1524,7 @@ const app = new DemocracyApp({
   repository: createRepository(config),
   auth: new DemoAuth(),
   notificationClient: new EmailNotificationClient(config),
+  telemetry: new SystemTelemetry({ endpoint: config.SYSTEM_ANALYTICS_ENDPOINT }),
   config
 });
 

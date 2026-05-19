@@ -7,7 +7,7 @@ git log --date=short --pretty=format:"%h %ad %s" --reverse
 git log --stat --oneline --reverse -- src docs supabase tests scripts package.json README.md .github
 ```
 
-Zadnji pregledani commit je `ab343db` na veji `main`, ki sledi `origin/main`.
+Zadnji pregledani commit je `fa8352e` na veji `main`, ki sledi `origin/main`. Nezakljucen lokalni cikel 2026-05-19 je zapisan v `docs/dnevnik-dopolnitev.md`.
 
 ## Kronoloski pregled commitov
 
@@ -29,7 +29,31 @@ Zadnji pregledani commit je `ab343db` na veji `main`, ki sledi `origin/main`.
 | 2026-05-14 | `8058118` | Osnovni CI/CD pipeline | Dodan GitHub Actions workflow. |
 | 2026-05-14 | `9dd08c1` | CI/CD pipeline popravek #1 | Poenostavljen oziroma popravljen pipeline. |
 | 2026-05-14 | `c4c2ecd` | pipeline docs in si pass checklist | Dodana CI/CD dokumentacija in SI-CAS/SI-CES VPS checklist. |
-| 2026-05-14 | `ab343db` | Merge branch 'main' | Zadnja zdruzitev oddaljene veje v lokalni `main`. |
+| 2026-05-14 | `ab343db` | Merge branch 'main' | Zdruzitev oddaljene veje v lokalni `main`. |
+| 2026-05-16 | `01f87e8` | Dodana dokumentacija in diagrami projekta | Dodani register funkcionalnosti, pregled projekta, git zgodovina, Mermaid datoteke in SI-PASS/SI-CAS/SI-CES dokumentacija. |
+| 2026-05-16 | `96b29a5` | docs za vzpostavitev vps in Shibboleth/certfikati metadata za poslat za SI-PASS | Dodan VPS/Shibboleth zapisnik in staticni SI-CAS metadata. |
+| 2026-05-16 | `d94d816` | resolved conflict | Razresen merge konflikt. |
+| 2026-05-18 | `68f69e1` | kompletna izboljsava vmesnika, responsive, dodan gumb za meni | Prenovljen responsive UI in stranski meni. |
+| 2026-05-18 | `8586c7a` | Merge branch 'main' of https://github.com/rotmiha/Demos | Zdruzitev oddaljene veje. |
+| 2026-05-18 | `ab4eb72` | poravek glede povezave na bazo | Popravljena runtime konfiguracija za bazo. |
+| 2026-05-18 | `1231a97` | test | Testni commit. |
+| 2026-05-18 | `0b6c6e8` | odstranil config.local | Odstranjen lokalni config iz verzioniranega toka. |
+| 2026-05-18 | `c0a59ff` | testing | Dopolnitev configa med testiranjem. |
+| 2026-05-18 | `f70b367` | nevermind tole more bit | Testni popravek brez dodatne vsebinske dokumentacije. |
+| 2026-05-18 | `e7c1614` | k | Popravek razvojnega streznika. |
+| 2026-05-18 | `9bea6d2` | testing | Posodobljeni README, Supabase dokumentacija, script in config. |
+| 2026-05-18 | `a3e5be8` | nepotrebno | Ciscenje nepotrebnega dela. |
+| 2026-05-18 | `c123733` | Merge branch 'main' of https://github.com/rotmiha/Demos | Zdruzitev oddaljene veje. |
+| 2026-05-18 | `a95c24b` | upam | Dodan Vercel runtime config endpoint in rewrite. |
+| 2026-05-18 | `a8462ab` | Merge branch 'main' of https://github.com/rotmiha/Demos | Zdruzitev oddaljene veje. |
+| 2026-05-18 | `df8b9e2` | yy | Dopolnjen Vercel runtime config. |
+| 2026-05-18 | `60e84bf` | yyyyy | Dopolnjen frontend config. |
+| 2026-05-18 | `8e70329` | odstranjen log | Odstranjen nepotreben log. |
+| 2026-05-18 | `f0d56bc` | yyy | Odstranjene nepotrebne config vrstice. |
+| 2026-05-18 | `18f3b6b` | config | Popravljeni config kljuci. |
+| 2026-05-18 | `ded8be4` | log | Dodan zacasni log. |
+| 2026-05-18 | `0b9479c` | mailing deployment | Dodan Vercel endpoint za email obvestila. |
+| 2026-05-18 | `fa8352e` | popravek ai | Dodan Vercel endpoint za AI review. |
 
 ## Razvoj po fazah
 
@@ -100,6 +124,27 @@ Commita `8058118`, `9dd08c1` in `c4c2ecd` dodata:
 - preverjanje, da lokalne skrivnosti niso commitane,
 - dokumentacijo CI/CD,
 - checklist za SI-CAS/SI-CES postavitev na VPS.
+
+### Faza 7: razsirjena dokumentacija in SI-CAS priprava
+
+Commita `01f87e8` in `96b29a5` dodata:
+
+- register funkcionalnosti,
+- pregled projekta,
+- Mermaid izvorne datoteke,
+- podrobnejso SI-PASS/SI-CAS/SI-CES dokumentacijo,
+- VPS/Shibboleth zapisnik,
+- staticni SI-CAS SP metadata.
+
+### Faza 8: responsive UI in Vercel deployment
+
+Commita `68f69e1`, `a95c24b`, `0b9479c` in `fa8352e` ter povezani config popravki premaknejo projekt proti javnemu deployu:
+
+- aplikacija dobi izboljsan responsive vmesnik in stranski meni,
+- runtime config dobi Vercel endpoint `/api/config.local`,
+- `vercel.json` doda rewrite za `/config.local.js`,
+- email endpoint je pripravljen za Vercel,
+- AI review endpoint je pripravljen za Vercel.
 
 ## Kaj zgodovina dokazuje
 

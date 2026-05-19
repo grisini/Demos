@@ -126,6 +126,18 @@ create table if not exists initiative_ai_reviews (
   created_at timestamptz not null default now()
 );
 
+create table if not exists system_analytics_events (
+  id uuid primary key default gen_random_uuid(),
+  event_type text not null,
+  source text not null default 'frontend',
+  user_ref text,
+  user_role text,
+  session_id text,
+  path text,
+  data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists initiatives_status_idx on initiatives(status);
 create index if not exists initiatives_category_idx on initiatives(category);
 create index if not exists initiatives_created_at_idx on initiatives(created_at desc);
@@ -135,6 +147,9 @@ create index if not exists comments_initiative_idx on comments(initiative_id);
 create index if not exists comments_created_at_idx on comments(created_at asc);
 create index if not exists initiative_ai_reviews_initiative_idx on initiative_ai_reviews(initiative_id);
 create index if not exists initiative_ai_reviews_created_idx on initiative_ai_reviews(created_at desc);
+create index if not exists system_analytics_events_created_idx on system_analytics_events(created_at desc);
+create index if not exists system_analytics_events_type_idx on system_analytics_events(event_type);
+create index if not exists system_analytics_events_user_idx on system_analytics_events(user_ref);
 
 drop trigger if exists initiatives_set_updated_at on initiatives;
 create trigger initiatives_set_updated_at
@@ -147,6 +162,7 @@ alter table votes enable row level security;
 alter table signatures enable row level security;
 alter table comments enable row level security;
 alter table initiative_ai_reviews enable row level security;
+alter table system_analytics_events enable row level security;
 
 drop policy if exists "prototype read initiatives" on initiatives;
 drop policy if exists "prototype insert initiatives" on initiatives;
@@ -159,6 +175,8 @@ drop policy if exists "prototype read comments" on comments;
 drop policy if exists "prototype insert comments" on comments;
 drop policy if exists "prototype read ai reviews" on initiative_ai_reviews;
 drop policy if exists "prototype insert ai reviews" on initiative_ai_reviews;
+drop policy if exists "prototype read system analytics events" on system_analytics_events;
+drop policy if exists "prototype insert system analytics events" on system_analytics_events;
 
 create policy "prototype read initiatives"
   on initiatives for select
@@ -204,6 +222,9 @@ create policy "prototype read ai reviews"
 create policy "prototype insert ai reviews"
   on initiative_ai_reviews for insert
   with check (true);
+
+-- No public RLS policy is created for system_analytics_events.
+-- Vercel serverless functions should access it with SUPABASE_SERVICE_ROLE_KEY.
 
 create or replace view initiative_detail as
 select

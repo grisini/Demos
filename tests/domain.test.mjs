@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { calculateAnalytics } from "../src/domain/analytics.js";
+import {
+  calculateAnalytics,
+  calculateSystemAnalytics,
+  calculateUserAnalytics
+} from "../src/domain/analytics.js";
 import {
   NOTIFICATION_EVENTS,
   buildCategoryMatchEmailNotifications,
@@ -98,6 +102,38 @@ test("analytics izracuna osnovne kazalnike", () => {
   assert.equal(analytics.initiativeStats[0].votes, 1);
   assert.equal(analytics.voteDistribution.maxVotes, 1);
   assert.equal(analytics.categoryStats[0].votes, 1);
+});
+
+test("uporabniska analitika locuje moje pobude in aktivnost", () => {
+  const otherActor = { id: "ana@example.test", name: "Ana" };
+  const first = addComment(signInitiative(voteForInitiative(createInitiative(validInput, actor), otherActor), actor), actor, "Podpiram.");
+  const second = voteForInitiative(createInitiative({ ...validInput, title: "Register javnih razpisov" }, otherActor), actor);
+  const analytics = calculateUserAnalytics([first, second], actor);
+
+  assert.equal(analytics.authoredCount, 1);
+  assert.equal(analytics.votedCount, 1);
+  assert.equal(analytics.signedCount, 1);
+  assert.equal(analytics.commentsWritten, 1);
+  assert.equal(analytics.supportReceived, 2);
+  assert.equal(analytics.authoredCategoryStats[0].category, validInput.category);
+});
+
+test("sistemska analitika povzame ocenjeno porabo in dogodke", () => {
+  const initiative = createInitiative(validInput, actor);
+  const analytics = calculateSystemAnalytics(
+    [initiative],
+    [
+      { type: "ai_review", estimatedTokens: 120, durationMs: 320, provider: "huggingface" },
+      { type: "email_notifications", count: 2, mode: "outbox" }
+    ],
+    { resourceCount: 4, transferKb: 12.5, scriptCount: 2, stylesheetCount: 1, fetchCount: 1, loadMs: 80 }
+  );
+
+  assert.equal(analytics.initiativeRows, 1);
+  assert.equal(analytics.aiRequestCount, 1);
+  assert.equal(analytics.aiEstimatedTokens, 120);
+  assert.equal(analytics.emailNotificationItems, 2);
+  assert.equal(analytics.resourceSnapshot.transferKb, 12.5);
 });
 
 test("obvestila o spremembi pobude ciljajo glasovalce brez akterja", () => {

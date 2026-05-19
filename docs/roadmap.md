@@ -28,6 +28,7 @@
 
 ## Nadaljevanje
 
+- Tri locene analiticne plasti: Vercel hosting/SEO, admin sistemska analitika in uporabniska analitika pobud z Microsoft Clarity oznakami.
 - Prava SI-PASS integracija s testnim callbackom.
 - Backend za varno pisanje v Supabase.
 - Preprecevanje zlorab in strozje RLS politike.

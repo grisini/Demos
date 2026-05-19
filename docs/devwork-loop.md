@@ -23,7 +23,7 @@ Kakovostna pravila tega koncepta:
 - prototipne omejitve se dokumentirajo odkrito,
 - vsaka funkcionalnost naj ima dokaz v kodi in po moznosti test ali sprejemni kriterij.
 
-## Trenutni cikel: 2026-05-16
+## Cikel: 2026-05-16
 
 ### Cilj
 
@@ -61,6 +61,48 @@ Raziskati projekt in git zgodovino ter dokumentacijo dopolniti tako, da so funkc
 - Dodati E2E test za tok oddaja pobude -> glasovanje -> podpis -> komentar.
 - Produkcijsko utrditi SI-PASS/SI-CAS prijavo in SI-CES podpisovanje.
 - Premakniti AI in pisanje v Supabase v backend ali Edge Function.
+
+## Cikel: 2026-05-19
+
+### Cilj
+
+Vzpostaviti tri jasno locene analiticne plasti: Vercel za hosting/SEO, admin notranjo sistemsko analitiko in uporabnisko analitiko pobud z Microsoft Clarity oznakami.
+
+### Izvedeno
+
+- Dodan `@vercel/analytics` v odvisnosti projekta.
+- Dodan staticni Vercel Web Analytics loader za trenutni frontend brez bundlerja.
+- Dodan Microsoft Clarity loader z runtime nastavitvijo `MICROSOFT_CLARITY_PROJECT_ID`.
+- Dodani Clarity `identify`, custom tags in events za poglede, prijavo, pobude, glasovanje, podpise, komentarje in AI predpregled.
+- Razsirjena domenska analitika z `calculateUserAnalytics()` in `calculateSystemAnalytics()`.
+- Zavihek `Analitika pobud` prikaze splosno statistiko iz baze in osebni del za prijavljenega uporabnika.
+- Dodan admin-only zavihek `Sistemska analitika` z oceno AI klicev, tokenov, email dogodkov, podatkovnih zapisov in frontend virov.
+- Dostop do interne sistemske analitike je omejen na demo admina `admin@demos.local`.
+- Dodana Vercel funkcija `api/analytics/system.js`, da sistemska telemetrija na deployu ni odvisna samo od `localStorage`.
+- Dodana Supabase tabela `system_analytics_events` za centralni zapis admin dogodkov prek server-only `SUPABASE_SERVICE_ROLE_KEY`.
+- Dodana dokumenta `docs/analitika.md` in `docs/dnevnik-dopolnitev.md`.
+- Posodobljena README in register funkcionalnosti.
+
+### Preverjanje
+
+- `npm test` - 11/11 testov uspesnih.
+- `node --check src/main.js` - uspesno.
+- `node --check src/lib/clarity.js` - uspesno.
+- `node --check src/lib/vercel-analytics.js` - uspesno.
+- `node --check src/lib/telemetry.js` - uspesno.
+- `node --check api/analytics/system.js` - uspesno.
+
+### Tveganja
+
+- Sistemska poraba tokenov je ocena iz besedila, ne uradni racun AI ponudnika.
+- Clarity dashboard je zunanji Microsoftov pogled; aplikacijska analitika pobud se se vedno racuna iz baze.
+- Demo admin pravica prek emaila je primerna za prototip, produkcijsko mora biti vezana na SI-PASS/backend avtorizacijo.
+
+### Naslednji koraki
+
+- Produkcijsko zapisovati AI usage in sistemske metrike v backend audit tabelo.
+- Dodati consent/GDPR tok za Clarity pred javno produkcijo.
+- Uskladiti admin vloge s SI-PASS identiteto in Supabase RLS.
 
 ## Cikel: 2026-05-11
 
