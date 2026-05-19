@@ -46,6 +46,11 @@ function publicRuntimeConfig(env) {
       env.VITE_SYSTEM_ANALYTICS_ENDPOINT,
       "/api/analytics/system"
     ),
+    CLARITY_ANALYTICS_ENDPOINT: firstValue(
+      env.CLARITY_ANALYTICS_ENDPOINT,
+      env.VITE_CLARITY_ANALYTICS_ENDPOINT,
+      "/api/analytics/clarity"
+    ),
     MICROSOFT_CLARITY_PROJECT_ID: firstValue(
       env.MICROSOFT_CLARITY_PROJECT_ID,
       env.VITE_MICROSOFT_CLARITY_PROJECT_ID,

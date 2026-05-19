@@ -15,6 +15,9 @@ Izvedeno:
 - Dodan staticni Vercel Speed Insights loader v `src/lib/vercel-speed-insights.js`, ker projekt trenutno ne uporablja Next.js komponente.
 - Integracije prikazejo runtime stanje Vercel Speed Insights loaderja, script taga in trenutnega SPA route.
 - Dodan Microsoft Clarity loader v `src/lib/clarity.js`.
+- Dodan Clarity Data Export proxy `api/analytics/clarity.js`, da se agregirani Clarity grafi lahko prikazejo v aplikaciji brez razkritja API tokena.
+- Dodana normalizacija Clarity metrik v `src/domain/clarity-insights.js` in frontend odjemalec `src/lib/clarity-insights.js`.
+- Zavihek `Analitika pobud` prikaze Clarity grafe za prijavljene uporabnike, ce je nastavljen `CLARITY_API_TOKEN`.
 - Dodana runtime nastavitev `MICROSOFT_CLARITY_PROJECT_ID`.
 - Dostop do interne sistemske analitike je omejen na demo admina `admin@demos.local`.
 - Dodana lokalna sistemska telemetrija v `src/lib/telemetry.js`.
@@ -23,6 +26,7 @@ Izvedeno:
 - Frontend sistemsko telemetrijo posilja na `SYSTEM_ANALYTICS_ENDPOINT`, lokalni `localStorage` ostane fallback.
 - Razsirjen `src/domain/analytics.js` z uporabnisko in sistemsko analitiko.
 - Zavihek `Analitika pobud` zdaj prikazuje splosno statistiko in osebni del za prijavljenega uporabnika.
+- Zavihek `Integracije` je omejen samo na demo admina.
 - Dodan admin-only pogled `Sistemska analitika`.
 - Sistemska analitika je razsirjena s tehnicnimi in uporabniskimi podatki: udelezenci, anonimni akterji, anonimni glasovi, telemetry seje, javno vidne pobude, statusi, teme in dogodki po tipu.
 - Neprijavljen uporabnik vidi samo aktualne pobude in javni detail brez komentarjev, podpisov, AI podrobnosti in osebne analitike.
@@ -37,6 +41,9 @@ Preverjanje:
 - `npm test` - 11/11 testov uspesnih.
 - `node --check src/main.js`
 - `node --check src/lib/clarity.js`
+- `node --check src/lib/clarity-insights.js`
+- `node --check src/domain/clarity-insights.js`
+- `node --check api/analytics/clarity.js`
 - `node --check src/lib/vercel-analytics.js`
 - `node --check src/lib/vercel-speed-insights.js`
 - `node --check src/lib/telemetry.js`
@@ -45,6 +52,7 @@ Opombe:
 
 - Sistemska poraba tokenov je trenutno ocena, ker Hugging Face endpoint ne vraca racunskega usage polja.
 - Anonimno glasovanje je prototipna zascita na lokalni ID; za produkcijo potrebuje backend omejitve, rate-limit in po moznosti povezavo z realno identiteto ali podpisom.
+- Clarity Data Export API ima omejitev klicev in vraca agregate za zadnje 1 do 3 dni; heatmapi in posnetki sej niso vgrajeni v aplikacijo.
 - Prava produkcijska sistemska analitika naj se kasneje poveze z backend audit tabelo, Vercel logs, Supabase metrikami in AI provider usage podatki.
 
 ## Kronologija commitov

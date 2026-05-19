@@ -50,6 +50,7 @@ export const config = {
   EMAIL_DELIVERY_MODE: optionConfigValue("EMAIL_DELIVERY_MODE", "outbox"),
   EMAIL_NOTIFY_ACTOR: booleanValue(publicConfigValue("EMAIL_NOTIFY_ACTOR"), false),
   SYSTEM_ANALYTICS_ENDPOINT: publicConfigValue("SYSTEM_ANALYTICS_ENDPOINT", "/api/analytics/system"),
+  CLARITY_ANALYTICS_ENDPOINT: publicConfigValue("CLARITY_ANALYTICS_ENDPOINT", "/api/analytics/clarity"),
   MICROSOFT_CLARITY_PROJECT_ID: publicConfigValue("MICROSOFT_CLARITY_PROJECT_ID", publicConfigValue("CLARITY_PROJECT_ID")),
   HUGGINGFACE_ZERO_SHOT_MODEL: publicConfigValue("HUGGINGFACE_ZERO_SHOT_MODEL", "facebook/bart-large-mnli"),
   HUGGINGFACE_EMBEDDING_MODEL: publicConfigValue("HUGGINGFACE_EMBEDDING_MODEL", "intfloat/multilingual-e5-small")

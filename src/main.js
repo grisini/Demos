@@ -27,6 +27,7 @@ import {
   setClarityTag,
   trackClarityEvent
 } from "./lib/clarity.js";
+import { ClarityInsightsClient } from "./lib/clarity-insights.js";
 import { EmailNotificationClient } from "./lib/notifications.js";
 import { createRepository } from "./lib/supabase.js";
 import { browserResourceSnapshot, estimateTextTokens, SystemTelemetry } from "./lib/telemetry.js";
@@ -43,12 +44,13 @@ const PUBLIC_INITIATIVE_STATUSES = ["active", "signature_collection"];
 const ANONYMOUS_VOTER_KEY = "demos.anonymousVoterId";
 
 class DemocracyApp {
-  constructor({ root, repository, auth, notificationClient, telemetry, config: appConfig }) {
+  constructor({ root, repository, auth, notificationClient, telemetry, clarityInsightsClient, config: appConfig }) {
     this.root = root;
     this.repository = repository;
     this.auth = auth;
     this.notificationClient = notificationClient;
     this.telemetry = telemetry;
+    this.clarityInsightsClient = clarityInsightsClient;
     this.config = appConfig;
     this.anonymousVoterSessionId = "";
     this.state = {
@@ -66,6 +68,9 @@ class DemocracyApp {
       aiPreviewLoading: false,
       systemTelemetryEvents: [],
       systemTelemetryLoading: false,
+      clarityInsights: null,
+      clarityInsightsLoading: false,
+      clarityInsightsError: "",
       sidebarOpen: defaultSidebarOpen(),
       loading: true
     };
@@ -84,6 +89,9 @@ class DemocracyApp {
     initializeMicrosoftClarity(this.config.MICROSOFT_CLARITY_PROJECT_ID);
     this.syncExternalAnalytics();
     await this.refresh();
+    if (this.state.activeView === "analytics" && this.currentUser()) {
+      await this.loadClarityInsights();
+    }
   }
 
   async refresh() {
@@ -206,7 +214,7 @@ class DemocracyApp {
           ${this.navButton("dashboard", "Pregled", "01")}
           ${user ? this.navButton("submit", "Nova pobuda", "02") : ""}
           ${user ? this.navButton("analytics", "Analitika pobud", "03") : ""}
-          ${user ? this.navButton("integrations", "Integracije", "04") : ""}
+          ${this.isAdminUser(user) ? this.navButton("integrations", "Integracije", "04") : ""}
           ${this.isAdminUser(user) ? this.navButton("systemAnalytics", "Sistemska analitika", "05") : ""}
         </nav>
         <div class="user-panel">
@@ -362,6 +370,7 @@ class DemocracyApp {
       </section>
       <section class="analytics-grid">
         ${this.renderPersonalInitiativeAnalytics(user, userAnalytics)}
+        ${this.renderClarityInsightsPanel()}
         <div class="panel">
           <p class="eyebrow">Statusi</p>
           <h2>Tok pobud</h2>
@@ -424,6 +433,91 @@ class DemocracyApp {
           </div>
         </div>
       </section>
+    `;
+  }
+
+  renderClarityInsightsPanel() {
+    const insights = this.state.clarityInsights;
+
+    if (this.state.clarityInsightsLoading) {
+      return `
+        <div class="panel wide-panel">
+          <p class="eyebrow">Microsoft Clarity</p>
+          <h2>Vedenjski grafi</h2>
+          <div class="empty-state">Nalagam agregirane Clarity metrike ...</div>
+        </div>
+      `;
+    }
+
+    if (!insights) {
+      return `
+        <div class="panel wide-panel">
+          <p class="eyebrow">Microsoft Clarity</p>
+          <h2>Vedenjski grafi</h2>
+          <div class="empty-state">Clarity grafi se nalozijo ob odprtju analitike.</div>
+          <button class="button secondary compact" type="button" data-action="refresh-clarity-insights">Nalozi Clarity grafe</button>
+        </div>
+      `;
+    }
+
+    if (!insights.configured) {
+      return `
+        <div class="panel wide-panel">
+          <p class="eyebrow">Microsoft Clarity</p>
+          <h2>Vedenjski grafi</h2>
+          <div class="empty-state">${escapeHtml(insights.reason || "Clarity Data Export API ni nastavljen.")}</div>
+          <p class="note">Za prikaz grafov nastavite server-only CLARITY_API_TOKEN; Project ID sam omogoci sledenje, ne pa branja metrik nazaj v aplikacijo.</p>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="panel wide-panel">
+        <p class="eyebrow">Microsoft Clarity</p>
+        <h2>Vedenjski grafi</h2>
+        <div class="analytics-summary-strip">
+          ${this.summaryCell("Seje", insights.summary.sessions)}
+          ${this.summaryCell("Uporabniki", insights.summary.users)}
+          ${this.summaryCell("Bot seje", insights.summary.botSessions)}
+          ${this.summaryCell("Mrtvi kliki", insights.summary.deadClicks)}
+          ${this.summaryCell("Rage kliki", insights.summary.rageClicks)}
+          ${this.summaryCell("JS napake", insights.summary.scriptErrors)}
+        </div>
+        <div class="personal-analytics-grid">
+          ${
+            insights.charts.length
+              ? insights.charts.map((chart) => this.renderClarityChart(chart)).join("")
+              : `<div class="empty-state">Clarity se nima agregiranih metrik za zadnje ${escapeHtml(insights.days)} dni.</div>`
+          }
+        </div>
+        <p class="note">Podatki prihajajo iz Clarity Data Export API za zadnje ${escapeHtml(insights.days)} dni, segmentirano po ${escapeHtml(insights.dimension)}. Heatmapi in posnetki sej ostanejo v Clarity dashboardu.</p>
+        ${this.state.clarityInsightsError ? `<p class="note">${escapeHtml(this.state.clarityInsightsError)}</p>` : ""}
+      </div>
+    `;
+  }
+
+  renderClarityChart(chart) {
+    const maxValue = Math.max(1, ...chart.rows.map((row) => Number(row.value) || 0));
+    return `
+      <div>
+        <h3>${escapeHtml(chart.title)}</h3>
+        <div class="category-analytics">
+          ${chart.rows
+            .map(
+              (row) => `
+                <div class="category-analytics-row">
+                  <span>
+                    <strong>${escapeHtml(row.label)}</strong>
+                    <small>${escapeHtml(row.secondary || chart.metricName)}</small>
+                  </span>
+                  <em>${escapeHtml(formatClarityMetric(row.value, row.unit))}</em>
+                  <div class="bar-track"><div style="width:${Math.min(100, ((Number(row.value) || 0) / maxValue) * 100)}%"></div></div>
+                </div>
+              `
+            )
+            .join("")}
+        </div>
+      </div>
     `;
   }
 
@@ -698,6 +792,16 @@ class DemocracyApp {
   }
 
   renderIntegrationsView() {
+    if (!this.isAdminUser()) {
+      return `
+        <section class="panel">
+          <p class="eyebrow">Admin</p>
+          <h2>Integracije so namenjene administratorju</h2>
+          <div class="empty-state">Za nastavitev in pregled integracij uporabite demo admin racun.</div>
+        </section>
+      `;
+    }
+
     return `
       <section class="integration-grid">
         <div class="panel">
@@ -1110,6 +1214,9 @@ class DemocracyApp {
       if (this.state.activeView === "systemAnalytics") {
         await this.loadSystemTelemetry();
       }
+      if (this.state.activeView === "analytics") {
+        await this.loadClarityInsights();
+      }
       this.render();
       return;
     }
@@ -1128,6 +1235,14 @@ class DemocracyApp {
 
     if (action === "refresh") {
       await this.refresh();
+      if (this.state.activeView === "analytics") {
+        await this.loadClarityInsights({ force: true });
+      }
+      return;
+    }
+
+    if (action === "refresh-clarity-insights") {
+      await this.loadClarityInsights({ force: true });
       return;
     }
 
@@ -1611,6 +1726,24 @@ class DemocracyApp {
     }
   }
 
+  async loadClarityInsights(options = {}) {
+    if (!this.currentUser()) return;
+    if (this.state.clarityInsights && !options.force) return;
+
+    this.state.clarityInsightsLoading = true;
+    this.state.clarityInsightsError = "";
+    this.render();
+    try {
+      this.state.clarityInsights = await this.clarityInsightsClient.read({ days: 1 });
+      this.state.clarityInsightsError = this.state.clarityInsights?.error || "";
+    } catch (error) {
+      this.state.clarityInsightsError = error.message || "Clarity grafov ni bilo mogoce naloziti.";
+      this.state.clarityInsights = null;
+    } finally {
+      this.state.clarityInsightsLoading = false;
+    }
+  }
+
   systemTelemetryEvents() {
     const byId = new Map();
     for (const event of [...this.state.systemTelemetryEvents, ...this.telemetry.read()]) {
@@ -1675,6 +1808,7 @@ function initialView(user) {
 
 function normalizeView(view, user) {
   const value = APP_VIEWS.includes(view) ? view : "dashboard";
+  if (value === "integrations" && !isDemoAdminUser(user)) return "dashboard";
   if (value === "systemAnalytics" && !isDemoAdminUser(user)) return "dashboard";
   return value;
 }
@@ -1783,6 +1917,12 @@ function anonymousVoterId() {
   return `anon-${token}`;
 }
 
+function formatClarityMetric(value, unit = "") {
+  const number = Number(value) || 0;
+  const formatted = Number.isInteger(number) ? String(number) : String(Math.round(number * 10) / 10);
+  return unit ? `${formatted} ${unit}` : formatted;
+}
+
 function userFacingErrorMessage(error) {
   const message = String(error?.message || "");
 
@@ -1806,6 +1946,7 @@ const app = new DemocracyApp({
   auth: new DemoAuth(),
   notificationClient: new EmailNotificationClient(config),
   telemetry: new SystemTelemetry({ endpoint: config.SYSTEM_ANALYTICS_ENDPOINT }),
+  clarityInsightsClient: new ClarityInsightsClient({ endpoint: config.CLARITY_ANALYTICS_ENDPOINT }),
   config
 });
 

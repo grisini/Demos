@@ -5,6 +5,7 @@ import {
   calculateSystemAnalytics,
   calculateUserAnalytics
 } from "../src/domain/analytics.js";
+import { normalizeClarityInsights } from "../src/domain/clarity-insights.js";
 import {
   NOTIFICATION_EVENTS,
   buildCategoryMatchEmailNotifications,
@@ -142,6 +143,32 @@ test("sistemska analitika povzame ocenjeno porabo in dogodke", () => {
   assert.equal(analytics.anonymousVoteEvents, 1);
   assert.equal(analytics.uniqueSessionCount, 1);
   assert.equal(analytics.resourceSnapshot.transferKb, 12.5);
+});
+
+test("clarity insights normalizirajo grafe iz export API odziva", () => {
+  const insights = normalizeClarityInsights(
+    [
+      {
+        metricName: "Traffic",
+        information: [
+          { URL: "/?view=dashboard", totalSessionCount: "10", distantUserCount: "6", totalBotSessionCount: "1" },
+          { URL: "/?view=analytics", totalSessionCount: "4", distantUserCount: "3" }
+        ]
+      },
+      {
+        metricName: "Dead Click Count",
+        information: [{ URL: "/?view=dashboard", deadClickCount: "2" }]
+      }
+    ],
+    { days: 1, dimension: "URL" }
+  );
+
+  assert.equal(insights.configured, true);
+  assert.equal(insights.summary.sessions, 14);
+  assert.equal(insights.summary.users, 9);
+  assert.equal(insights.summary.deadClicks, 2);
+  assert.equal(insights.charts[0].title, "Obiski po URL");
+  assert.equal(insights.charts[0].rows[0].label, "/?view=dashboard");
 });
 
 test("obvestila o spremembi pobude ciljajo glasovalce brez akterja", () => {

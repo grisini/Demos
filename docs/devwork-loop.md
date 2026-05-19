@@ -75,6 +75,7 @@ Vzpostaviti tri jasno locene analiticne plasti: Vercel za hosting/SEO, admin not
 - Dodan `@vercel/speed-insights` v odvisnosti projekta.
 - Dodan staticni Vercel Speed Insights loader za Core Web Vitals in performance metrike brez Next.js komponente.
 - Dodan Microsoft Clarity loader z runtime nastavitvijo `MICROSOFT_CLARITY_PROJECT_ID`.
+- Dodan Clarity Data Export proxy in normalizator metrik, da prijavljeni uporabniki v aplikaciji vidijo agregirane Clarity grafe.
 - Dodani Clarity `identify`, custom tags in events za poglede, prijavo, pobude, glasovanje, podpise, komentarje in AI predpregled.
 - Razsirjena domenska analitika z `calculateUserAnalytics()` in `calculateSystemAnalytics()`.
 - Zavihek `Analitika pobud` prikaze splosno statistiko iz baze in osebni del za prijavljenega uporabnika.
@@ -82,6 +83,7 @@ Vzpostaviti tri jasno locene analiticne plasti: Vercel za hosting/SEO, admin not
 - Dostop do interne sistemske analitike je omejen na demo admina `admin@demos.local`.
 - Sistemska analitika je razsirjena z uporabniskimi sledmi, anonimnimi glasovi, javno vidnimi pobudami, statusi, temami, telemetry sejami in dogodki po tipu.
 - Neprijavljenim uporabnikom je omejen UI: vidijo samo aktualne pobude, javni detail in en anonimni glas na pobudo.
+- Zavihek `Integracije` je omejen samo na demo admina.
 - Dodana Vercel funkcija `api/analytics/system.js`, da sistemska telemetrija na deployu ni odvisna samo od `localStorage`.
 - Dodana Supabase tabela `system_analytics_events` za centralni zapis admin dogodkov prek server-only `SUPABASE_SERVICE_ROLE_KEY`.
 - Dodana dokumenta `docs/analitika.md` in `docs/dnevnik-dopolnitev.md`.
@@ -92,6 +94,9 @@ Vzpostaviti tri jasno locene analiticne plasti: Vercel za hosting/SEO, admin not
 - `npm test` - 11/11 testov uspesnih.
 - `node --check src/main.js` - uspesno.
 - `node --check src/lib/clarity.js` - uspesno.
+- `node --check src/lib/clarity-insights.js` - uspesno.
+- `node --check src/domain/clarity-insights.js` - uspesno.
+- `node --check api/analytics/clarity.js` - uspesno.
 - `node --check src/lib/vercel-analytics.js` - uspesno.
 - `node --check src/lib/vercel-speed-insights.js` - uspesno.
 - `node --check src/lib/telemetry.js` - uspesno.
@@ -101,6 +106,7 @@ Vzpostaviti tri jasno locene analiticne plasti: Vercel za hosting/SEO, admin not
 
 - Sistemska poraba tokenov je ocena iz besedila, ne uradni racun AI ponudnika.
 - Clarity dashboard je zunanji Microsoftov pogled; aplikacijska analitika pobud se se vedno racuna iz baze.
+- Clarity grafi v aplikaciji so odvisni od server-only `CLARITY_API_TOKEN`; Data Export API ima dnevne omejitve in ne vraca heatmap/recording UI-ja.
 - Anonimni glas je omejen z lokalnim brskalniskim ID, zato ni produkcijsko trdna varnostna meja.
 - Demo admin pravica prek emaila je primerna za prototip, produkcijsko mora biti vezana na SI-PASS/backend avtorizacijo.
 

@@ -86,15 +86,15 @@ SUPABASE_SERVICE_ROLE_KEY=...
 
 **Namen:** javna platforma mora uporabnikom pokazati splosno statistiko pobud in osebno prilagojeno statistiko njihove aktivnosti.
 
-**Kdo vidi:** vsak uporabnik v zavihku `Analitika pobud`; neprijavljeni uporabnik vidi splosno statistiko, prijavljeni vidi se osebni del.
+**Kdo vidi:** vsak prijavljen uporabnik v zavihku `Analitika pobud`; neprijavljen uporabnik vidi samo aktualne pobude na zacetnem pregledu.
 
 Trenutna pravila dostopa v aplikaciji:
 
 - neprijavljen uporabnik vidi samo zacetni pregled aktualnih pobud,
 - aktualne so pobude s statusom `active` ali `signature_collection`,
 - neprijavljen uporabnik lahko odda en anonimen glas na pobudo,
-- za oddajo pobude, podpis, komentar, celoten detail, analitiko pobud, integracije in sistemsko analitiko je potrebna prijava,
-- sistemska analitika dodatno zahteva demo admina `admin@demos.local`.
+- za oddajo pobude, podpis, komentar, celoten detail in analitiko pobud je potrebna prijava,
+- integracije in sistemska analitika dodatno zahtevajo demo admina `admin@demos.local`.
 
 **Kaj prikazuje aplikacija iz baze:**
 
@@ -110,9 +110,14 @@ Trenutna pravila dostopa v aplikaciji:
 
 Clarity ne nadomesca baze pobud. Uporablja se za vedenjsko analitiko: seje, heatmape, posnetke uporabniske poti, custom tags in events. Podatki pobud ostanejo v Supabase/local repozitoriju, Clarity pa dobi oznake in dogodke, da je v Clarity dashboardu mogoce filtrirati obnasanje po pogledu, vlogi, viru podatkov in kategoriji pobude.
 
+Aplikacija dodatno bere agregirane Clarity metrike prek Clarity Data Export API in jih prijavljenim uporabnikom prikaze kot grafe v zavihku `Analitika pobud`. To niso heatmapi ali posnetki sej, ampak agregati, kot so seje po URL, uporabniki, bot seje, mrtvi kliki, rage kliki in JavaScript napake.
+
 **Implementacija v projektu:**
 
 - `src/lib/clarity.js` dinamicno nalozi `https://www.clarity.ms/tag/<PROJECT_ID>`,
+- `api/analytics/clarity.js` na Vercelu varno klice Clarity Data Export API,
+- `src/lib/clarity-insights.js` iz frontenda bere agregate prek `/api/analytics/clarity`,
+- `src/domain/clarity-insights.js` normalizira Clarity odziv v grafe za UI,
 - `src/main.js` ob prijavi poklice Clarity Identify API,
 - aplikacija nastavlja custom tags: `app_view`, `data_source`, `auth_state`, `user_role`, `initiative_category`,
 - aplikacija posilja events: `view_dashboard`, `view_analytics`, `initiative_selected`, `initiative_created`, `initiative_voted`, `initiative_signed`, `comment_created`, `ai_preview_requested`.
@@ -127,11 +132,19 @@ Clarity ne nadomesca baze pobud. Uporablja se za vedenjsko analitiko: seje, heat
 MICROSOFT_CLARITY_PROJECT_ID=vas_project_id
 ```
 
-4. Lokalno znova zazenite `npm run dev`; na Vercelu naredite redeploy.
-5. Obiscite aplikacijo, se prijavite in uporabite pobude.
-6. V Clarity dashboardu preverite sessions, heatmaps, recordings, custom tags in events.
+4. Za grafe v aplikaciji v Clarity Settings -> Data Export ustvarite API token in ga nastavite samo na strezniku:
 
-V aplikaciji lahko runtime stanje preverite tudi v zavihku `Integracije`, kjer Microsoft Clarity prikaze:
+```bash
+CLARITY_API_TOKEN=vas_data_export_token
+CLARITY_ANALYTICS_ENDPOINT=/api/analytics/clarity
+```
+
+5. Lokalno znova zazenite `npm run dev`; na Vercelu naredite redeploy.
+6. Obiscite aplikacijo, se prijavite in uporabite pobude.
+7. V zavihku `Analitika pobud` preverite blok `Microsoft Clarity`.
+8. V Clarity dashboardu preverite sessions, heatmaps, recordings, custom tags in events.
+
+Admin lahko runtime stanje preveri tudi v zavihku `Integracije`, kjer Microsoft Clarity prikaze:
 
 - ali je `Project ID` prisoten v `/config.local.js`,
 - ali je `window.clarity` inicializiran,
@@ -139,10 +152,11 @@ V aplikaciji lahko runtime stanje preverite tudi v zavihku `Integracije`, kjer M
 
 Ker je aplikacija enostranska, frontend pri preklopu pogleda posodobi URL z `?view=dashboard`, `?view=analytics`, `?view=integrations`, `?view=submit` oziroma `?view=systemAnalytics`. To Clarityju pomaga lociti heatmape in posnetke po glavnih pogledih aplikacije.
 
-Microsoftova dokumentacija pravi, da ima vsak Clarity projekt svojo tracking kodo, Identify API pa omogoca povezovanje sej z vasim internim uporabniskim identifikatorjem. Custom tags in events so namenjeni filtriranju sej in vedenjskih vzorcev.
+Microsoftova dokumentacija pravi, da ima vsak Clarity projekt svojo tracking kodo, Identify API pa omogoca povezovanje sej z vasim internim uporabniskim identifikatorjem. Custom tags in events so namenjeni filtriranju sej in vedenjskih vzorcev. Data Export API vrne agregirane dashboard podatke za zadnjih 1 do 3 dni, z omejitvijo do 10 API klicev na projekt na dan, zato endpoint uporablja strezniski cache.
 
 Viri:
 
 - https://learn.microsoft.com/en-au/clarity/setup-and-installation/clarity-setup
 - https://learn.microsoft.com/en-us/clarity/setup-and-installation/identify-api
 - https://learn.microsoft.com/en-ca/clarity/clarity-api
+- https://learn.microsoft.com/ja-jp/clarity/setup-and-installation/clarity-data-export-api

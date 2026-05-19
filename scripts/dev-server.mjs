@@ -3,6 +3,7 @@ import { appendFileSync, createReadStream, existsSync, mkdirSync, readFileSync, 
 import net from "node:net";
 import { dirname, extname, isAbsolute, join, normalize, relative, resolve } from "node:path";
 import tls from "node:tls";
+import { emptyClarityInsights, normalizeClarityInsights } from "../src/domain/clarity-insights.js";
 import { CATEGORIES, evaluateInitiative, normalizeInput } from "../src/domain/validation.js";
 
 const root = resolve(process.cwd());
@@ -70,6 +71,8 @@ function runtimeConfig() {
     EMAIL_NOTIFY_ACTOR: (env.EMAIL_NOTIFY_ACTOR || env.VITE_EMAIL_NOTIFY_ACTOR) === "true",
     SYSTEM_ANALYTICS_ENDPOINT:
       env.SYSTEM_ANALYTICS_ENDPOINT || env.VITE_SYSTEM_ANALYTICS_ENDPOINT || "/api/analytics/system",
+    CLARITY_ANALYTICS_ENDPOINT:
+      env.CLARITY_ANALYTICS_ENDPOINT || env.VITE_CLARITY_ANALYTICS_ENDPOINT || "/api/analytics/clarity",
     MICROSOFT_CLARITY_PROJECT_ID:
       env.MICROSOFT_CLARITY_PROJECT_ID || env.VITE_MICROSOFT_CLARITY_PROJECT_ID || env.CLARITY_PROJECT_ID || "",
     HUGGINGFACE_ZERO_SHOT_MODEL:
@@ -373,6 +376,44 @@ function handleSystemAnalytics(payload) {
   };
 }
 
+async function readClarityInsights(env, searchParams = new URLSearchParams()) {
+  const token = env.CLARITY_API_TOKEN || env.MICROSOFT_CLARITY_API_TOKEN || "";
+  if (!token) {
+    return emptyClarityInsights("CLARITY_API_TOKEN ni nastavljen v .env.local ali okolju.");
+  }
+
+  const days = clampClarityDays(searchParams.get("days"));
+  const dimension = sanitizeClarityDimension(searchParams.get("dimension") || "URL");
+  const url = new URL("https://www.clarity.ms/export-data/api/v1/project-live-insights");
+  url.searchParams.set("numOfDays", String(days));
+  url.searchParams.set("dimension1", dimension);
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      }
+    });
+
+    if (!response.ok) {
+      return {
+        ...emptyClarityInsights(`Clarity Data Export API je vrnil HTTP ${response.status}.`),
+        configured: true,
+        error: await response.text()
+      };
+    }
+
+    return normalizeClarityInsights(await response.json(), { days, dimension });
+  } catch (error) {
+    return {
+      ...emptyClarityInsights("Clarity Data Export API ni dosegljiv."),
+      configured: true,
+      error: error.message || "Clarity fetch failed"
+    };
+  }
+}
+
 function normalizeSystemAnalyticsEvents(payload) {
   const rawEvents = Array.isArray(payload?.events)
     ? payload.events
@@ -404,6 +445,16 @@ function primitiveSystemProperties(value) {
       item === null || ["string", "number", "boolean"].includes(typeof item)
     )
   );
+}
+
+function sanitizeClarityDimension(value) {
+  const allowed = ["URL", "Device", "Browser", "OS", "Country/Region", "Source", "Medium", "Campaign", "Channel"];
+  return allowed.includes(value) ? value : "URL";
+}
+
+function clampClarityDays(value) {
+  const number = Number(value) || 1;
+  return Math.min(3, Math.max(1, Math.round(number)));
 }
 
 function normalizeEmailNotifications(payload, env = {}) {
@@ -813,6 +864,16 @@ function createAppServer() {
           error: error.message || "System analytics failed"
         });
       }
+      return;
+    }
+
+    if (pathname === "/api/analytics/clarity") {
+      if (req.method !== "GET") {
+        json(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      json(res, 200, await readClarityInsights(serverEnv(), requestedUrl.searchParams));
       return;
     }
 

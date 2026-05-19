@@ -29,6 +29,7 @@ SUPABASE_ANON_KEY=PUBLIC_ANON_KEY
 AI_PROVIDER=huggingface
 MICROSOFT_CLARITY_PROJECT_ID=...
 SYSTEM_ANALYTICS_ENDPOINT=/api/analytics/system
+CLARITY_ANALYTICS_ENDPOINT=/api/analytics/clarity
 ```
 
 Koda podpira tudi `VITE_*` alias kljuce, ce deployment uporablja pravi Vite build:
@@ -40,9 +41,11 @@ VITE_SUPABASE_ANON_KEY=PUBLIC_ANON_KEY
 VITE_AI_PROVIDER=huggingface
 ```
 
-Po spremembi env varov na hostingu je potreben nov deploy oziroma redeploy. `SUPABASE_SERVICE_ROLE_KEY`, `HF_TOKEN`, SMTP gesla in podobni privatni kljuci ne smejo biti `VITE_*` in ne smejo v frontend.
+Po spremembi env varov na hostingu je potreben nov deploy oziroma redeploy. `SUPABASE_SERVICE_ROLE_KEY`, `HF_TOKEN`, `CLARITY_API_TOKEN`, SMTP gesla in podobni privatni kljuci ne smejo biti `VITE_*` in ne smejo v frontend.
 
 Ce zelite, da admin sistemska analitika na Vercelu bere skupne dogodke vseh uporabnikov, dodajte tudi server-only `SUPABASE_SERVICE_ROLE_KEY` in v Supabase izvedite zadnjo verzijo `supabase/schema.sql`, ki vsebuje tabelo `system_analytics_events`.
+
+Ce zelite, da uporabniki v aplikaciji vidijo agregirane Clarity grafe v zavihku `Analitika pobud`, v Vercel dodajte se server-only `CLARITY_API_TOKEN`. Ta token pridobi admin projekta v Microsoft Clarity pod Settings -> Data Export.
 
 ## Testi
 
@@ -123,7 +126,7 @@ Projekt uporablja tri locene analiticne plasti:
 - **Vercel Web Analytics**: promet, strani in SEO pogled v Vercel dashboardu; vidi ga lastnik hostinga.
 - **Vercel Speed Insights**: Core Web Vitals in hitrost strani v Vercel dashboardu; vidi ga lastnik hostinga.
 - **Sistemska analitika**: pogled samo za demo admina `admin@demos.local`; namenjen je oceni obremenitev, AI klicev, tokenov, email dogodkov, uporabniskih sledi in javne vidnosti pobud.
-- **Analitika pobud**: aplikacijski pogled za splosne metrike pobud in osebno statistiko prijavljenega uporabnika. Microsoft Clarity dodatno belezi seje, custom tags in dogodke.
+- **Analitika pobud**: aplikacijski pogled za splosne metrike pobud, osebno statistiko prijavljenega uporabnika in agregirane Clarity grafe prek server-side Data Export API. Microsoft Clarity dodatno belezi seje, custom tags in dogodke.
 
 Brez prijave je vidna samo zacetna stran z aktualnimi pobudami. Neprijavljen uporabnik lahko odda en anonimen glas na pobudo, ne vidi pa oddaje pobude, podpisovanja, komentarjev, osebne analitike, integracij ali sistemske analitike.
 
@@ -133,6 +136,7 @@ Za Clarity nastavite:
 
 ```bash
 MICROSOFT_CLARITY_PROJECT_ID=...
+CLARITY_API_TOKEN=...
 ```
 
 Podrobna navodila so v `docs/analitika.md`.
