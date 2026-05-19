@@ -2,29 +2,33 @@
 
 Projekt ima tri locene analiticne plasti. Namenoma niso zdruzene, ker imajo razlicne uporabnike, podatke in pravice dostopa.
 
-## 1. Vercel Web Analytics
+## 1. Vercel Web Analytics in Speed Insights
 
-**Namen:** hosting, promet, SEO in obisk strani.
+**Namen:** hosting, promet, SEO, obisk strani, Core Web Vitals in performance metrike.
 
 **Kdo vidi:** lastnik oziroma upravljavec Vercel projekta v Vercel dashboardu.
 
 **Implementacija v projektu:**
 
 - dependency `@vercel/analytics` je dodan v `package.json`,
+- dependency `@vercel/speed-insights` je dodan v `package.json`,
 - ker je trenutna aplikacija staticen ES module frontend brez bundlerja, aplikacija uporablja lokalni loader `src/lib/vercel-analytics.js`,
+- za Speed Insights aplikacija uporablja lokalni loader `src/lib/vercel-speed-insights.js`,
 - loader vstavi Vercel script `/_vercel/insights/script.js` po deployu na Vercel,
+- Speed Insights loader vstavi Vercel script `/_vercel/speed-insights/script.js` po deployu na Vercel,
 - inicializacija se zgodi v `DemocracyApp.init()` v `src/main.js`.
 
 **Navodila za vklop:**
 
 1. Projekt deployajte na Vercel.
-2. V Vercel dashboardu za projekt vklopite Web Analytics.
+2. V Vercel dashboardu za projekt vklopite Web Analytics in Speed Insights.
 3. Obiscite deployment in preklopite med pogledi aplikacije.
-4. Podatki se prikazejo v Vercel Analytics dashboardu, ce jih ne blokira content blocker.
+4. Podatki se prikazejo v Vercel Analytics oziroma Speed Insights dashboardu, ce jih ne blokira content blocker.
 
-Vercel dokumentacija opisuje uporabo paketa `@vercel/analytics` in `inject()` za `main.js`; v tem projektu je uporabljena enakovredna staticna injekcija, ker brskalnik brez bundlerja ne zna neposredno uvoziti `@vercel/analytics`.
+Vercel dokumentacija za Next.js omenja komponenti `<Analytics/>` in `<SpeedInsights/>`. V tem projektu nista uporabljeni, ker aplikacija ni Next.js. Uporabljena je enakovredna staticna injekcija scriptov, ker brskalnik brez bundlerja ne zna neposredno uvoziti paketov `@vercel/analytics` in `@vercel/speed-insights`.
 
 Vir: https://vercel.com/docs/analytics/package
+Vir: https://vercel.com/docs/speed-insights/quickstart
 
 ## 2. Notranja sistemska analitika
 

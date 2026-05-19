@@ -72,6 +72,8 @@ Vzpostaviti tri jasno locene analiticne plasti: Vercel za hosting/SEO, admin not
 
 - Dodan `@vercel/analytics` v odvisnosti projekta.
 - Dodan staticni Vercel Web Analytics loader za trenutni frontend brez bundlerja.
+- Dodan `@vercel/speed-insights` v odvisnosti projekta.
+- Dodan staticni Vercel Speed Insights loader za Core Web Vitals in performance metrike brez Next.js komponente.
 - Dodan Microsoft Clarity loader z runtime nastavitvijo `MICROSOFT_CLARITY_PROJECT_ID`.
 - Dodani Clarity `identify`, custom tags in events za poglede, prijavo, pobude, glasovanje, podpise, komentarje in AI predpregled.
 - Razsirjena domenska analitika z `calculateUserAnalytics()` in `calculateSystemAnalytics()`.
@@ -91,6 +93,7 @@ Vzpostaviti tri jasno locene analiticne plasti: Vercel za hosting/SEO, admin not
 - `node --check src/main.js` - uspesno.
 - `node --check src/lib/clarity.js` - uspesno.
 - `node --check src/lib/vercel-analytics.js` - uspesno.
+- `node --check src/lib/vercel-speed-insights.js` - uspesno.
 - `node --check src/lib/telemetry.js` - uspesno.
 - `node --check api/analytics/system.js` - uspesno.
 

@@ -31,6 +31,11 @@ import { EmailNotificationClient } from "./lib/notifications.js";
 import { createRepository } from "./lib/supabase.js";
 import { browserResourceSnapshot, estimateTextTokens, SystemTelemetry } from "./lib/telemetry.js";
 import { initializeVercelAnalytics, trackVercelEvent } from "./lib/vercel-analytics.js";
+import {
+  initializeVercelSpeedInsights,
+  setVercelSpeedInsightsRoute,
+  vercelSpeedInsightsStatus
+} from "./lib/vercel-speed-insights.js";
 
 const DEMO_ADMIN_EMAIL = "admin@demos.local";
 const APP_VIEWS = ["dashboard", "submit", "analytics", "integrations", "systemAnalytics"];
@@ -75,6 +80,7 @@ class DemocracyApp {
   async init() {
     this.syncViewUrl({ replace: true });
     initializeVercelAnalytics();
+    initializeVercelSpeedInsights({ route: this.speedInsightsRoute() });
     initializeMicrosoftClarity(this.config.MICROSOFT_CLARITY_PROJECT_ID);
     this.syncExternalAnalytics();
     await this.refresh();
@@ -734,6 +740,17 @@ class DemocracyApp {
             <div><dt>Script</dt><dd>vklopljen</dd></div>
           </dl>
           <p class="note">Podatki so vidni v Vercel dashboardu po deployu in obisku strani.</p>
+        </div>
+        <div class="panel">
+          <p class="eyebrow">Performance</p>
+          <h2>Vercel Speed Insights</h2>
+          <dl class="config-list">
+            <div><dt>Namen</dt><dd>Core Web Vitals in hitrost strani</dd></div>
+            <div><dt>Runtime loader</dt><dd>${vercelSpeedInsightsStatus().loader}</dd></div>
+            <div><dt>Script tag</dt><dd>${vercelSpeedInsightsStatus().script}</dd></div>
+            <div><dt>Route</dt><dd>${escapeHtml(vercelSpeedInsightsStatus().route || this.speedInsightsRoute())}</dd></div>
+          </dl>
+          <p class="note">Meritve se zbirajo na Vercelu po deployu, obisku strani in navigaciji med pogledi.</p>
         </div>
         <div class="panel">
           <p class="eyebrow">Vedenjska analitika</p>
@@ -1613,11 +1630,18 @@ class DemocracyApp {
     url.searchParams.set("view", this.state.activeView);
     const method = options.replace ? "replaceState" : "pushState";
     window.history[method]({ view: this.state.activeView }, "", `${url.pathname}${url.search}${url.hash}`);
+    setVercelSpeedInsightsRoute(this.speedInsightsRoute());
   }
 
   handleRouteChange() {
     this.state.activeView = initialView(this.currentUser());
+    setVercelSpeedInsightsRoute(this.speedInsightsRoute());
     this.render();
+  }
+
+  speedInsightsRoute() {
+    if (typeof window === "undefined") return this.state.activeView;
+    return `${window.location.pathname}?view=${this.state.activeView}`;
   }
 }
 

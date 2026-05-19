@@ -65,6 +65,7 @@ npm test
 - osebna analitika pobud za prijavljenega uporabnika,
 - admin sistemska analitika za oceno AI klicev, tokenov, email dogodkov in frontend virov,
 - Vercel Web Analytics za hosting/SEO statistiko,
+- Vercel Speed Insights za Core Web Vitals in performance metrike,
 - Microsoft Clarity za vedenjsko analitiko sej, custom tags in events,
 - Supabase SQL shema in konfiguracijski nastavki,
 - povzetek SI-PASS testnega okolja.
@@ -120,6 +121,7 @@ Lokalno endpoint `/api/ai/review-initiative` zagotovi `scripts/dev-server.mjs`, 
 Projekt uporablja tri locene analiticne plasti:
 
 - **Vercel Web Analytics**: promet, strani in SEO pogled v Vercel dashboardu; vidi ga lastnik hostinga.
+- **Vercel Speed Insights**: Core Web Vitals in hitrost strani v Vercel dashboardu; vidi ga lastnik hostinga.
 - **Sistemska analitika**: pogled samo za demo admina `admin@demos.local`; namenjen je oceni obremenitev, AI klicev, tokenov, email dogodkov, uporabniskih sledi in javne vidnosti pobud.
 - **Analitika pobud**: aplikacijski pogled za splosne metrike pobud in osebno statistiko prijavljenega uporabnika. Microsoft Clarity dodatno belezi seje, custom tags in dogodke.
 

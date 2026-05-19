@@ -11,6 +11,9 @@ Izvedeno:
 - Dodana tri-delna zasnova analitike: Vercel Web Analytics, admin sistemska analitika in uporabniska analitika pobud.
 - Dodan paket `@vercel/analytics` v `package.json` in `package-lock.json`.
 - Dodan staticni Vercel loader v `src/lib/vercel-analytics.js`, ker projekt trenutno ne uporablja bundlerja.
+- Dodan paket `@vercel/speed-insights` v `package.json` in `package-lock.json`.
+- Dodan staticni Vercel Speed Insights loader v `src/lib/vercel-speed-insights.js`, ker projekt trenutno ne uporablja Next.js komponente.
+- Integracije prikazejo runtime stanje Vercel Speed Insights loaderja, script taga in trenutnega SPA route.
 - Dodan Microsoft Clarity loader v `src/lib/clarity.js`.
 - Dodana runtime nastavitev `MICROSOFT_CLARITY_PROJECT_ID`.
 - Dostop do interne sistemske analitike je omejen na demo admina `admin@demos.local`.
@@ -35,6 +38,7 @@ Preverjanje:
 - `node --check src/main.js`
 - `node --check src/lib/clarity.js`
 - `node --check src/lib/vercel-analytics.js`
+- `node --check src/lib/vercel-speed-insights.js`
 - `node --check src/lib/telemetry.js`
 
 Opombe:
