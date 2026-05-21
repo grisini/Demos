@@ -44,6 +44,12 @@ export const config = {
   SIPASS_AUTHORITY: publicConfigValue("SIPASS_AUTHORITY", "https://sicas-test.sigov.si/"),
   SIPASS_CLIENT_ID: publicConfigValue("SIPASS_CLIENT_ID"),
   SIPASS_REDIRECT_URI: publicConfigValue("SIPASS_REDIRECT_URI", "http://localhost:5173/auth/sipass/callback"),
+  SIPASS_LOGIN_URL: publicConfigValue(
+    "SIPASS_LOGIN_URL",
+    "https://auth.demokracija-20.si/auth/sipass/login"
+  ),
+  AUTH_SESSION_ENDPOINT: publicConfigValue("AUTH_SESSION_ENDPOINT", "/api/auth/session"),
+  AUTH_LOGOUT_ENDPOINT: publicConfigValue("AUTH_LOGOUT_ENDPOINT", "/api/auth/logout"),
   AI_PROVIDER: optionConfigValue("AI_PROVIDER", "local"),
   AI_REVIEW_ENDPOINT: publicConfigValue("AI_REVIEW_ENDPOINT"),
   EMAIL_NOTIFICATIONS_ENDPOINT: publicConfigValue("EMAIL_NOTIFICATIONS_ENDPOINT"),

@@ -91,6 +91,7 @@ class DemocracyApp {
   }
 
   async init() {
+    await this.auth.refreshSipassSession?.(this.config.AUTH_SESSION_ENDPOINT);
     this.syncViewUrl({ replace: true });
     initializeVercelAnalytics();
     initializeVercelSpeedInsights({ route: this.speedInsightsRoute() });
@@ -934,7 +935,7 @@ class DemocracyApp {
             <div><dt>Avtoriteta</dt><dd>${escapeHtml(this.config.SIPASS_AUTHORITY)}</dd></div>
             <div><dt>Client ID</dt><dd>${this.config.SIPASS_CLIENT_ID ? "nastavljen" : "ni nastavljen"}</dd></div>
           </dl>
-          <button class="button secondary" data-action="sipass-placeholder">SI-PASS testni tok</button>
+          <button class="button secondary" data-action="sipass-login">SI-PASS prijava</button>
         </div>
         <div class="panel">
           <p class="eyebrow">AI presoja</p>
@@ -1208,6 +1209,7 @@ class DemocracyApp {
         </label>
         <div class="login-actions">
           <button class="button primary compact" type="submit">Demo prijava</button>
+          <button class="button secondary compact" type="button" data-action="sipass-login">SI-PASS prijava</button>
           <button class="button secondary compact" type="button" data-action="demo-admin-login">Demo admin</button>
         </div>
       </form>
@@ -1438,6 +1440,15 @@ class DemocracyApp {
     }
 
     if (action === "logout") {
+      if (this.currentUser()?.provider === "sipass" && this.config.AUTH_LOGOUT_ENDPOINT) {
+        await fetch(this.config.AUTH_LOGOUT_ENDPOINT, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            Accept: "application/json"
+          }
+        }).catch(() => {});
+      }
       this.auth.signOut();
       this.state.status = "all";
       this.state.category = "all";
@@ -1463,9 +1474,8 @@ class DemocracyApp {
       return;
     }
 
-    if (action === "sipass-placeholder") {
-      this.toast("SI-PASS je pripravljen kot integracijski nastavek; za realen tok so potrebni registrirani testni podatki.");
-      this.render();
+    if (action === "sipass-login") {
+      window.location.assign(this.sipassLoginUrl());
       return;
     }
 
@@ -1760,6 +1770,17 @@ class DemocracyApp {
 
   appUrl() {
     return `${window.location.origin}${window.location.pathname}`.replace(/\/$/, "");
+  }
+
+  sipassLoginUrl() {
+    const fallback = "https://auth.demokracija-20.si/auth/sipass/login";
+    try {
+      const loginUrl = new URL(this.config.SIPASS_LOGIN_URL || fallback, window.location.origin);
+      loginUrl.searchParams.set("returnTo", window.location.href);
+      return loginUrl.toString();
+    } catch {
+      return fallback;
+    }
   }
 
   reportError(context, error) {

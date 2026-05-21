@@ -19,6 +19,11 @@ import {
   validateInitiative,
   voteForInitiative
 } from "../src/domain/validation.js";
+import {
+  createSipassSessionToken,
+  readSipassSessionToken,
+  sipassUserFromHeaders
+} from "../server/sipass-session.mjs";
 
 const validInput = {
   title: "Javna sledljivost zakonodajnih sprememb",
@@ -35,6 +40,10 @@ const actor = {
   name: "Demo uporabnik"
 };
 const hardcodedNotificationRecipient = "janezpederka@gmail.com";
+const sipassEnv = {
+  SIPASS_SESSION_SECRET: "test-sipass-session-secret-with-more-than-32-chars",
+  SIPASS_USER_REF_SALT: "test-sipass-user-ref-salt"
+};
 
 test("validateInitiative zavrne prekratko pobudo", () => {
   const result = validateInitiative({ title: "Test", category: "Drugo", summary: "", description: "" });
@@ -219,4 +228,30 @@ test("nova pobuda obvesti glasovalce pobud iste kategorije", () => {
   assert.equal(notifications[0].to, hardcodedNotificationRecipient);
   assert.equal(notifications[0].metadata.category, validInput.category);
   assert.match(notifications[0].subject, /Nova pobuda/);
+});
+
+test("SI-PASS session mapira atribute in obnovi sifriranega uporabnika", () => {
+  const user = sipassUserFromHeaders(
+    {
+      "x-sipass-first-name": "Ana",
+      "x-sipass-last-name": "Novak",
+      "x-sipass-emso": "0101006500006",
+      "x-sipass-tax-number": "12345678",
+      "x-sipass-token": "stable-sicas-token"
+    },
+    sipassEnv
+  );
+
+  assert.equal(user.name, "Ana Novak");
+  assert.match(user.id, /^sipass-/);
+  assert.notEqual(user.id, user.emso);
+  assert.notEqual(user.id, user.taxNumber);
+  assert.equal(user.email, "");
+
+  const restored = readSipassSessionToken(
+    createSipassSessionToken(user, sipassEnv.SIPASS_SESSION_SECRET),
+    sipassEnv.SIPASS_SESSION_SECRET
+  );
+
+  assert.deepEqual(restored, user);
 });

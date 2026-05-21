@@ -17,9 +17,10 @@ V `.env.example` so pripravljene spremenljivke:
 ```env
 SIPASS_ENV=test
 SIPASS_AUTHORITY=https://sicas-test.sigov.si/
-SIPASS_CLIENT_ID=
-SIPASS_REDIRECT_URI=http://localhost:5173/auth/sipass/callback
+SIPASS_LOGIN_URL=https://auth.demokracija-20.si/auth/sipass/login
+AUTH_SESSION_ENDPOINT=/api/auth/session
+AUTH_LOGOUT_ENDPOINT=/api/auth/logout
 ```
 
-Trenutna aplikacija uporablja demo prijavo. Ko bodo na voljo registrirani SI-PASS podatki, je naslednji korak dodati backend auth callback in mapiranje SI-PASS identitete v anonimiziran `author_ref`, `voter_ref` in `signer_ref`.
+Trenutna aplikacija ima SI-PASS gumb in session endpointa. Po uspesni prijavi Shibboleth SP na VPS posreduje atribute bridge endpointu, ta pa vrne sifriran session cookie za spletno aplikacijo. Za delovanje je treba na VPS se nastaviti protected path `/auth/sipass/complete`, `attribute-map.xml` in Apache proxy/header mapping iz `docs/sipass-sicas-ces-priklop.md`.
 

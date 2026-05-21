@@ -125,6 +125,19 @@ HF_TOKEN=hf_...
 
 Lokalno endpoint `/api/ai/review-initiative` zagotovi `scripts/dev-server.mjs`, na Vercelu pa `api/ai/review-initiative.js`. Frontend vidi samo endpoint, `HF_TOKEN` ostane server-only. Ob napaki aplikacija samodejno pade nazaj na lokalno presojo.
 
+## SI-PASS prijava
+
+Gumb `SI-PASS prijava` odpira VPS bridge na `auth.demokracija-20.si`. Bridge mora biti za pot `/auth/sipass/complete` zasciten s Shibbolethom, nato pa Vercel aplikaciji izda sifrirano sejo prek `HttpOnly` cookieja za domeno `.demokracija-20.si`.
+
+Potrebni skrivni nastavitvi na VPS in Vercelu sta isti:
+
+```env
+SIPASS_SESSION_SECRET=...
+SIPASS_USER_REF_SALT=...
+```
+
+Apache proxy, `attribute-map.xml` in ostale VPS spremenljivke so opisane v `docs/sipass-sicas-ces-priklop.md`.
+
 ## Analitike
 
 Projekt uporablja tri locene analiticne plasti:

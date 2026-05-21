@@ -45,16 +45,16 @@ Kratek checklist za projekt, kjer bo avtentikacija tekla na VPS strezniku.
 - [ ] Minimalno zahtevati stabilni identifikator uporabnika, npr. `sicas_token`.
 - [ ] Po potrebi zahtevati `sicas_ime`, `sicas_priimek`, email.
 - [ ] Po uspesni prijavi preveriti Shibboleth session endpoint.
-- [ ] Preveriti, da aplikacija prejme atribute prek headerjev ali okolja.
-- [ ] V aplikaciji mapirati SI-CAS uporabnika v `author_ref`, `voter_ref`, `signer_ref`.
+- [ ] Preveriti, da Apache auth bridge prejme atribute prek `X-SIPASS-*` headerjev.
+- [x] V aplikaciji pripraviti SI-CAS uporabnika za `author_ref`, `voter_ref`, `signer_ref`.
 
 ## 5. Povezava z aplikacijo
 
 - [ ] Odlociti, ali bo celotna aplikacija tekla na VPS ali bo VPS proxy do Vercel frontenda.
-- [ ] Ce VPS proxyja Vercel, nastaviti reverse proxy.
-- [ ] Zascititi samo poti, ki zahtevajo prijavo.
+- [ ] Na VPS proxyjati `/auth/sipass/` do Node bridge endpointa.
+- [ ] Zascititi `/auth/sipass/complete` s Shibboleth sessionom.
 - [ ] Demo prijavo pustiti samo za lokalni razvoj.
-- [ ] Dodati realen logout tok.
+- [x] Dodati aplikacijski SI-PASS session/logout endpoint.
 - [ ] Preveriti, da uporabnik po prijavi pride nazaj v aplikacijo.
 
 ## 6. SI-CES podpisovanje

@@ -3,6 +3,13 @@ import { appendFileSync, createReadStream, existsSync, mkdirSync, readFileSync, 
 import net from "node:net";
 import { dirname, extname, isAbsolute, join, normalize, relative, resolve } from "node:path";
 import tls from "node:tls";
+import {
+  clearSipassCookie,
+  createSipassCookie,
+  sanitizedReturnUrl,
+  sessionUserFromRequest,
+  sipassUserFromHeaders
+} from "../server/sipass-session.mjs";
 import { emptyClarityInsights, normalizeClarityInsights } from "../src/domain/clarity-insights.js";
 import { CATEGORIES, evaluateInitiative, normalizeInput } from "../src/domain/validation.js";
 
@@ -62,6 +69,12 @@ function runtimeConfig() {
       env.SIPASS_REDIRECT_URI ||
       env.VITE_SIPASS_REDIRECT_URI ||
       `http://localhost:${env.PORT || defaultPort}/auth/sipass/callback`,
+    SIPASS_LOGIN_URL:
+      env.SIPASS_LOGIN_URL ||
+      env.VITE_SIPASS_LOGIN_URL ||
+      "https://auth.demokracija-20.si/auth/sipass/login",
+    AUTH_SESSION_ENDPOINT: env.AUTH_SESSION_ENDPOINT || env.VITE_AUTH_SESSION_ENDPOINT || "/api/auth/session",
+    AUTH_LOGOUT_ENDPOINT: env.AUTH_LOGOUT_ENDPOINT || env.VITE_AUTH_LOGOUT_ENDPOINT || "/api/auth/logout",
     AI_PROVIDER: env.AI_PROVIDER || env.VITE_AI_PROVIDER || (env.HF_TOKEN ? "huggingface" : "local"),
     AI_REVIEW_ENDPOINT:
       env.AI_REVIEW_ENDPOINT || env.VITE_AI_REVIEW_ENDPOINT || (env.HF_TOKEN ? "/api/ai/review-initiative" : ""),
@@ -121,6 +134,15 @@ function readJsonBody(req, maxBytes = 64 * 1024) {
 
 function json(res, status, value) {
   send(res, status, JSON.stringify(value), "application/json; charset=utf-8");
+}
+
+function redirect(res, location, headers = {}) {
+  res.writeHead(302, {
+    Location: location,
+    "Cache-Control": "no-store",
+    ...headers
+  });
+  res.end();
 }
 
 async function reviewInitiativeWithHuggingFace(payload) {
@@ -830,6 +852,71 @@ function createAppServer() {
         json(res, error.status || 500, {
           error: error.message || "AI review failed"
         });
+      }
+      return;
+    }
+
+    if (pathname === "/api/auth/session") {
+      if (req.method !== "GET") {
+        json(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      let user = null;
+      try {
+        user = sessionUserFromRequest(req, serverEnv());
+      } catch (error) {
+        console.error("[Demokracija 2.0] SI-PASS session read failed", error);
+      }
+      json(res, 200, { authenticated: Boolean(user), user });
+      return;
+    }
+
+    if (pathname === "/api/auth/logout") {
+      if (!["GET", "POST"].includes(req.method || "")) {
+        json(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      res.setHeader("Set-Cookie", clearSipassCookie(serverEnv()));
+      json(res, 200, { signedOut: true });
+      return;
+    }
+
+    if (pathname === "/auth/sipass/login") {
+      const env = serverEnv();
+      const appOrigin = env.SIPASS_APP_ORIGIN || "https://demokracija-20.si";
+      const returnTo = sanitizedReturnUrl(requestedUrl.searchParams.get("returnTo"), appOrigin);
+      const completeUrl = new URL(env.SIPASS_COMPLETE_URL || "https://auth.demokracija-20.si/auth/sipass/complete");
+      completeUrl.searchParams.set("returnTo", returnTo);
+      const loginUrl = new URL("/Shibboleth.sso/Login", env.SIPASS_SP_ORIGIN || "https://auth.demokracija-20.si");
+      loginUrl.searchParams.set("entityID", env.SIPASS_IDP_ENTITY_ID || "SICAS");
+      loginUrl.searchParams.set("target", completeUrl.toString());
+      redirect(res, loginUrl.toString());
+      return;
+    }
+
+    if (pathname === "/auth/sipass/complete") {
+      const env = serverEnv();
+      try {
+        const user = sipassUserFromHeaders(req.headers, env);
+        if (!user) {
+          json(res, 401, {
+            error: "SI-PASS attributes are missing. This endpoint must be protected by Shibboleth on the VPS."
+          });
+          return;
+        }
+
+        const returnTo = sanitizedReturnUrl(
+          requestedUrl.searchParams.get("returnTo"),
+          env.SIPASS_APP_ORIGIN || "https://demokracija-20.si"
+        );
+        redirect(res, returnTo, {
+          "Set-Cookie": createSipassCookie(user, env)
+        });
+      } catch (error) {
+        console.error("[Demokracija 2.0] SI-PASS completion failed", error);
+        json(res, 500, { error: error.message || "SI-PASS completion failed" });
       }
       return;
     }

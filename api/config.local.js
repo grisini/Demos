@@ -22,6 +22,21 @@ function publicRuntimeConfig(env) {
     SIPASS_AUTHORITY: firstValue(env.SIPASS_AUTHORITY, env.VITE_SIPASS_AUTHORITY, "https://sicas-test.sigov.si/"),
     SIPASS_CLIENT_ID: firstValue(env.SIPASS_CLIENT_ID, env.VITE_SIPASS_CLIENT_ID),
     SIPASS_REDIRECT_URI: firstValue(env.SIPASS_REDIRECT_URI, env.VITE_SIPASS_REDIRECT_URI),
+    SIPASS_LOGIN_URL: firstValue(
+      env.SIPASS_LOGIN_URL,
+      env.VITE_SIPASS_LOGIN_URL,
+      "https://auth.demokracija-20.si/auth/sipass/login"
+    ),
+    AUTH_SESSION_ENDPOINT: firstValue(
+      env.AUTH_SESSION_ENDPOINT,
+      env.VITE_AUTH_SESSION_ENDPOINT,
+      "/api/auth/session"
+    ),
+    AUTH_LOGOUT_ENDPOINT: firstValue(
+      env.AUTH_LOGOUT_ENDPOINT,
+      env.VITE_AUTH_LOGOUT_ENDPOINT,
+      "/api/auth/logout"
+    ),
     AI_PROVIDER: firstValue(env.AI_PROVIDER, env.VITE_AI_PROVIDER, env.HF_TOKEN ? "huggingface" : "local"),
     AI_REVIEW_ENDPOINT: firstValue(
       env.AI_REVIEW_ENDPOINT,
