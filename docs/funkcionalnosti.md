@@ -25,7 +25,7 @@ Statusi v tabeli:
 | F-05 | Hugging Face AI predpregled | Delno implementirano | `scripts/dev-server.mjs`, `src/main.js` | Rocni POST na `/api/ai/review-initiative` | Deluje v razvojnem strezniku, produkcijsko mora v backend ali Supabase Edge Function. |
 | F-06 | AI fallback ob napaki | Implementirano | `reviewInitiative()` v `src/main.js` | Rocni test brez `HF_TOKEN` | Ob nedosegljivem zunanjem modelu aplikacija uporabi lokalno presojo. |
 | F-07 | Seznam pobud | Implementirano | `renderDashboardView()` v `src/main.js` | Rocni zagon aplikacije | Prikazuje pobude, osnovne metrike in izbran detail. |
-| F-08 | Iskanje pobud | Implementirano | `filteredInitiatives()` v `src/main.js` | Rocni zagon aplikacije | Isce po naslovu, povzetku in kategoriji. |
+| F-08 | Iskanje pobud | Implementirano | `filteredInitiatives()`, `loadRemoteSearch()` v `src/main.js`, `SupabaseInitiativeRepository.search()`, `supabase/search.sql` | Rocni zagon aplikacije, `npm test`, SQL primeri v `docs/hybrid-search.md` | Lokalno isce po ze nalozenih pobudah; pri `DATA_SOURCE=supabase` in queryju z vsaj 2 znaka uporabi RPC `search_initiatives`. |
 | F-09 | Filtriranje po kategoriji in statusu | Implementirano | `filteredInitiatives()` v `src/main.js` | Rocni zagon aplikacije | Kategorije in statusi so enotni z domeno. |
 | F-10 | Razvrscanje pobud | Implementirano | `filteredInitiatives()` v `src/main.js` | Rocni zagon aplikacije | Podprto po popularnosti, datumu in AI oceni. |
 | F-11 | Detail pobude | Implementirano | `renderInitiativeDetail()` v `src/main.js` | Rocni zagon aplikacije | Vkljucuje opis, metrike, AI ugotovitve, glasove, podpise in komentarje. |

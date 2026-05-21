@@ -31,6 +31,41 @@ export class SupabaseInitiativeRepository {
     return initiatives.map((row) => mapInitiative(row, votes, signatures, comments));
   }
 
+  async search(options = {}) {
+    const rows = await this.request("/rest/v1/rpc/search_initiatives", {
+      method: "POST",
+      body: JSON.stringify({
+        p_query: options.query || "",
+        p_category: filterValue(options.category),
+        p_status: filterValue(options.status),
+        p_public_only: options.publicOnly === true,
+        p_sort: options.sort || "relevance",
+        p_limit: options.limit || 50,
+        p_offset: options.offset || 0
+      })
+    }) || [];
+
+    const ids = rows.map((initiative) => initiative.id);
+    if (!ids.length) return [];
+
+    const filter = `initiative_id=in.(${ids.join(",")})`;
+    const [votes, signatures, comments] = await Promise.all([
+      this.request(`/rest/v1/votes?select=*&${filter}`),
+      this.request(`/rest/v1/signatures?select=*&${filter}`),
+      this.request(`/rest/v1/comments?select=*&${filter}&order=created_at.asc`)
+    ]);
+
+    return rows.map((row) => ({
+      ...mapInitiative(row, votes, signatures, comments),
+      search: {
+        score: Number(row.search_score) || 0,
+        matchType: row.match_type || "unknown",
+        textRank: Number(row.text_rank) || 0,
+        fuzzyRank: Number(row.fuzzy_rank) || 0
+      }
+    }));
+  }
+
   async create(initiative) {
     const [row] = await this.request("/rest/v1/initiatives?select=*", {
       method: "POST",
@@ -198,5 +233,10 @@ function toInitiativeRow(initiative) {
     ai_findings: initiative.aiReview.findings,
     ai_checks: initiative.aiReview.checks
   };
+}
+
+function filterValue(value) {
+  const text = String(value || "").trim();
+  return !text || text === "all" ? null : text;
 }
 

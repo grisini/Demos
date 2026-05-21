@@ -42,6 +42,8 @@ const DEMO_ADMIN_EMAIL = "admin@demos.local";
 const APP_VIEWS = ["dashboard", "submit", "analytics", "integrations", "systemAnalytics"];
 const PUBLIC_INITIATIVE_STATUSES = ["active", "signature_collection"];
 const ANONYMOUS_VOTER_KEY = "demos.anonymousVoterId";
+const REMOTE_SEARCH_DEBOUNCE_MS = 800;
+const REMOTE_SEARCH_MIN_LENGTH = 2;
 
 class DemocracyApp {
   constructor({ root, repository, auth, notificationClient, telemetry, clarityInsightsClient, config: appConfig }) {
@@ -53,8 +55,11 @@ class DemocracyApp {
     this.clarityInsightsClient = clarityInsightsClient;
     this.config = appConfig;
     this.anonymousVoterSessionId = "";
+    this.searchRequestId = 0;
+    this.searchDebounceTimer = null;
     this.state = {
       initiatives: [],
+      searchResults: null,
       selectedId: null,
       activeView: initialView(auth.currentUser()),
       query: "",
@@ -71,6 +76,8 @@ class DemocracyApp {
       clarityInsights: null,
       clarityInsightsLoading: false,
       clarityInsightsError: "",
+      searchLoading: false,
+      searchError: "",
       sidebarOpen: defaultSidebarOpen(),
       loading: true
     };
@@ -100,6 +107,9 @@ class DemocracyApp {
     const startedAt = performance.now();
     try {
       this.state.initiatives = await this.repository.list();
+      if (this.shouldUseRemoteSearch()) {
+        await this.loadRemoteSearch({ render: false });
+      }
       this.recordSystemEvent("data_load", {
         count: this.state.initiatives.length,
         durationMs: Math.round(performance.now() - startedAt),
@@ -151,6 +161,11 @@ class DemocracyApp {
   }
 
   filteredInitiatives() {
+    if (this.shouldUseRemoteSearch()) {
+      if (Array.isArray(this.state.searchResults)) return this.state.searchResults;
+      if (this.state.searchLoading) return [];
+    }
+
     const query = this.state.query.toLowerCase();
     const source = this.visibleInitiatives();
     const filtered = source.filter((initiative) => {
@@ -169,16 +184,83 @@ class DemocracyApp {
   }
 
   selectedInitiative() {
-    return (
-      this.visibleInitiatives().find((initiative) => initiative.id === this.state.selectedId) ||
-      this.filteredInitiatives()[0] ||
-      null
-    );
+    const filtered = this.filteredInitiatives();
+    return filtered.find((initiative) => initiative.id === this.state.selectedId) || filtered[0] || null;
   }
 
   visibleInitiatives() {
     if (this.currentUser()) return this.state.initiatives;
     return this.state.initiatives.filter((initiative) => PUBLIC_INITIATIVE_STATUSES.includes(initiative.status));
+  }
+
+  shouldUseRemoteSearch() {
+    return (
+      isSupabaseEnabled(this.config) &&
+      typeof this.repository.search === "function" &&
+      this.state.query.trim().length >= REMOTE_SEARCH_MIN_LENGTH
+    );
+  }
+
+  scheduleRemoteSearch() {
+    window.clearTimeout(this.searchDebounceTimer);
+
+    if (!this.shouldUseRemoteSearch()) {
+      this.searchRequestId += 1;
+      this.state.searchResults = null;
+      this.state.searchLoading = false;
+      this.state.searchError = "";
+      this.render();
+      return;
+    }
+
+    this.state.searchResults = null;
+    this.state.searchLoading = false;
+    this.state.searchError = "";
+    const requestId = ++this.searchRequestId;
+    this.searchDebounceTimer = window.setTimeout(() => {
+      this.loadRemoteSearch({ requestId, renderLoading: true });
+    }, REMOTE_SEARCH_DEBOUNCE_MS);
+  }
+
+  async loadRemoteSearch(options = {}) {
+    if (!this.shouldUseRemoteSearch()) {
+      this.state.searchResults = null;
+      this.state.searchLoading = false;
+      this.state.searchError = "";
+      return;
+    }
+
+    const requestId = options.requestId || ++this.searchRequestId;
+    this.state.searchLoading = true;
+    this.state.searchError = "";
+    if (options.renderLoading && options.render !== false) this.render();
+
+    try {
+      const results = await this.repository.search({
+        query: this.state.query,
+        category: this.state.category,
+        status: this.currentUser() ? this.state.status : "all",
+        publicOnly: !this.currentUser(),
+        sort: this.state.sort,
+        limit: 50,
+        offset: 0
+      });
+
+      if (requestId !== this.searchRequestId) return;
+      this.state.searchResults = results;
+      this.state.searchLoading = false;
+      this.state.searchError = "";
+    } catch (error) {
+      if (requestId !== this.searchRequestId) return;
+      this.reportError("Supabase hybrid search failed", error);
+      this.state.searchResults = null;
+      this.state.searchLoading = false;
+      this.state.searchError = "Iskanje v ni uspelo";
+    } finally {
+      if (requestId === this.searchRequestId && options.render !== false) {
+        this.render();
+      }
+    }
   }
 
   render() {
@@ -187,6 +269,7 @@ class DemocracyApp {
     const selected = this.selectedInitiative();
     const dataMode = isSupabaseEnabled(this.config) ? "Supabase" : "Lokalni prototip";
     const sidebarState = this.state.sidebarOpen ? "sidebar-open" : "sidebar-closed";
+    const focusState = this.captureFocusState();
 
     this.root.className = `app-shell ${sidebarState}`;
 
@@ -239,7 +322,31 @@ class DemocracyApp {
         ${this.state.loading ? this.renderLoading() : this.renderView(analytics, selected)}
       </main>
     `;
+    this.restoreFocusState(focusState);
     this.syncExternalAnalytics();
+  }
+
+  captureFocusState() {
+    const active = document.activeElement;
+    if (!active || active.dataset?.filter !== "query") return null;
+
+    return {
+      filter: "query",
+      start: active.selectionStart,
+      end: active.selectionEnd
+    };
+  }
+
+  restoreFocusState(focusState) {
+    if (!focusState) return;
+
+    const input = this.root.querySelector(`[data-filter="${focusState.filter}"]`);
+    if (!input) return;
+
+    input.focus({ preventScroll: true });
+    if (typeof input.setSelectionRange === "function" && focusState.start !== null && focusState.end !== null) {
+      input.setSelectionRange(focusState.start, focusState.end);
+    }
   }
 
   renderView(analytics, selected) {
@@ -299,9 +406,13 @@ class DemocracyApp {
               </select>
             </label>
           </div>
+          ${this.state.searchLoading ? `<div class="empty-state">Iskanje...</div>` : ""}
+          ${this.state.searchError ? `<div class="empty-state">${escapeHtml(this.state.searchError)}</div>` : ""}
           <div class="initiative-list">
             ${
-              initiatives.length
+              this.state.searchLoading
+                ? ""
+                : initiatives.length
                 ? initiatives.map((initiative) => this.renderInitiativeCard(initiative)).join("")
                 : `<div class="empty-state">${user ? "Ni pobud za izbrane filtre." : "Trenutno ni javno odprtih pobud."}</div>`
             }
@@ -1279,7 +1390,7 @@ class DemocracyApp {
         this.setActiveView("dashboard", { replace: true });
       }
       this.toast("Odjavljeni ste.");
-      this.render();
+      this.scheduleRemoteSearch();
       return;
     }
 
@@ -1293,7 +1404,7 @@ class DemocracyApp {
       setClarityTag("user_role", "admin");
       trackClarityEvent("demo_admin_login");
       this.toast("Prijavljeni ste kot demo admin.");
-      this.render();
+      this.scheduleRemoteSearch();
       return;
     }
 
@@ -1381,7 +1492,7 @@ class DemocracyApp {
       setClarityTag("user_role", user.role);
       trackClarityEvent("demo_login");
       this.toast("Prijava je uspela.");
-      this.render();
+      this.scheduleRemoteSearch();
       return;
     }
 
@@ -1454,7 +1565,7 @@ class DemocracyApp {
 
     if (filterField === "query") {
       this.state.query = event.target.value;
-      this.render();
+      this.scheduleRemoteSearch();
     }
   }
 
@@ -1462,7 +1573,7 @@ class DemocracyApp {
     const filterField = event.target.dataset.filter;
     if (filterField && filterField !== "query") {
       this.state[filterField] = event.target.value;
-      this.render();
+      this.scheduleRemoteSearch();
       return;
     }
 
