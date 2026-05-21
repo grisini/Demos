@@ -63,7 +63,39 @@ Trenutni auth bridge zna prebrati `sicas_ime`, `sicas_priimek`, `sicas_emso`, `s
 
 ## Potrebna VPS nastavitev za bridge
 
-Na VPS mora teci Node endpoint iz tega projekta, npr. na `127.0.0.1:5173`, Apache pa mora proxyjati `/auth/sipass/` nanj. Pot `/auth/sipass/complete` mora biti Shibboleth protected path.
+Na VPS tece Node endpoint iz tega projekta na `127.0.0.1:5173`, Apache pa proxyja `/auth/sipass/` nanj. Pot `/auth/sipass/complete` je Shibboleth protected path.
+
+Izvedeni VPS koraki:
+
+1. Namesceni so `nodejs`, `npm` in `git`.
+2. Projekt je namescen v `/opt/demos`.
+3. `/opt/demos/.env.local` vsebuje VPS SI-PASS env spremenljivke.
+4. `demos-auth.service` zaganja `npm start` iz `/opt/demos`.
+5. Apache moduli `proxy`, `proxy_http` in `headers` so vklopljeni.
+6. SSL virtual host za `auth.demokracija-20.si` vsebuje `ProxyPass` in `Location /auth/sipass/complete`.
+7. `/etc/shibboleth/attribute-map.xml` vsebuje SI-CAS atribute za trenutni session tok.
+
+`systemd` service:
+
+```ini
+[Unit]
+Description=Demokracija 2.0 SI-PASS auth bridge
+After=network.target
+
+[Service]
+Type=simple
+User=demos
+Group=demos
+WorkingDirectory=/opt/demos
+Environment=NODE_ENV=production
+Environment=PORT=5173
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
 
 Primer Apache konfiguracije za virtual host `auth.demokracija-20.si`:
 
@@ -110,6 +142,21 @@ systemctl restart shibd
 systemctl restart apache2
 ```
 
+Preverjanje izvedenega VPS bridgea:
+
+```bash
+systemctl status demos-auth
+curl -i http://127.0.0.1:5173/api/auth/session
+curl -I "http://127.0.0.1:5173/auth/sipass/login"
+curl -I "https://auth.demokracija-20.si/auth/sipass/login"
+```
+
+Pricakovano stanje:
+
+- `demos-auth` je `active (running)`,
+- lokalni session endpoint pred prijavo vrne neprijavljeno sejo,
+- lokalni in javni login endpoint vrneta `302` na Shibboleth `/Shibboleth.sso/Login` z `entityID=SICAS`.
+
 VPS in Vercel morata imeti isti `SIPASS_SESSION_SECRET`. Vrednost naj bo dolg nakljucen secret, npr. rezultat `openssl rand -base64 48`.
 
 VPS env:
@@ -151,8 +198,9 @@ Zasebni kljuc in certifikati ne smejo biti v gitu, frontendu ali javnem buildu.
 
 ## Potrebne spremembe za produkcijo
 
-- Deployati VPS auth bridge in Apache protected path za `/auth/sipass/complete`.
-- Preveriti dejansko mapiranje SI-CAS atributov v `attribute-map.xml`.
+- Na Vercel deployati novo kodo in session endpointa.
+- Na Vercel dodati env spremenljivke za SI-PASS session in narediti redeploy.
+- Po prvi pravi SI-PASS prijavi preveriti dejanske atribute v Shibboleth sessionu in Apache `X-SIPASS-*` mapping.
 - Uvesti trajnejso uporabnisko tabelo ali backend zapis, ce bo treba hraniti email in profile zunaj sifrirane seje.
 - V Supabase uvesti stroge RLS politike ali pisanje izkljucno prek backenda.
 - Omejiti spreminjanje statusov na moderatorje.

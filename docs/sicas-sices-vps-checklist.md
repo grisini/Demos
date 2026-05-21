@@ -25,7 +25,7 @@ Kratek checklist za projekt, kjer bo avtentikacija tekla na VPS strezniku.
       `/etc/shibboleth/sp-cert.pem`, `/etc/shibboleth/sp-key.pem`
 - [x] Nastaviti pravice za SP kljuc/certifikat za `root:_shibd`.
 - [x] Nastaviti `CredentialResolver` za signing in encryption.
-- [ ] Urediti `attribute-map.xml` za atribute, ki jih potrebujemo.
+- [x] Urediti `attribute-map.xml` za `sicas_emso`, `sicas_ds`, `sicas_ime`, `sicas_priimek` in `sicas_token`.
 
 ## 3. SP metadata za SI-CAS
 
@@ -36,23 +36,23 @@ Kratek checklist za projekt, kjer bo avtentikacija tekla na VPS strezniku.
 - [x] Preveriti, da metadata vsebuje `KeyDescriptor` za signing in encryption.
 - [x] Preveriti, da ACS URL kaze na pravi VPS HTTPS naslov:
       `https://auth.demokracija-20.si/Shibboleth.sso/SAML2/POST`
-- [ ] Metadata poslati SI-CAS ekipi.
-- [ ] Pocakati, da SI-CAS ekipa vkljuci nase metapodatke v testno okolje.
+- [x] Metadata poslati SI-CAS ekipi.
+- [x] Pocakati, da SI-CAS ekipa vkljuci nase metapodatke v testno okolje.
 
 ## 4. Atributi in prijava
 
 - [ ] Dogovoriti nabor atributov s SI-CAS ekipo.
-- [ ] Minimalno zahtevati stabilni identifikator uporabnika, npr. `sicas_token`.
-- [ ] Po potrebi zahtevati `sicas_ime`, `sicas_priimek`, email.
+- [x] Pripraviti stabilni identifikator uporabnika iz `sicas_token`, EMSO ali davcne stevilke.
+- [x] Pripraviti `sicas_ime`, `sicas_priimek`, EMSO in davcno stevilko v session modelu.
 - [ ] Po uspesni prijavi preveriti Shibboleth session endpoint.
 - [ ] Preveriti, da Apache auth bridge prejme atribute prek `X-SIPASS-*` headerjev.
 - [x] V aplikaciji pripraviti SI-CAS uporabnika za `author_ref`, `voter_ref`, `signer_ref`.
 
 ## 5. Povezava z aplikacijo
 
-- [ ] Odlociti, ali bo celotna aplikacija tekla na VPS ali bo VPS proxy do Vercel frontenda.
-- [ ] Na VPS proxyjati `/auth/sipass/` do Node bridge endpointa.
-- [ ] Zascititi `/auth/sipass/complete` s Shibboleth sessionom.
+- [x] Odlociti, da frontend tece na Vercelu, auth bridge pa na VPS.
+- [x] Na VPS proxyjati `/auth/sipass/` do Node bridge endpointa.
+- [x] Zascititi `/auth/sipass/complete` s Shibboleth sessionom.
 - [ ] Demo prijavo pustiti samo za lokalni razvoj.
 - [x] Dodati aplikacijski SI-PASS session/logout endpoint.
 - [ ] Preveriti, da uporabnik po prijavi pride nazaj v aplikacijo.

@@ -35,6 +35,13 @@ Trenutni SI-CAS SP podatki:
 - `CredentialResolver` je nastavljen za signing in encryption.
 - Metadata generator podpisuje SP metadata.
 - Staticni izvoz SP metadata brez Shibboleth opozorilnega komentarja je shranjen v `docs/sicas-sp-metadata.xml`.
+- Na VPS sta namescena Node.js in `npm` za SI-PASS auth bridge.
+- Projekt je postavljen v `/opt/demos`.
+- Auth bridge tece kot `systemd` service `demos-auth.service`.
+- Auth bridge lokalno poslusa na `127.0.0.1:5173`.
+- Apache proxy preusmeri javno pot `/auth/sipass/` na Node auth bridge.
+- Apache pot `/auth/sipass/complete` zahteva Shibboleth session.
+- `attribute-map.xml` vsebuje mapiranje za `sicas_emso`, `sicas_ds`, `sicas_ime`, `sicas_priimek` in `sicas_token`.
 
 ## Validacija
 
@@ -59,6 +66,32 @@ Metadata vsebuje:
 - `KeyDescriptor use="signing"`,
 - `KeyDescriptor use="encryption"`,
 - ACS endpoint na `auth.demokracija-20.si`.
+
+Preverjen je bil tudi Node auth bridge:
+
+```bash
+systemctl status demos-auth
+curl -i http://127.0.0.1:5173/api/auth/session
+curl -I "http://127.0.0.1:5173/auth/sipass/login"
+```
+
+Rezultat:
+
+- `demos-auth.service` je `active (running)`,
+- session endpoint pred prijavo vrne `{"authenticated":false,"user":null}`,
+- login endpoint vrne `302` na Shibboleth login handler z IdP `SICAS`.
+
+Preverjen je bil tudi javni Apache proxy:
+
+```bash
+curl -I "https://auth.demokracija-20.si/auth/sipass/login"
+```
+
+Rezultat je `302 Found` na:
+
+```text
+https://auth.demokracija-20.si/Shibboleth.sso/Login?entityID=SICAS...
+```
 
 ## Poslano SI-CAS ekipi
 
@@ -94,9 +127,9 @@ Ta datoteka je staticni izvoz nase SP metadata
 
 ## Kaj se manjka
 
-- SI-CAS ekipa mora nase SP metapodatke vkljuciti v testno okolje.
-- Po vkljucitvi je treba izvesti testno prijavo prek SI-CAS.
-- Po testni prijavi je treba preveriti prejete atribute na Shibboleth session endpointu.
-- Po potrebi je treba dopolniti `attribute-map.xml`.
-- Nato je treba Shibboleth prijavo povezati z aplikacijo in mapirati uporabnika v aplikacijski model.
+- Na Vercel je treba deployati novo kodo z `/api/auth/session` in `/api/auth/logout`.
+- Na Vercel je treba dodati SI-PASS session env spremenljivke in narediti redeploy.
+- Po pravi testni prijavi prek SI-PASS je treba preveriti prejete atribute na Shibboleth session endpointu.
+- Preveriti je treba, ali Apache `X-SIPASS-*` header mapping ujame dejanska imena atributov iz Shibboleth sessiona.
+- Preveriti je treba celoten povratek po prijavi nazaj na `https://demokracija-20.si`.
 - SI-CES podpisovanje se dela posebej kasneje.
