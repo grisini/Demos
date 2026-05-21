@@ -44,6 +44,7 @@ const PUBLIC_INITIATIVE_STATUSES = ["active", "signature_collection"];
 const ANONYMOUS_VOTER_KEY = "demos.anonymousVoterId";
 const REMOTE_SEARCH_DEBOUNCE_MS = 800;
 const REMOTE_SEARCH_MIN_LENGTH = 2;
+const EXPORTABLE_INITIATIVE_STATUSES = ["signature_collection", "submitted"];
 
 class DemocracyApp {
   constructor({ root, repository, auth, notificationClient, telemetry, clarityInsightsClient, config: appConfig }) {
@@ -1021,6 +1022,7 @@ class DemocracyApp {
     const voted = user && initiative.votes.some((vote) => vote.userId === user.id);
     const signed = user && initiative.signatures.some((signature) => signature.userId === user.id);
     const review = initiative.aiReview || { score: 0, risk: "low", findings: [] };
+    const exportReady = canExportInitiative(initiative);
 
     return `
       <div class="detail-header">
@@ -1038,6 +1040,18 @@ class DemocracyApp {
         <button class="button secondary" data-action="sign" data-id="${initiative.id}" ${signed ? "disabled" : ""}>
           ${signed ? "Podpis evidentiran" : "Demo podpis"}
         </button>
+        ${
+          exportReady
+            ? `
+              <button class="button secondary icon-button" data-action="print-pdf" data-id="${initiative.id}" aria-label="Natisni izvoz za DZ" title="Natisni izvoz za DZ">
+                ${printIcon()}
+              </button>
+              <button class="button secondary icon-button" data-action="download-pdf" data-id="${initiative.id}" aria-label="Prenesi PDF za DZ" title="Prenesi PDF za DZ">
+                ${downloadIcon()}
+              </button>
+            `
+            : ""
+        }
         <label class="status-select">
           <span>Status</span>
           <select data-status-id="${initiative.id}">
@@ -1382,6 +1396,47 @@ class DemocracyApp {
       return;
     }
 
+    if (action === "print-pdf" || action === "download-pdf") {
+      const initiative = this.findInitiativeForAction(target.dataset.id);
+      if (!initiative) {
+        this.toast("Pobuda ne obstaja.");
+        this.render();
+        return;
+      }
+
+      if (!canExportInitiative(initiative)) {
+        this.toast(exportStatusHint(initiative));
+        this.render();
+        return;
+      }
+
+      if (action === "print-pdf") {
+        const opened = openInitiativePrintExport(initiative, this.currentUser());
+        if (!opened) {
+          this.toast("Brskalnik je blokiral okno za tiskanje.");
+          this.render();
+          return;
+        }
+      } else {
+        downloadInitiativePdfExport(initiative, this.currentUser());
+      }
+
+      this.recordSystemEvent(action === "print-pdf" ? "initiative_pdf_print" : "initiative_pdf_download", {
+        initiativeId: initiative.id,
+        status: initiative.status,
+        signatureCount: initiative.signatures.length,
+        voteCount: initiative.votes.length
+      });
+      trackClarityEvent(action === "print-pdf" ? "initiative_pdf_printed" : "initiative_pdf_downloaded");
+      trackVercelEvent(action === "print-pdf" ? "InitiativePdfPrinted" : "InitiativePdfDownloaded", {
+        status: initiative.status,
+        category: initiative.category
+      });
+      this.toast(action === "print-pdf" ? "Izvoz je pripravljen za tiskanje." : "PDF je prenesen.");
+      this.render();
+      return;
+    }
+
     if (action === "logout") {
       this.auth.signOut();
       this.state.status = "all";
@@ -1551,6 +1606,14 @@ class DemocracyApp {
         this.toast("Komentar je objavljen.");
       });
     }
+  }
+
+  findInitiativeForAction(id) {
+    return (
+      this.state.initiatives.find((initiative) => initiative.id === id) ||
+      (this.state.searchResults || []).find((initiative) => initiative.id === id) ||
+      null
+    );
   }
 
   handleInput(event) {
@@ -1972,6 +2035,696 @@ function formatDate(value) {
     hour: "2-digit",
     minute: "2-digit"
   });
+}
+
+function canExportInitiative(initiative) {
+  return EXPORTABLE_INITIATIVE_STATUSES.includes(initiative?.status);
+}
+
+function exportStatusHint(initiative) {
+  return `Izvoz v PDF je omogocen pri statusih ${statusLabel("signature_collection")} in ${statusLabel("submitted")}. Trenutni status: ${statusLabel(initiative?.status)}.`;
+}
+
+function openInitiativePrintExport(initiative, user) {
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) return false;
+
+  printWindow.opener = null;
+  printWindow.document.open();
+  printWindow.document.write(initiativePdfHtml(initiative, user));
+  printWindow.document.close();
+  printWindow.focus();
+
+  window.setTimeout(() => {
+    try {
+      printWindow.focus();
+      printWindow.print();
+    } catch {
+      // The export window remains open even if the browser blocks automatic printing.
+    }
+  }, 350);
+
+  return true;
+}
+
+function downloadInitiativePdfExport(initiative, user) {
+  const blob = buildInitiativePdfBlob(initiative, user);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${pdfFileName(initiative)}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+const PDF_PAGE_WIDTH = 595;
+const PDF_PAGE_HEIGHT = 842;
+const PDF_MARGIN = 51;
+const PDF_BOTTOM_MARGIN = 51;
+const PDF_CONTENT_WIDTH = PDF_PAGE_WIDTH - PDF_MARGIN * 2;
+const PDF_COLORS = {
+  text: [0.067, 0.094, 0.153],
+  muted: [0.294, 0.333, 0.388],
+  green: [0.059, 0.463, 0.431],
+  line: [0.82, 0.835, 0.859],
+  tableHeader: [0.953, 0.956, 0.965],
+  summaryBg: [0.925, 0.992, 0.961],
+  summaryBorder: [0.6, 0.965, 0.894],
+  white: [1, 1, 1]
+};
+
+function buildInitiativePdfBlob(initiative, user) {
+  const pages = renderInitiativePdfPages(initiative, user);
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>"
+  ];
+  const pageRefs = [];
+
+  for (const page of pages) {
+    const content = page.join("");
+    const contentObjectNumber = objects.length + 1;
+    objects.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+    const pageObjectNumber = objects.length + 1;
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PDF_PAGE_WIDTH} ${PDF_PAGE_HEIGHT}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentObjectNumber} 0 R >>`);
+    pageRefs.push(`${pageObjectNumber} 0 R`);
+  }
+
+  objects[1] = `<< /Type /Pages /Kids [${pageRefs.join(" ")}] /Count ${pageRefs.length} >>`;
+
+  let pdf = "%PDF-1.4\n%\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += "0000000000 65535 f \n";
+  for (let index = 1; index < offsets.length; index += 1) {
+    pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return new Blob([pdf], { type: "application/pdf" });
+}
+
+function pdfSafeText(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đĐ]/g, "d")
+    .replace(/[–—]/g, "-")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[^\x20-\x7E]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function escapePdfString(value) {
+  return String(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+function renderInitiativePdfPages(initiative, user) {
+  const review = initiative.aiReview || { score: 0, risk: "low", findings: [], checks: {} };
+  const generatedAt = new Date().toISOString();
+  const renderer = createPdfRenderer();
+
+  pdfRenderHeader(renderer, generatedAt);
+  pdfRenderSectionTitle(renderer, "Identifikacija pobude");
+  pdfRenderKeyValueTable(renderer, [
+    ["ID pobude", initiative.id],
+    ["Naslov", initiative.title],
+    ["Kategorija", initiative.category],
+    ["Status", statusLabel(initiative.status)],
+    ["Avtor", `${initiative.author?.name || ""} (${initiative.author?.id || ""})`],
+    ["Ustvarjeno", formatDate(initiative.createdAt)],
+    ["Zadnja posodobitev", formatDate(initiative.updatedAt)]
+  ]);
+
+  pdfRenderSectionTitle(renderer, "Kratek povzetek");
+  pdfRenderSummaryBox(renderer, initiative.summary);
+
+  pdfRenderSectionTitle(renderer, "Obrazlozitev");
+  pdfRenderParagraph(renderer, initiative.description, { bottomGap: 8 });
+
+  pdfRenderSectionTitle(renderer, "Pravna podlaga in pricakovani ucinek");
+  pdfRenderKeyValueTable(renderer, [
+    ["Pravna podlaga", initiative.legalReference || "Ni navedena."],
+    ["Pricakovani ucinek", initiative.expectedImpact || "Ni naveden."]
+  ]);
+
+  pdfRenderSectionTitle(renderer, "Podpora in evidenca");
+  pdfRenderKeyValueTable(renderer, [
+    ["Glasovi", String(initiative.votes.length)],
+    ["Podpisi", String(initiative.signatures.length)],
+    ["Komentarji", String(initiative.comments.length)],
+    ["AI ocena", `${review.score || 0}% - ${riskLabel(review.risk)}`]
+  ]);
+
+  if (initiative.signatures.length) {
+    pdfRenderGridTable(
+      renderer,
+      ["Podpisnik", "Identifikator", "Metoda", "Datum"],
+      initiative.signatures.map((signature) => [
+        signature.userName,
+        signature.userId,
+        signature.method || "demo",
+        formatDate(signature.createdAt)
+      ]),
+      [130, 165, 80, 118]
+    );
+  } else {
+    pdfRenderParagraph(renderer, "Podpisi niso evidentirani.", { color: PDF_COLORS.muted, size: 9.5, bottomGap: 6 });
+  }
+
+  pdfRenderSectionTitle(renderer, "AI predpregled");
+  pdfRenderKeyValueTable(renderer, [
+    ["Ustreznost", suitabilityLabel(review.checks?.suitability || "insufficient")],
+    ["Popolnost", `${review.checks?.completeness?.score ?? 0}%`],
+    ["Predlagana kategorija", review.checks?.categorySuggestion?.category || "Ni predloga"]
+  ]);
+
+  if ((review.findings || []).length) {
+    pdfRenderList(renderer, review.findings);
+  } else {
+    pdfRenderParagraph(renderer, "Ni ugotovitev.", { color: PDF_COLORS.muted, size: 9.5, bottomGap: 6 });
+  }
+
+  pdfRenderSectionTitle(renderer, "Potrditev priprave");
+  pdfRenderKeyValueTable(renderer, [
+    ["Izvoz pripravil", user?.name || user?.id || "Uporabnik"],
+    ["Namen izvoza", "Oddaja zakonodajne pobude v nadaljnji postopek."]
+  ]);
+  pdfRenderSignatureLine(renderer);
+  pdfRenderFooter(renderer);
+
+  return renderer.pages;
+}
+
+function createPdfRenderer() {
+  return {
+    pages: [[]],
+    y: PDF_PAGE_HEIGHT - PDF_MARGIN
+  };
+}
+
+function pdfRenderHeader(renderer, generatedAt) {
+  pdfDrawText(renderer, "Demokracija 2.0", PDF_MARGIN, renderer.y - 9, {
+    size: 9,
+    bold: true,
+    color: PDF_COLORS.green
+  });
+  renderer.y -= 16;
+  pdfRenderParagraph(renderer, "Izvoz zakonodajne pobude za DZ", {
+    size: 22,
+    lineHeight: 25,
+    bold: true,
+    bottomGap: 2
+  });
+  pdfRenderParagraph(renderer, `Izvoz ustvarjen: ${formatDate(generatedAt)}`, {
+    size: 9,
+    lineHeight: 12,
+    color: PDF_COLORS.muted,
+    bottomGap: 10
+  });
+  pdfStrokeLine(renderer, PDF_MARGIN, renderer.y, PDF_MARGIN + PDF_CONTENT_WIDTH, renderer.y, PDF_COLORS.green, 2);
+  renderer.y -= 18;
+}
+
+function pdfRenderSectionTitle(renderer, title) {
+  const topGap = renderer.y < PDF_PAGE_HEIGHT - PDF_MARGIN ? 14 : 0;
+  pdfEnsureSpace(renderer, topGap + 30);
+  renderer.y -= topGap;
+  pdfDrawText(renderer, title, PDF_MARGIN, renderer.y - 13, { size: 13, bold: true });
+  renderer.y -= 18;
+  pdfStrokeLine(renderer, PDF_MARGIN, renderer.y, PDF_MARGIN + PDF_CONTENT_WIDTH, renderer.y, PDF_COLORS.line, 0.75);
+  renderer.y -= 8;
+}
+
+function pdfRenderSummaryBox(renderer, text) {
+  const paddingX = 12;
+  const paddingY = 10;
+  const lines = pdfWrappedLines(text, PDF_CONTENT_WIDTH - paddingX * 2, 10.5);
+  const lineHeight = 15;
+  const height = paddingY * 2 + Math.max(1, lines.length) * lineHeight;
+  pdfEnsureSpace(renderer, height + 12);
+  const top = renderer.y;
+  const bottom = top - height;
+  pdfFillRect(renderer, PDF_MARGIN, bottom, PDF_CONTENT_WIDTH, height, PDF_COLORS.summaryBg);
+  pdfStrokeRect(renderer, PDF_MARGIN, bottom, PDF_CONTENT_WIDTH, height, PDF_COLORS.summaryBorder, 0.75);
+  pdfDrawWrappedLines(renderer, lines, PDF_MARGIN + paddingX, top - paddingY, {
+    size: 10.5,
+    lineHeight,
+    maxY: bottom + paddingY
+  });
+  renderer.y = bottom - 12;
+}
+
+function pdfRenderKeyValueTable(renderer, rows) {
+  const labelWidth = 158;
+  const valueWidth = PDF_CONTENT_WIDTH - labelWidth;
+
+  for (const [label, value] of rows) {
+    const labelLines = pdfWrappedLines(label, labelWidth - 16, 10);
+    const valueLines = pdfWrappedLines(value, valueWidth - 16, 10);
+    const lineCount = Math.max(labelLines.length, valueLines.length, 1);
+    const rowHeight = lineCount * 14 + 14;
+    pdfEnsureSpace(renderer, rowHeight);
+    const top = renderer.y;
+    const bottom = top - rowHeight;
+    pdfFillRect(renderer, PDF_MARGIN, bottom, labelWidth, rowHeight, PDF_COLORS.tableHeader);
+    pdfStrokeRect(renderer, PDF_MARGIN, bottom, PDF_CONTENT_WIDTH, rowHeight, PDF_COLORS.line, 0.75);
+    pdfStrokeLine(renderer, PDF_MARGIN + labelWidth, bottom, PDF_MARGIN + labelWidth, top, PDF_COLORS.line, 0.75);
+    pdfDrawWrappedLines(renderer, labelLines, PDF_MARGIN + 8, top - 8, {
+      size: 10,
+      lineHeight: 14,
+      bold: true,
+      maxY: bottom + 7
+    });
+    pdfDrawWrappedLines(renderer, valueLines, PDF_MARGIN + labelWidth + 8, top - 8, {
+      size: 10,
+      lineHeight: 14,
+      maxY: bottom + 7
+    });
+    renderer.y = bottom;
+  }
+
+  renderer.y -= 8;
+}
+
+function pdfRenderGridTable(renderer, headers, rows, columnWidths) {
+  pdfRenderGridRow(renderer, headers, columnWidths, true);
+  for (const row of rows) {
+    pdfRenderGridRow(renderer, row, columnWidths, false);
+  }
+  renderer.y -= 8;
+}
+
+function pdfRenderGridRow(renderer, cells, columnWidths, header = false) {
+  const size = header ? 9.5 : 9;
+  const lineHeight = 13;
+  const padding = 7;
+  const wrappedCells = cells.map((cell, index) => pdfWrappedLines(cell, columnWidths[index] - padding * 2, size));
+  const rowHeight = Math.max(...wrappedCells.map((lines) => Math.max(1, lines.length))) * lineHeight + padding * 2;
+  pdfEnsureSpace(renderer, rowHeight);
+  const top = renderer.y;
+  const bottom = top - rowHeight;
+  let x = PDF_MARGIN;
+
+  if (header) {
+    pdfFillRect(renderer, PDF_MARGIN, bottom, PDF_CONTENT_WIDTH, rowHeight, PDF_COLORS.tableHeader);
+  }
+
+  pdfStrokeRect(renderer, PDF_MARGIN, bottom, PDF_CONTENT_WIDTH, rowHeight, PDF_COLORS.line, 0.75);
+  for (let index = 0; index < cells.length; index += 1) {
+    if (index > 0) {
+      pdfStrokeLine(renderer, x, bottom, x, top, PDF_COLORS.line, 0.75);
+    }
+    pdfDrawWrappedLines(renderer, wrappedCells[index], x + padding, top - padding, {
+      size,
+      lineHeight,
+      bold: header,
+      maxY: bottom + padding
+    });
+    x += columnWidths[index];
+  }
+  renderer.y = bottom;
+}
+
+function pdfRenderParagraph(renderer, text, options = {}) {
+  const size = options.size || 10;
+  const lineHeight = options.lineHeight || Math.round(size * 1.45);
+  const lines = pdfWrappedLines(text, options.width || PDF_CONTENT_WIDTH, size);
+  const x = options.x || PDF_MARGIN;
+
+  for (const line of lines.length ? lines : [""]) {
+    pdfEnsureSpace(renderer, lineHeight);
+    pdfDrawText(renderer, line, x, renderer.y - size, options);
+    renderer.y -= lineHeight;
+  }
+
+  renderer.y -= options.bottomGap ?? 0;
+}
+
+function pdfRenderList(renderer, items) {
+  for (const item of items) {
+    pdfRenderParagraph(renderer, `- ${item}`, { bottomGap: 1 });
+  }
+  renderer.y -= 5;
+}
+
+function pdfRenderSignatureLine(renderer) {
+  pdfEnsureSpace(renderer, 62);
+  const lineY = renderer.y - 28;
+  pdfStrokeLine(renderer, PDF_MARGIN, lineY, PDF_MARGIN + 220, lineY, PDF_COLORS.text, 0.75);
+  pdfDrawText(renderer, "Podpis odgovorne osebe", PDF_MARGIN, lineY - 15, { size: 9.5 });
+  renderer.y -= 62;
+}
+
+function pdfRenderFooter(renderer) {
+  pdfEnsureSpace(renderer, 54);
+  pdfStrokeLine(renderer, PDF_MARGIN, renderer.y, PDF_MARGIN + PDF_CONTENT_WIDTH, renderer.y, PDF_COLORS.line, 0.75);
+  renderer.y -= 12;
+  pdfRenderParagraph(
+    renderer,
+    "Dokument je ustvarjen iz podatkov aplikacije Demokracija 2.0. Za uradno oddajo preverite aktualna pravila in zahtevane priloge Drzavnega zbora.",
+    { size: 9, lineHeight: 12, color: PDF_COLORS.muted }
+  );
+}
+
+function pdfDrawWrappedLines(renderer, lines, x, top, options = {}) {
+  const size = options.size || 10;
+  const lineHeight = options.lineHeight || Math.round(size * 1.45);
+  let y = top;
+
+  for (const line of lines.length ? lines : [""]) {
+    if (y - size < options.maxY) break;
+    pdfDrawText(renderer, line, x, y - size, options);
+    y -= lineHeight;
+  }
+}
+
+function pdfEnsureSpace(renderer, height) {
+  if (renderer.y - height >= PDF_BOTTOM_MARGIN) return;
+  renderer.pages.push([]);
+  renderer.y = PDF_PAGE_HEIGHT - PDF_MARGIN;
+}
+
+function pdfWrappedLines(value, width, size) {
+  const maxChars = Math.max(12, Math.floor(width / (size * 0.52)));
+  const output = [];
+  const paragraphs = String(value ?? "").split(/\n+/);
+
+  for (const paragraph of paragraphs) {
+    const words = pdfSafeText(paragraph).split(/\s+/).filter(Boolean);
+    let line = "";
+
+    for (const word of words) {
+      const parts = word.length > maxChars ? pdfSplitLongWord(word, maxChars) : [word];
+      for (const part of parts) {
+        const next = line ? `${line} ${part}` : part;
+        if (next.length > maxChars && line) {
+          output.push(line);
+          line = part;
+        } else {
+          line = next;
+        }
+      }
+    }
+
+    if (line) output.push(line);
+  }
+
+  return output;
+}
+
+function pdfSplitLongWord(word, maxChars) {
+  const parts = [];
+  for (let index = 0; index < word.length; index += maxChars) {
+    parts.push(word.slice(index, index + maxChars));
+  }
+  return parts;
+}
+
+function pdfDrawText(renderer, text, x, y, options = {}) {
+  const font = options.bold ? "F2" : "F1";
+  const size = options.size || 10;
+  const color = pdfColor(options.color || PDF_COLORS.text, "rg");
+  renderer.pages[renderer.pages.length - 1].push(
+    `BT\n${color}\n/${font} ${pdfNum(size)} Tf\n1 0 0 1 ${pdfNum(x)} ${pdfNum(y)} Tm\n(${escapePdfString(pdfSafeText(text))}) Tj\nET\n`
+  );
+}
+
+function pdfFillRect(renderer, x, y, width, height, color) {
+  renderer.pages[renderer.pages.length - 1].push(
+    `q\n${pdfColor(color, "rg")}\n${pdfNum(x)} ${pdfNum(y)} ${pdfNum(width)} ${pdfNum(height)} re f\nQ\n`
+  );
+}
+
+function pdfStrokeRect(renderer, x, y, width, height, color, strokeWidth = 1) {
+  renderer.pages[renderer.pages.length - 1].push(
+    `q\n${pdfColor(color, "RG")}\n${pdfNum(strokeWidth)} w\n${pdfNum(x)} ${pdfNum(y)} ${pdfNum(width)} ${pdfNum(height)} re S\nQ\n`
+  );
+}
+
+function pdfStrokeLine(renderer, x1, y1, x2, y2, color, strokeWidth = 1) {
+  renderer.pages[renderer.pages.length - 1].push(
+    `q\n${pdfColor(color, "RG")}\n${pdfNum(strokeWidth)} w\n${pdfNum(x1)} ${pdfNum(y1)} m ${pdfNum(x2)} ${pdfNum(y2)} l S\nQ\n`
+  );
+}
+
+function pdfColor(color, operator) {
+  return `${color.map((value) => pdfNum(value)).join(" ")} ${operator}`;
+}
+
+function pdfNum(value) {
+  return Number(value).toFixed(3).replace(/\.?0+$/, "");
+}
+
+function initiativePdfHtml(initiative, user) {
+  const review = initiative.aiReview || { score: 0, risk: "low", findings: [], checks: {} };
+  const generatedAt = new Date().toISOString();
+
+  return `<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(pdfDocumentTitle(initiative))}</title>
+  <style>
+    @page { size: A4; margin: 18mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: #111827;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      line-height: 1.45;
+    }
+    header {
+      border-bottom: 2px solid #0f766e;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+    }
+    h1 {
+      margin: 4px 0 8px;
+      font-size: 22pt;
+      line-height: 1.15;
+    }
+    h2 {
+      border-bottom: 1px solid #d1d5db;
+      font-size: 13pt;
+      margin: 22px 0 8px;
+      padding-bottom: 4px;
+    }
+    p { margin: 0 0 9px; }
+    table {
+      border-collapse: collapse;
+      margin: 8px 0 12px;
+      width: 100%;
+    }
+    th, td {
+      border: 1px solid #d1d5db;
+      padding: 7px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f3f4f6;
+      font-weight: 700;
+      width: 32%;
+    }
+    .eyebrow {
+      color: #0f766e;
+      font-size: 9pt;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      margin: 0;
+      text-transform: uppercase;
+    }
+    .summary {
+      background: #ecfdf5;
+      border: 1px solid #99f6e4;
+      border-radius: 6px;
+      margin: 12px 0 16px;
+      padding: 10px 12px;
+    }
+    .text-block {
+      white-space: pre-wrap;
+    }
+    .muted {
+      color: #4b5563;
+      font-size: 9.5pt;
+    }
+    .signature-line {
+      border-top: 1px solid #111827;
+      display: inline-block;
+      margin-top: 28px;
+      padding-top: 6px;
+      width: 220px;
+    }
+    footer {
+      border-top: 1px solid #d1d5db;
+      color: #4b5563;
+      font-size: 9pt;
+      margin-top: 28px;
+      padding-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow">Demokracija 2.0</p>
+    <h1>Izvoz zakonodajne pobude za DZ</h1>
+    <p class="muted">Izvoz ustvarjen: ${escapeHtml(formatDate(generatedAt))}</p>
+  </header>
+
+  <section>
+    <h2>Identifikacija pobude</h2>
+    <table>
+      <tr><th>ID pobude</th><td>${escapeHtml(initiative.id)}</td></tr>
+      <tr><th>Naslov</th><td>${escapeHtml(initiative.title)}</td></tr>
+      <tr><th>Kategorija</th><td>${escapeHtml(initiative.category)}</td></tr>
+      <tr><th>Status</th><td>${escapeHtml(statusLabel(initiative.status))}</td></tr>
+      <tr><th>Avtor</th><td>${escapeHtml(initiative.author?.name || "")} (${escapeHtml(initiative.author?.id || "")})</td></tr>
+      <tr><th>Ustvarjeno</th><td>${escapeHtml(formatDate(initiative.createdAt))}</td></tr>
+      <tr><th>Zadnja posodobitev</th><td>${escapeHtml(formatDate(initiative.updatedAt))}</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Kratek povzetek</h2>
+    <p class="summary">${escapeHtml(initiative.summary)}</p>
+  </section>
+
+  <section>
+    <h2>Obrazlozitev</h2>
+    <p class="text-block">${escapeHtml(initiative.description)}</p>
+  </section>
+
+  <section>
+    <h2>Pravna podlaga in pricakovani ucinek</h2>
+    <table>
+      <tr><th>Pravna podlaga</th><td class="text-block">${escapeHtml(initiative.legalReference || "Ni navedena.")}</td></tr>
+      <tr><th>Pricakovani ucinek</th><td class="text-block">${escapeHtml(initiative.expectedImpact || "Ni naveden.")}</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Podpora in evidenca</h2>
+    <table>
+      <tr><th>Glasovi</th><td>${initiative.votes.length}</td></tr>
+      <tr><th>Podpisi</th><td>${initiative.signatures.length}</td></tr>
+      <tr><th>Komentarji</th><td>${initiative.comments.length}</td></tr>
+      <tr><th>AI ocena</th><td>${review.score || 0}% - ${escapeHtml(riskLabel(review.risk))}</td></tr>
+    </table>
+    ${initiative.signatures.length ? initiativeSignaturesTable(initiative.signatures) : `<p class="muted">Podpisi niso evidentirani.</p>`}
+  </section>
+
+  <section>
+    <h2>AI predpregled</h2>
+    <table>
+      <tr><th>Ustreznost</th><td>${escapeHtml(suitabilityLabel(review.checks?.suitability || "insufficient"))}</td></tr>
+      <tr><th>Popolnost</th><td>${escapeHtml(String(review.checks?.completeness?.score ?? 0))}%</td></tr>
+      <tr><th>Predlagana kategorija</th><td>${escapeHtml(review.checks?.categorySuggestion?.category || "Ni predloga")}</td></tr>
+    </table>
+    <ul>
+      ${(review.findings || []).map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")}
+    </ul>
+  </section>
+
+  <section>
+    <h2>Potrditev priprave</h2>
+    <table>
+      <tr><th>Izvoz pripravil</th><td>${escapeHtml(user?.name || user?.id || "Uporabnik")}</td></tr>
+      <tr><th>Namen izvoza</th><td>Oddaja zakonodajne pobude v nadaljnji postopek.</td></tr>
+    </table>
+    <p><span class="signature-line">Podpis odgovorne osebe</span></p>
+  </section>
+
+  <footer>
+    <p>Dokument je ustvarjen iz podatkov aplikacije Demokracija 2.0. Za uradno oddajo preverite aktualna pravila in zahtevane priloge Drzavnega zbora.</p>
+  </footer>
+</body>
+</html>`;
+}
+
+function initiativeSignaturesTable(signatures) {
+  return `
+    <table>
+      <thead>
+        <tr>
+          <th>Podpisnik</th>
+          <th>Identifikator</th>
+          <th>Metoda</th>
+          <th>Datum</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${signatures
+          .map(
+            (signature) => `
+              <tr>
+                <td>${escapeHtml(signature.userName)}</td>
+                <td>${escapeHtml(signature.userId)}</td>
+                <td>${escapeHtml(signature.method || "demo")}</td>
+                <td>${escapeHtml(formatDate(signature.createdAt))}</td>
+              </tr>
+            `
+          )
+          .join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function pdfDocumentTitle(initiative) {
+  const title = String(initiative?.title || "pobuda")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+  return `Demos - ${title}`;
+}
+
+function pdfFileName(initiative) {
+  const title = String(initiative?.title || "pobuda")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đĐ]/g, "d")
+    .replace(/[^a-zA-Z0-9._ -]+/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[.-]+|[.-]+$/g, "")
+    .toLowerCase()
+    .slice(0, 80);
+
+  return `demos-${title || "pobuda"}-dz-izvoz`;
+}
+
+function printIcon() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M6 9V3h12v6"></path>
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+      <path d="M6 14h12v7H6z"></path>
+    </svg>
+  `;
+}
+
+function downloadIcon() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 3v11"></path>
+      <path d="m7 10 5 5 5-5"></path>
+      <path d="M5 20h14"></path>
+    </svg>
+  `;
 }
 
 function systemEventDetails(event) {

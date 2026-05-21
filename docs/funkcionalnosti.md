@@ -55,6 +55,7 @@ Statusi v tabeli:
 | F-35 | Javni pogled za neprijavljene | Implementirano | `visibleInitiatives()`, `renderDashboardView()`, `renderPublicInitiativeDetail()` | Rocni zagon aplikacije | Brez prijave so vidne samo pobude s statusom `active` ali `signature_collection`; oddaja pobude, komentarji, podpisi in analitike ostanejo zaklenjeni. |
 | F-36 | Anonimno enkratno glasovanje | Delno implementirano | `anonymousActor()`, `voteForInitiative()`, `LocalInitiativeRepository.vote()` | `npm test`, rocni zagon aplikacije | Uporablja lokalni ID `demos.anonymousVoterId` in domensko pravilo en glas na pobudo. To je prototipna zascita; produkcijsko mora biti podprta z backend omejitvami. |
 | F-37 | Admin-only integracije | Implementirano | `normalizeView()`, `render()` navigacija, `renderIntegrationsView()` | Rocni zagon aplikacije kot demo uporabnik in demo admin | Zavihek `Integracije` vidi samo demo admin; navaden uporabnik je preusmerjen na pregled. |
+| F-38 | PDF izvoz pobude za DZ | Implementirano | `renderInitiativeDetail()`, `openInitiativePrintExport()`, `downloadInitiativePdfExport()` v `src/main.js` | Rocni zagon aplikacije, status `Zbiranje podpisov` ali `Oddana DZ` | Izvoz je omogocen pri `signature_collection` in `submitted`; prikazana sta locena gumba z ikonama za tiskanje in prenos PDF. |
 
 ## Sprejemni kriteriji po funkcionalnih sklopih
 
