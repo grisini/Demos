@@ -1574,7 +1574,7 @@ class DemocracyApp {
         const review = await this.reviewInitiative(validation.values);
         const initiative = createInitiative(validation.values, actor, review);
         const existingInitiatives = this.state.initiatives;
-        await this.repository.create(initiative);
+        const savedInitiative = await this.repository.create(initiative);
         await this.sendEmailNotifications(
           buildCategoryMatchEmailNotifications({
             newInitiative: initiative,
@@ -1587,12 +1587,20 @@ class DemocracyApp {
         this.state.draft = emptyDraft();
         this.state.errors = {};
         this.state.aiPreviewReview = null;
+        this.state.query = "";
+        this.state.category = "all";
+        this.state.status = "all";
+        this.state.searchResults = null;
+        this.state.searchLoading = false;
+        this.state.searchError = "";
         this.setActiveView("dashboard");
-        this.state.selectedId = initiative.id;
+        this.state.selectedId = savedInitiative?.id || initiative.id;
         await this.refresh();
+        this.state.selectedId = savedInitiative?.id || initiative.id;
         setClarityTag("initiative_category", initiative.category);
         trackClarityEvent("initiative_created");
         this.toast("Pobuda je oddana.");
+        this.render();
       });
       return;
     }
