@@ -854,6 +854,13 @@ textarea:focus {
   flex-wrap: wrap;
 }
 
+.security-gate {
+  min-height: 78px;
+  display: grid;
+  gap: 6px;
+  align-items: start;
+}
+
 .field-error {
   color: var(--danger);
   font-weight: 800;

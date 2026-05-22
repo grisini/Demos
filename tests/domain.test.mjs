@@ -24,6 +24,7 @@ import {
   readSipassSessionToken,
   sipassUserFromHeaders
 } from "../server/sipass-session.mjs";
+import { verifyTurnstileToken } from "../server/turnstile.mjs";
 
 const validInput = {
   title: "Javna sledljivost zakonodajnih sprememb",
@@ -272,4 +273,79 @@ test("SI-PASS session mapira atribute in obnovi sifriranega uporabnika", () => {
   );
 
   assert.deepEqual(restored, user);
+});
+
+test("Turnstile zavrne preverjanje brez server secret kljuca", async () => {
+  const result = await verifyTurnstileToken(
+    { token: "token", action: "initiative_submit" },
+    {
+      env: {},
+      fetchImpl: async () => {
+        throw new Error("fetch ne sme biti klican");
+      }
+    }
+  );
+
+  assert.equal(result.configured, false);
+  assert.equal(result.verified, false);
+});
+
+test("Turnstile potrdi uspesen Siteverify odziv", async () => {
+  const result = await verifyTurnstileToken(
+    { token: "valid-token", action: "initiative_submit" },
+    {
+      env: {
+        TURNSTILE_SECRET_KEY: "secret",
+        TURNSTILE_ALLOWED_HOSTNAMES: "localhost"
+      },
+      remoteIp: "127.0.0.1",
+      fetchImpl: async (url, options) => {
+        assert.equal(url, "https://challenges.cloudflare.com/turnstile/v0/siteverify");
+        const body = new URLSearchParams(String(options.body));
+        assert.equal(body.get("secret"), "secret");
+        assert.equal(body.get("response"), "valid-token");
+        assert.equal(body.get("remoteip"), "127.0.0.1");
+        return {
+          ok: true,
+          async json() {
+            return {
+              success: true,
+              action: "initiative_submit",
+              hostname: "localhost"
+            };
+          }
+        };
+      }
+    }
+  );
+
+  assert.equal(result.configured, true);
+  assert.equal(result.verified, true);
+  assert.equal(result.hostname, "localhost");
+});
+
+test("Turnstile zavrne nepricakovan hostname", async () => {
+  const result = await verifyTurnstileToken(
+    { token: "valid-token", action: "initiative_submit" },
+    {
+      env: {
+        TURNSTILE_SECRET_KEY: "secret",
+        TURNSTILE_ALLOWED_HOSTNAMES: "demos.example"
+      },
+      fetchImpl: async () => ({
+        ok: true,
+        async json() {
+          return {
+            success: true,
+            action: "initiative_submit",
+            hostname: "attacker.example"
+          };
+        }
+      })
+    }
+  );
+
+  assert.equal(result.configured, true);
+  assert.equal(result.verified, false);
+  assert.match(result.error, /hostname/);
 });

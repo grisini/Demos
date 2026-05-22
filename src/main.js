@@ -31,6 +31,13 @@ import { ClarityInsightsClient } from "./lib/clarity-insights.js";
 import { EmailNotificationClient } from "./lib/notifications.js";
 import { createRepository } from "./lib/supabase.js";
 import { browserResourceSnapshot, estimateTextTokens, SystemTelemetry } from "./lib/telemetry.js";
+import {
+  isTurnstileEnabled,
+  renderTurnstileWidget,
+  resetTurnstileWidget,
+  turnstileRuntimeStatus,
+  validateTurnstileToken
+} from "./lib/turnstile.js";
 import { initializeVercelAnalytics, trackVercelEvent } from "./lib/vercel-analytics.js";
 import {
   initializeVercelSpeedInsights,
@@ -45,6 +52,7 @@ const ANONYMOUS_VOTER_KEY = "demos.anonymousVoterId";
 const REMOTE_SEARCH_DEBOUNCE_MS = 800;
 const REMOTE_SEARCH_MIN_LENGTH = 2;
 const EXPORTABLE_INITIATIVE_STATUSES = ["signature_collection", "submitted"];
+const INITIATIVE_TURNSTILE_ACTION = "initiative_submit";
 
 class DemocracyApp {
   constructor({ root, repository, auth, notificationClient, telemetry, clarityInsightsClient, config: appConfig }) {
@@ -77,6 +85,10 @@ class DemocracyApp {
       clarityInsights: null,
       clarityInsightsLoading: false,
       clarityInsightsError: "",
+      turnstileToken: "",
+      turnstileWidgetId: "",
+      turnstileError: "",
+      turnstileVerifying: false,
       searchLoading: false,
       searchError: "",
       sidebarOpen: defaultSidebarOpen(),
@@ -330,6 +342,7 @@ class DemocracyApp {
     `;
     this.restoreFocusState(focusState);
     this.syncExternalAnalytics();
+    this.syncSecurityWidgets();
   }
 
   captureFocusState() {
@@ -455,8 +468,11 @@ class DemocracyApp {
           ${this.textarea("description", "Obrazlozitev", 7)}
           ${this.input("legalReference", "Pravna podlaga", "zakon, clen, pravilnik ali sorodna podlaga")}
           ${this.textarea("expectedImpact", "Pricakovani ucinek", 3)}
+          ${this.renderSecurityGate(INITIATIVE_TURNSTILE_ACTION)}
           <div class="form-actions">
-            <button class="button primary" type="submit">Oddaj pobudo</button>
+            <button class="button primary" type="submit" ${this.state.turnstileVerifying ? "disabled" : ""}>${
+              this.state.turnstileVerifying ? "Preverjam ..." : "Oddaj pobudo"
+            }</button>
             <button class="button secondary" type="button" data-action="clear-draft">Pocisti</button>
           </div>
         </form>
@@ -1015,6 +1031,18 @@ class DemocracyApp {
           <p class="note">Clarity oznacuje seje in dogodke, analitika pobud v aplikaciji pa uporablja podatke iz baze.</p>
         </div>
         <div class="panel">
+          <p class="eyebrow">Varnost</p>
+          <h2>Cloudflare Turnstile</h2>
+          <dl class="config-list">
+            <div><dt>Site key</dt><dd>${this.config.TURNSTILE_SITE_KEY ? "nastavljen" : "ni nastavljen"}</dd></div>
+            <div><dt>Endpoint</dt><dd>${this.config.TURNSTILE_ENDPOINT ? "nastavljen" : "ni nastavljen"}</dd></div>
+            <div><dt>Runtime loader</dt><dd>${turnstileRuntimeStatus().loader}</dd></div>
+            <div><dt>Script tag</dt><dd>${turnstileRuntimeStatus().script}</dd></div>
+            <div><dt>Zascitena akcija</dt><dd>oddaja pobude</dd></div>
+          </dl>
+          <p class="note">Server-side secret mora biti nastavljen kot TURNSTILE_SECRET_KEY; frontend prejme samo public site key.</p>
+        </div>
+        <div class="panel">
           <p class="eyebrow">Obvestila</p>
           <h2>E-posta</h2>
           <dl class="config-list">
@@ -1342,6 +1370,17 @@ class DemocracyApp {
     return this.state.errors[name] ? `<small class="field-error">${escapeHtml(this.state.errors[name])}</small>` : "";
   }
 
+  renderSecurityGate(action) {
+    if (!isTurnstileEnabled(this.config)) return "";
+
+    return `
+      <div class="security-gate">
+        <div data-turnstile-widget data-turnstile-action="${escapeAttribute(action)}"></div>
+        ${this.state.turnstileError ? `<small class="field-error">${escapeHtml(this.state.turnstileError)}</small>` : ""}
+      </div>
+    `;
+  }
+
   pageTitle() {
     return {
       dashboard: "Pregled pobud",
@@ -1422,6 +1461,7 @@ class DemocracyApp {
       this.state.draft = emptyDraft();
       this.state.errors = {};
       this.state.aiPreviewReview = null;
+      this.resetSecurityGate();
       this.render();
       return;
     }
@@ -1600,7 +1640,13 @@ class DemocracyApp {
         const validation = validateInitiative(this.state.draft);
         this.state.errors = validation.errors;
         if (!validation.valid) {
+          this.resetSecurityGate();
           this.toast("Pobuda potrebuje nekaj popravkov.");
+          this.render();
+          return;
+        }
+
+        if (!(await this.verifySecurityGate(INITIATIVE_TURNSTILE_ACTION))) {
           this.render();
           return;
         }
@@ -1621,6 +1667,7 @@ class DemocracyApp {
         this.state.draft = emptyDraft();
         this.state.errors = {};
         this.state.aiPreviewReview = null;
+        this.resetSecurityGate();
         this.state.query = "";
         this.state.category = "all";
         this.state.status = "all";
@@ -1935,6 +1982,92 @@ class DemocracyApp {
       identifyClarityUser(user, this.state.activeView);
       setClarityTag("user_role", this.isAdminUser(user) ? "admin" : "citizen");
     }
+  }
+
+  syncSecurityWidgets() {
+    if (this.state.activeView !== "submit" || !isTurnstileEnabled(this.config)) return;
+
+    const container = this.root.querySelector("[data-turnstile-widget]");
+    if (!container) return;
+
+    renderTurnstileWidget(container, {
+      siteKey: this.config.TURNSTILE_SITE_KEY,
+      action: container.dataset.turnstileAction || INITIATIVE_TURNSTILE_ACTION,
+      callback: (token) => {
+        this.state.turnstileToken = token;
+        this.state.turnstileError = "";
+      },
+      expiredCallback: () => {
+        this.state.turnstileToken = "";
+      },
+      errorCallback: () => {
+        this.state.turnstileToken = "";
+        this.state.turnstileError = "Varnostno preverjanje ni uspelo.";
+      }
+    })
+      .then((widgetId) => {
+        if (widgetId) this.state.turnstileWidgetId = widgetId;
+      })
+      .catch((error) => {
+        this.reportError("Cloudflare Turnstile loader", error);
+        this.state.turnstileError = "Varnostno preverjanje ni dosegljivo.";
+      });
+  }
+
+  async verifySecurityGate(action) {
+    if (!isTurnstileEnabled(this.config)) return true;
+
+    if (!this.state.turnstileToken) {
+      this.state.turnstileError = "Potrdite varnostno preverjanje.";
+      this.toast("Varnostno preverjanje je potrebno.");
+      return false;
+    }
+
+    this.state.turnstileVerifying = true;
+    try {
+      const result = await validateTurnstileToken({
+        endpoint: this.config.TURNSTILE_ENDPOINT,
+        token: this.state.turnstileToken,
+        action
+      });
+
+      this.recordSystemEvent("security_check", {
+        provider: result.provider || "cloudflare_turnstile",
+        action,
+        passed: result.verified === true,
+        configured: result.configured === true
+      });
+
+      if (result.verified) return true;
+
+      const message = result.error || "Varnostno preverjanje ni uspelo.";
+      this.resetSecurityGate();
+      this.state.turnstileError = message;
+      this.toast("Varnostno preverjanje ni uspelo.");
+      return false;
+    } catch (error) {
+      this.reportError("Cloudflare Turnstile verification", error);
+      this.recordSystemEvent("security_check", {
+        provider: "cloudflare_turnstile",
+        action,
+        passed: false,
+        configured: true
+      });
+      const message = "Varnostno preverjanje ni dosegljivo.";
+      this.resetSecurityGate();
+      this.state.turnstileError = message;
+      this.toast("Varnostno preverjanje ni dosegljivo.");
+      return false;
+    } finally {
+      this.state.turnstileVerifying = false;
+    }
+  }
+
+  resetSecurityGate() {
+    resetTurnstileWidget(this.state.turnstileWidgetId);
+    this.state.turnstileToken = "";
+    this.state.turnstileWidgetId = "";
+    this.state.turnstileError = "";
   }
 
   recordSystemEvent(type, data = {}) {
