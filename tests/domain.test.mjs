@@ -140,7 +140,21 @@ test("sistemska analitika povzame ocenjeno porabo in dogodke", () => {
       { type: "email_notifications", count: 2, mode: "outbox" },
       { type: "vote", anonymous: true, sessionId: "session-1" }
     ],
-    { resourceCount: 4, transferKb: 12.5, scriptCount: 2, stylesheetCount: 1, fetchCount: 1, loadMs: 80 }
+    { resourceCount: 4, transferKb: 12.5, scriptCount: 2, stylesheetCount: 1, fetchCount: 1, loadMs: 80 },
+    {
+      configured: true,
+      days: 1,
+      rawMetricCount: 3,
+      summary: {
+        sessions: 7,
+        users: 4,
+        botSessions: 1,
+        deadClicks: 2,
+        rageClicks: 1,
+        scriptErrors: 3
+      },
+      charts: [{ key: "traffic" }]
+    }
   );
 
   assert.equal(analytics.initiativeRows, 1);
@@ -152,6 +166,10 @@ test("sistemska analitika povzame ocenjeno porabo in dogodke", () => {
   assert.equal(analytics.anonymousVoteEvents, 1);
   assert.equal(analytics.uniqueSessionCount, 1);
   assert.equal(analytics.resourceSnapshot.transferKb, 12.5);
+  assert.equal(analytics.clarity.configured, true);
+  assert.equal(analytics.clarity.sessions, 7);
+  assert.equal(analytics.clarity.deadClicks + analytics.clarity.rageClicks + analytics.clarity.scriptErrors, 6);
+  assert.equal(analytics.clarity.chartCount, 1);
 });
 
 test("clarity insights normalizirajo grafe iz export API odziva", () => {

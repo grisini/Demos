@@ -101,6 +101,10 @@ class DemocracyApp {
     if (this.state.activeView === "analytics" && this.currentUser()) {
       await this.loadClarityInsights();
     }
+    if (this.state.activeView === "systemAnalytics" && this.isAdminUser()) {
+      await this.loadSystemTelemetry();
+      await this.loadClarityInsights();
+    }
   }
 
   async refresh() {
@@ -701,7 +705,13 @@ class DemocracyApp {
       `;
     }
 
-    const system = calculateSystemAnalytics(this.state.initiatives, this.systemTelemetryEvents(), browserResourceSnapshot());
+    const system = calculateSystemAnalytics(
+      this.state.initiatives,
+      this.systemTelemetryEvents(),
+      browserResourceSnapshot(),
+      this.state.clarityInsights
+    );
+    const clarityIssues = system.clarity.deadClicks + system.clarity.rageClicks + system.clarity.scriptErrors;
 
     return `
       <section class="metric-grid analytics-metrics" aria-label="Sistemski kazalniki">
@@ -713,6 +723,8 @@ class DemocracyApp {
         ${this.metric("Anonimni glasovi", system.anonymousVoteRows, "glasovi brez demo prijave")}
         ${this.metric("Seje", system.uniqueSessionCount, "zaznane sistemske telemetry seje")}
         ${this.metric("Javne pobude", system.publicInitiativeRows, "vidne neprijavljenim uporabnikom")}
+        ${this.metric("Clarity seje", system.clarity.sessions, system.clarity.configured ? `zadnjih ${system.clarity.days} dni` : "Data Export ni nastavljen")}
+        ${this.metric("UX opozorila", clarityIssues, "mrtvi kliki, rage kliki, JS napake")}
       </section>
       <section class="analytics-grid">
         <div class="panel">
@@ -746,6 +758,27 @@ class DemocracyApp {
             <div><dt>Anonimni vote eventi</dt><dd>${system.anonymousVoteEvents}</dd></div>
             <div><dt>Telemetrijski dogodki</dt><dd>${system.telemetryEventCount}</dd></div>
           </dl>
+        </div>
+        <div class="panel">
+          <p class="eyebrow">Microsoft Clarity</p>
+          <h2>Vedenjska sistemska slika</h2>
+          <dl class="config-list">
+            <div><dt>Project ID</dt><dd>${this.config.MICROSOFT_CLARITY_PROJECT_ID ? "nastavljen" : "ni nastavljen"}</dd></div>
+            <div><dt>Runtime loader</dt><dd>${clarityRuntimeStatus().loader}</dd></div>
+            <div><dt>Script tag</dt><dd>${clarityRuntimeStatus().script}</dd></div>
+            <div><dt>Data Export</dt><dd>${system.clarity.configured ? "povezan" : "ni povezan"}</dd></div>
+            <div><dt>Seje</dt><dd>${system.clarity.sessions}</dd></div>
+            <div><dt>Uporabniki</dt><dd>${system.clarity.users}</dd></div>
+            <div><dt>Bot seje</dt><dd>${system.clarity.botSessions}</dd></div>
+            <div><dt>Mrtvi/rage kliki</dt><dd>${system.clarity.deadClicks + system.clarity.rageClicks}</dd></div>
+            <div><dt>JS napake</dt><dd>${system.clarity.scriptErrors}</dd></div>
+          </dl>
+          <button class="button secondary compact" type="button" data-action="refresh-clarity-insights">Osvezi Clarity</button>
+          ${
+            system.clarity.reason || system.clarity.error
+              ? `<p class="note">${escapeHtml(system.clarity.reason || system.clarity.error)}</p>`
+              : `<p class="note">Isti Clarity agregati so vidni tudi v uporabniski analitiki, tukaj pa sluzijo za sistemski nadzor UX in napak.</p>`
+          }
         </div>
         <div class="panel">
           <p class="eyebrow">Javni rezim</p>
@@ -1340,6 +1373,7 @@ class DemocracyApp {
       trackVercelEvent("ViewChanged", { view: this.state.activeView });
       if (this.state.activeView === "systemAnalytics") {
         await this.loadSystemTelemetry();
+        await this.loadClarityInsights();
       }
       if (this.state.activeView === "analytics") {
         await this.loadClarityInsights();

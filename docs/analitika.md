@@ -57,6 +57,7 @@ Vir: https://vercel.com/docs/speed-insights/quickstart
 - anonimne glasove iz podatkov pobud in telemetry dogodkov,
 - javno vidne pobude po statusih `active` in `signature_collection`,
 - porazdelitev pobud po statusih in temah,
+- Microsoft Clarity sistemski povzetek: seje, uporabniki, bot seje, mrtvi kliki, rage kliki in JavaScript napake,
 - zadnje sistemske dogodke v seji brskalnika oziroma iz Vercel/Supabase endpointa.
 
 **Navodila za uporabo lokalno:**
@@ -110,7 +111,7 @@ Trenutna pravila dostopa v aplikaciji:
 
 Clarity ne nadomesca baze pobud. Uporablja se za vedenjsko analitiko: seje, heatmape, posnetke uporabniske poti, custom tags in events. Podatki pobud ostanejo v Supabase/local repozitoriju, Clarity pa dobi oznake in dogodke, da je v Clarity dashboardu mogoce filtrirati obnasanje po pogledu, vlogi, viru podatkov in kategoriji pobude.
 
-Aplikacija dodatno bere agregirane Clarity metrike prek Clarity Data Export API in jih prijavljenim uporabnikom prikaze kot grafe v zavihku `Analitika pobud`. To niso heatmapi ali posnetki sej, ampak agregati, kot so seje po URL, uporabniki, bot seje, mrtvi kliki, rage kliki in JavaScript napake.
+Aplikacija dodatno bere agregirane Clarity metrike prek Clarity Data Export API in jih prijavljenim uporabnikom prikaze kot grafe v zavihku `Analitika pobud`, administratorju pa kot sistemski povzetek v zavihku `Sistemska analitika`. To niso heatmapi ali posnetki sej, ampak agregati, kot so seje po URL, uporabniki, bot seje, mrtvi kliki, rage kliki in JavaScript napake.
 
 **Implementacija v projektu:**
 
@@ -141,7 +142,7 @@ CLARITY_ANALYTICS_ENDPOINT=/api/analytics/clarity
 
 5. Lokalno znova zazenite `npm run dev`; na Vercelu naredite redeploy.
 6. Obiscite aplikacijo, se prijavite in uporabite pobude.
-7. V zavihku `Analitika pobud` preverite blok `Microsoft Clarity`.
+7. V zavihkih `Analitika pobud` in `Sistemska analitika` preverite blok `Microsoft Clarity`.
 8. V Clarity dashboardu preverite sessions, heatmaps, recordings, custom tags in events.
 
 Admin lahko runtime stanje preveri tudi v zavihku `Integracije`, kjer Microsoft Clarity prikaze:
