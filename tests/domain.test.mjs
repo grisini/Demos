@@ -34,6 +34,7 @@ import {
   readSipassSessionToken,
   sipassUserFromHeaders
 } from "../server/sipass-session.mjs";
+import { verifyTurnstileToken } from "../server/turnstile.mjs";
 
 const validInput = {
   title: "Javna sledljivost zakonodajnih sprememb",
@@ -200,7 +201,21 @@ test("sistemska analitika povzame ocenjeno porabo in dogodke", () => {
       { type: "email_notifications", count: 2, mode: "outbox" },
       { type: "vote", anonymous: true, sessionId: "session-1" }
     ],
-    { resourceCount: 4, transferKb: 12.5, scriptCount: 2, stylesheetCount: 1, fetchCount: 1, loadMs: 80 }
+    { resourceCount: 4, transferKb: 12.5, scriptCount: 2, stylesheetCount: 1, fetchCount: 1, loadMs: 80 },
+    {
+      configured: true,
+      days: 1,
+      rawMetricCount: 3,
+      summary: {
+        sessions: 7,
+        users: 4,
+        botSessions: 1,
+        deadClicks: 2,
+        rageClicks: 1,
+        scriptErrors: 3
+      },
+      charts: [{ key: "traffic" }]
+    }
   );
 
   assert.equal(analytics.initiativeRows, 1);
@@ -212,6 +227,10 @@ test("sistemska analitika povzame ocenjeno porabo in dogodke", () => {
   assert.equal(analytics.anonymousVoteEvents, 1);
   assert.equal(analytics.uniqueSessionCount, 1);
   assert.equal(analytics.resourceSnapshot.transferKb, 12.5);
+  assert.equal(analytics.clarity.configured, true);
+  assert.equal(analytics.clarity.sessions, 7);
+  assert.equal(analytics.clarity.deadClicks + analytics.clarity.rageClicks + analytics.clarity.scriptErrors, 6);
+  assert.equal(analytics.clarity.chartCount, 1);
 });
 
 test("clarity insights normalizirajo grafe iz export API odziva", () => {
@@ -314,4 +333,79 @@ test("SI-PASS session mapira atribute in obnovi sifriranega uporabnika", () => {
   );
 
   assert.deepEqual(restored, user);
+});
+
+test("Turnstile zavrne preverjanje brez server secret kljuca", async () => {
+  const result = await verifyTurnstileToken(
+    { token: "token", action: "initiative_submit" },
+    {
+      env: {},
+      fetchImpl: async () => {
+        throw new Error("fetch ne sme biti klican");
+      }
+    }
+  );
+
+  assert.equal(result.configured, false);
+  assert.equal(result.verified, false);
+});
+
+test("Turnstile potrdi uspesen Siteverify odziv", async () => {
+  const result = await verifyTurnstileToken(
+    { token: "valid-token", action: "initiative_submit" },
+    {
+      env: {
+        TURNSTILE_SECRET_KEY: "secret",
+        TURNSTILE_ALLOWED_HOSTNAMES: "localhost"
+      },
+      remoteIp: "127.0.0.1",
+      fetchImpl: async (url, options) => {
+        assert.equal(url, "https://challenges.cloudflare.com/turnstile/v0/siteverify");
+        const body = new URLSearchParams(String(options.body));
+        assert.equal(body.get("secret"), "secret");
+        assert.equal(body.get("response"), "valid-token");
+        assert.equal(body.get("remoteip"), "127.0.0.1");
+        return {
+          ok: true,
+          async json() {
+            return {
+              success: true,
+              action: "initiative_submit",
+              hostname: "localhost"
+            };
+          }
+        };
+      }
+    }
+  );
+
+  assert.equal(result.configured, true);
+  assert.equal(result.verified, true);
+  assert.equal(result.hostname, "localhost");
+});
+
+test("Turnstile zavrne nepricakovan hostname", async () => {
+  const result = await verifyTurnstileToken(
+    { token: "valid-token", action: "initiative_submit" },
+    {
+      env: {
+        TURNSTILE_SECRET_KEY: "secret",
+        TURNSTILE_ALLOWED_HOSTNAMES: "demos.example"
+      },
+      fetchImpl: async () => ({
+        ok: true,
+        async json() {
+          return {
+            success: true,
+            action: "initiative_submit",
+            hostname: "attacker.example"
+          };
+        }
+      })
+    }
+  );
+
+  assert.equal(result.configured, true);
+  assert.equal(result.verified, false);
+  assert.match(result.error, /hostname/);
 });

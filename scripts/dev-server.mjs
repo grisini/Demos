@@ -10,6 +10,7 @@ import {
   sessionUserFromRequest,
   sipassUserFromHeaders
 } from "../server/sipass-session.mjs";
+import { publicTurnstileConfig, verifyTurnstileToken } from "../server/turnstile.mjs";
 import { emptyClarityInsights, normalizeClarityInsights } from "../src/domain/clarity-insights.js";
 import { CATEGORIES, evaluateInitiative, normalizeInput } from "../src/domain/validation.js";
 
@@ -86,6 +87,7 @@ function runtimeConfig() {
       env.SYSTEM_ANALYTICS_ENDPOINT || env.VITE_SYSTEM_ANALYTICS_ENDPOINT || "/api/analytics/system",
     CLARITY_ANALYTICS_ENDPOINT:
       env.CLARITY_ANALYTICS_ENDPOINT || env.VITE_CLARITY_ANALYTICS_ENDPOINT || "/api/analytics/clarity",
+    ...publicTurnstileConfig(env),
     MICROSOFT_CLARITY_PROJECT_ID:
       env.MICROSOFT_CLARITY_PROJECT_ID || env.VITE_MICROSOFT_CLARITY_PROJECT_ID || env.CLARITY_PROJECT_ID || "",
     HUGGINGFACE_ZERO_SHOT_MODEL:
@@ -961,6 +963,31 @@ function createAppServer() {
       }
 
       json(res, 200, await readClarityInsights(serverEnv(), requestedUrl.searchParams));
+      return;
+    }
+
+    if (pathname === "/api/security/turnstile") {
+      if (req.method !== "POST") {
+        json(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      try {
+        const payload = await readJsonBody(req, 32 * 1024);
+        const result = await verifyTurnstileToken(payload, {
+          env: serverEnv(),
+          remoteIp: req.headers["cf-connecting-ip"] || req.headers["x-forwarded-for"] || req.socket?.remoteAddress
+        });
+        json(res, result.verified ? 200 : result.configured ? 403 : 503, result);
+      } catch (error) {
+        console.error("[Demokracija 2.0] Turnstile verification failed", error);
+        json(res, error.status || 500, {
+          configured: true,
+          verified: false,
+          provider: "cloudflare_turnstile",
+          error: error.message || "Turnstile verification failed"
+        });
+      }
       return;
     }
 

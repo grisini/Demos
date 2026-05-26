@@ -66,6 +66,17 @@ function publicRuntimeConfig(env) {
       env.VITE_CLARITY_ANALYTICS_ENDPOINT,
       "/api/analytics/clarity"
     ),
+    TURNSTILE_SITE_KEY: firstValue(
+      env.TURNSTILE_SITE_KEY,
+      env.VITE_TURNSTILE_SITE_KEY,
+      env.CLOUDFLARE_TURNSTILE_SITE_KEY,
+      env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY
+    ),
+    TURNSTILE_ENDPOINT: firstValue(
+      env.TURNSTILE_ENDPOINT,
+      env.VITE_TURNSTILE_ENDPOINT,
+      "/api/security/turnstile"
+    ),
     MICROSOFT_CLARITY_PROJECT_ID: firstValue(
       env.MICROSOFT_CLARITY_PROJECT_ID,
       env.VITE_MICROSOFT_CLARITY_PROJECT_ID,

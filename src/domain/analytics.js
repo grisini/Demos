@@ -118,7 +118,7 @@ export function calculateUserAnalytics(initiatives, user) {
   };
 }
 
-export function calculateSystemAnalytics(initiatives, telemetryEvents = [], resourceSnapshot = {}) {
+export function calculateSystemAnalytics(initiatives, telemetryEvents = [], resourceSnapshot = {}, clarityInsights = null) {
   const initiativeRows = initiatives.length;
   const voteRows = initiatives.reduce((total, initiative) => total + count(initiative.votes), 0);
   const signatureRows = initiatives.reduce((total, initiative) => total + count(initiative.signatures), 0);
@@ -190,6 +190,7 @@ export function calculateSystemAnalytics(initiatives, telemetryEvents = [], reso
       fetchCount: resourceSnapshot.fetchCount || 0,
       loadMs: resourceSnapshot.loadMs || 0
     },
+    clarity: systemClaritySummary(clarityInsights),
     recentEvents: telemetryEvents.slice(0, 10)
   };
 }
@@ -243,6 +244,25 @@ function emptyUserAnalytics() {
     authoredStatusStats: [],
     topAuthoredInitiatives: [],
     recentActivity: []
+  };
+}
+
+function systemClaritySummary(insights) {
+  const summary = insights?.summary || {};
+  return {
+    configured: Boolean(insights?.configured),
+    days: Number(insights?.days) || 0,
+    fetchedAt: insights?.fetchedAt || "",
+    rawMetricCount: Number(insights?.rawMetricCount) || 0,
+    chartCount: Array.isArray(insights?.charts) ? insights.charts.length : 0,
+    sessions: Number(summary.sessions) || 0,
+    users: Number(summary.users) || 0,
+    botSessions: Number(summary.botSessions) || 0,
+    deadClicks: Number(summary.deadClicks) || 0,
+    rageClicks: Number(summary.rageClicks) || 0,
+    scriptErrors: Number(summary.scriptErrors) || 0,
+    reason: insights?.reason || "",
+    error: insights?.error || ""
   };
 }
 

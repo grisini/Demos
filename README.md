@@ -30,6 +30,8 @@ AI_PROVIDER=huggingface
 MICROSOFT_CLARITY_PROJECT_ID=...
 SYSTEM_ANALYTICS_ENDPOINT=/api/analytics/system
 CLARITY_ANALYTICS_ENDPOINT=/api/analytics/clarity
+TURNSTILE_SITE_KEY=...
+TURNSTILE_ENDPOINT=/api/security/turnstile
 ```
 
 Koda podpira tudi `VITE_*` alias kljuce, ce deployment uporablja pravi Vite build:
@@ -42,6 +44,8 @@ VITE_AI_PROVIDER=huggingface
 ```
 
 Po spremembi env varov na hostingu je potreben nov deploy oziroma redeploy. `SUPABASE_SERVICE_ROLE_KEY`, `HF_TOKEN`, `CLARITY_API_TOKEN`, SMTP gesla in podobni privatni kljuci ne smejo biti `VITE_*` in ne smejo v frontend.
+
+Za zascito oddaje pobud pred avtomatiziranimi oddajami nastavite Cloudflare Turnstile. Public `TURNSTILE_SITE_KEY` gre v runtime config, server-only `TURNSTILE_SECRET_KEY` pa ostane samo v Vercel oziroma strezniskem okolju. Dodatno lahko omejite dovoljene hoste z `TURNSTILE_ALLOWED_HOSTNAMES`.
 
 Ce zelite, da admin sistemska analitika na Vercelu bere skupne dogodke vseh uporabnikov, dodajte tudi server-only `SUPABASE_SERVICE_ROLE_KEY` in v Supabase izvedite zadnjo verzijo `supabase/schema.sql`, ki vsebuje tabelo `system_analytics_events`.
 
@@ -75,6 +79,7 @@ npm test
 - Vercel Web Analytics za hosting/SEO statistiko,
 - Vercel Speed Insights za Core Web Vitals in performance metrike,
 - Microsoft Clarity za vedenjsko analitiko sej, custom tags in events,
+- Cloudflare Turnstile server-side preverjanje za oddajo pobude,
 - Supabase SQL shema in konfiguracijski nastavki,
 - povzetek SI-PASS testnega okolja.
 
@@ -83,6 +88,7 @@ npm test
 - `docs/pregled-projekta.md` - celovit tehnicni in funkcionalni pregled projekta,
 - `docs/funkcionalnosti.md` - zivi register funkcionalnosti, statusov, dokazov v kodi in preverjanja,
 - `docs/analitika.md` - tri analiticne plasti in navodila za Vercel, Clarity in admin pogled,
+- `docs/varnost.md` - Turnstile, WAF/CDN, ZAP in produkcijske varnostne omejitve,
 - `docs/hybrid-search.md` - Supabase RPC hybrid search, SQL funkcije, frontend tok in troubleshooting,
 - `docs/dnevnik-dopolnitev.md` - sprotni dnevnik dopolnitev in kronologija commitov,
 - `docs/git-zgodovina.md` - kronoloski povzetek razvoja iz git zgodovine,
