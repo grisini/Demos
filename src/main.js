@@ -384,12 +384,53 @@ class DemocracyApp {
           </div>
         </header>
         ${this.state.toast ? `<div class="toast" role="status">${escapeHtml(this.state.toast)}</div>` : ""}
-        ${this.state.loading ? this.renderLoading() : this.renderView(analytics, selected)}
+        ${
+          this.state.loading
+            ? this.renderLoading()
+            : `${this.renderView(analytics, selected)}${this.renderAppFooter(dataMode)}`
+        }
       </main>
     `;
     this.restoreFocusState(focusState);
     this.syncExternalAnalytics();
     this.syncSecurityWidgets();
+  }
+
+  renderAppFooter(dataMode) {
+    const year = new Date().getFullYear();
+    const sipassMode = this.config.SIPASS_ENV === "test" ? "SI-PASS test" : "SI-PASS prod";
+    const securityMode = isTurnstileEnabled(this.config) ? "Turnstile aktiviran" : "Demo varnostni nacin";
+
+    return `
+      <footer class="app-footer" aria-label="Noga aplikacije">
+        <div class="footer-main">
+          <div class="footer-brand">
+            <span class="footer-mark" aria-hidden="true">D2</span>
+            <div>
+              <strong>Demokracija 2.0</strong>
+              <small>Digitalni delovni prostor za zakonodajne pobude</small>
+            </div>
+          </div>
+          <p>Pripravljeno za pregledno oddajo pobud, zbiranje podpore in izvoz gradiv za nadaljnji zakonodajni postopek.</p>
+        </div>
+        <div class="footer-badges" aria-label="Stanje sistema">
+          <span>Kontrolni seznam DZ</span>
+          <span>${escapeHtml(dataMode)}</span>
+          <span>${escapeHtml(sipassMode)}</span>
+          <span>${escapeHtml(securityMode)}</span>
+        </div>
+        <nav class="footer-links" aria-label="Povezave v nogi">
+          <button type="button" data-action="view" data-view="dashboard">Pregled pobud</button>
+          ${this.currentUser() ? `<button type="button" data-action="view" data-view="submit">Nova pobuda</button>` : ""}
+          ${this.currentUser() ? `<button type="button" data-action="view" data-view="analytics">Analitika</button>` : ""}
+          <button type="button" data-action="refresh">Osvezi podatke</button>
+        </nav>
+        <div class="footer-bottom">
+          <span>(c) ${year} Demos</span>
+          <span>${escapeHtml(LEGAL_COMPLIANCE_CERTIFICATE)}</span>
+        </div>
+      </footer>
+    `;
   }
 
   captureFocusState() {
@@ -429,64 +470,66 @@ class DemocracyApp {
     const user = this.currentUser();
     const dashboardAnalytics = user ? analytics : calculateAnalytics(this.visibleInitiatives());
     return `
-      <section class="metric-grid" aria-label="Povzetek">
-        ${this.metric(user ? "Pobude" : "Aktualne pobude", dashboardAnalytics.initiativeCount, user ? "Vse oddane pobude" : "Javno odprte pobude")}
-        ${this.metric("Glasovi", dashboardAnalytics.totalVotes, "Oddani glasovi")}
-        ${this.metric("Komentarji", user ? dashboardAnalytics.totalComments : "-", user ? "Razprava ob pobudah" : "Vidno po prijavi")}
-        ${this.metric("AI ocena", user ? `${dashboardAnalytics.averageScore}%` : "-", user ? "Povprecje skladnosti" : "Vidno po prijavi")}
-      </section>
+      <section class="dashboard-layout">
+        <section class="metric-grid dashboard-metrics" aria-label="Povzetek">
+          ${this.metric(user ? "Pobude" : "Aktualne pobude", dashboardAnalytics.initiativeCount, user ? "Vse oddane pobude" : "Javno odprte pobude")}
+          ${this.metric("Glasovi", dashboardAnalytics.totalVotes, "Oddani glasovi")}
+          ${this.metric("Komentarji", user ? dashboardAnalytics.totalComments : "-", user ? "Razprava ob pobudah" : "Vidno po prijavi")}
+          ${this.metric("AI ocena", user ? `${dashboardAnalytics.averageScore}%` : "-", user ? "Povprecje skladnosti" : "Vidno po prijavi")}
+        </section>
 
-      <section class="workspace-grid">
-        <div class="panel list-panel">
-          <div class="panel-header">
-            <div>
-              <p class="eyebrow">Pobude</p>
-              <h2>Aktivni seznam</h2>
+        <section class="workspace-grid dashboard-workspace">
+          <div class="panel list-panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Pobude</p>
+                <h2>Aktivni seznam</h2>
+              </div>
+            </div>
+            <div class="filters">
+              <label>
+                <span>Iskanje</span>
+                <input type="search" value="${escapeAttribute(this.state.query)}" data-filter="query" placeholder="Naslov, povzetek, cleni" />
+              </label>
+              <label>
+                <span>Kategorija</span>
+                <select data-filter="category">
+                  <option value="all">Vse</option>
+                  ${CATEGORIES.map((category) => option(category, category, this.state.category)).join("")}
+                </select>
+              </label>
+              <label>
+                <span>Status</span>
+                <select data-filter="status" ${user ? "" : "disabled"}>
+                  <option value="all">Vsi</option>
+                  ${STATUSES.map((status) => option(status.value, status.label, this.state.status)).join("")}
+                </select>
+              </label>
+              <label>
+                <span>Razvrsti</span>
+                <select data-filter="sort">
+                  ${option("popular", "Najvec podpore", this.state.sort)}
+                  ${option("newest", "Najnovejse", this.state.sort)}
+                  ${option("score", "AI ocena", this.state.sort)}
+                </select>
+              </label>
+            </div>
+            ${this.state.searchLoading ? `<div class="empty-state">Iskanje...</div>` : ""}
+            ${this.state.searchError ? `<div class="empty-state">${escapeHtml(this.state.searchError)}</div>` : ""}
+            <div class="initiative-list">
+              ${
+                this.state.searchLoading
+                  ? ""
+                  : initiatives.length
+                  ? initiatives.map((initiative) => this.renderInitiativeCard(initiative)).join("")
+                  : `<div class="empty-state">${user ? "Ni pobud za izbrane filtre." : "Trenutno ni javno odprtih pobud."}</div>`
+              }
             </div>
           </div>
-          <div class="filters">
-            <label>
-              <span>Iskanje</span>
-              <input type="search" value="${escapeAttribute(this.state.query)}" data-filter="query" placeholder="Naslov, povzetek, cleni" />
-            </label>
-            <label>
-              <span>Kategorija</span>
-              <select data-filter="category">
-                <option value="all">Vse</option>
-                ${CATEGORIES.map((category) => option(category, category, this.state.category)).join("")}
-              </select>
-            </label>
-            <label>
-              <span>Status</span>
-              <select data-filter="status" ${user ? "" : "disabled"}>
-                <option value="all">Vsi</option>
-                ${STATUSES.map((status) => option(status.value, status.label, this.state.status)).join("")}
-              </select>
-            </label>
-            <label>
-              <span>Razvrsti</span>
-              <select data-filter="sort">
-                ${option("popular", "Najvec podpore", this.state.sort)}
-                ${option("newest", "Najnovejse", this.state.sort)}
-                ${option("score", "AI ocena", this.state.sort)}
-              </select>
-            </label>
+          <div class="panel detail-panel">
+            ${selected ? this.renderInitiativeDetail(selected) : `<div class="empty-state">Izberite pobudo.</div>`}
           </div>
-          ${this.state.searchLoading ? `<div class="empty-state">Iskanje...</div>` : ""}
-          ${this.state.searchError ? `<div class="empty-state">${escapeHtml(this.state.searchError)}</div>` : ""}
-          <div class="initiative-list">
-            ${
-              this.state.searchLoading
-                ? ""
-                : initiatives.length
-                ? initiatives.map((initiative) => this.renderInitiativeCard(initiative)).join("")
-                : `<div class="empty-state">${user ? "Ni pobud za izbrane filtre." : "Trenutno ni javno odprtih pobud."}</div>`
-            }
-          </div>
-        </div>
-        <div class="panel detail-panel">
-          ${selected ? this.renderInitiativeDetail(selected) : `<div class="empty-state">Izberite pobudo.</div>`}
-        </div>
+        </section>
       </section>
     `;
   }
