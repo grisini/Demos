@@ -20,8 +20,51 @@ export const STATUSES = [
 const REQUIRED_MIN = {
   title: 8,
   summary: 40,
-  description: 120
+  description: 120,
+  legalReference: 8,
+  expectedImpact: 40,
+  legislativeText: 40,
+  articleExplanation: 80,
+  financialImpact: 30,
+  budgetFunding: 20,
+  comparativeReview: 80,
+  impactAssessment: 80,
+  publicParticipation: 20,
+  proposerRepresentatives: 3
 };
+
+const FIELD_LABELS = {
+  title: "Naslov",
+  summary: "Kratek povzetek",
+  description: "Ocena stanja in razlogi",
+  legalReference: "Pravna podlaga",
+  expectedImpact: "Cilji, nacela in poglavitne resitve",
+  legislativeText: "Besedilo clenov",
+  articleExplanation: "Obrazlozitev clenov",
+  financialImpact: "Financne posledice",
+  budgetFunding: "Zagotovitev sredstev",
+  comparativeReview: "Primerjalni prikaz in pravo EU",
+  impactAssessment: "Presoja posledic",
+  publicParticipation: "Sodelovanje javnosti",
+  proposerRepresentatives: "Predstavniki predlagatelja"
+};
+
+const INITIATIVE_TEXT_FIELDS = [
+  "title",
+  "summary",
+  "description",
+  "legalReference",
+  "expectedImpact",
+  "legislativeText",
+  "articleExplanation",
+  "financialImpact",
+  "budgetFunding",
+  "comparativeReview",
+  "impactAssessment",
+  "publicParticipation",
+  "proposerRepresentatives",
+  "affectedProvisions"
+];
 
 const budgetKeywords = [
   "proracun",
@@ -79,7 +122,14 @@ export function validateInitiative(input) {
   }
 
   if (values.description.length < REQUIRED_MIN.description) {
-    errors.description = `Obrazlozitev naj ima vsaj ${REQUIRED_MIN.description} znakov.`;
+    errors.description = `Ocena stanja in razlogi naj imajo vsaj ${REQUIRED_MIN.description} znakov.`;
+  }
+
+  for (const [field, minLength] of Object.entries(REQUIRED_MIN)) {
+    if (["title", "summary", "description"].includes(field)) continue;
+    if (values[field].length < minLength) {
+      errors[field] = `${FIELD_LABELS[field]} naj ima vsaj ${minLength} znakov.`;
+    }
   }
 
   return {
@@ -91,13 +141,7 @@ export function validateInitiative(input) {
 
 export function evaluateInitiative(input) {
   const values = normalizeInput(input);
-  const text = [
-    values.title,
-    values.summary,
-    values.description,
-    values.legalReference,
-    values.expectedImpact
-  ]
+  const text = INITIATIVE_TEXT_FIELDS.map((field) => values[field])
     .join(" ")
     .toLowerCase();
   const words = text.split(/\s+/).filter(Boolean);
@@ -119,6 +163,10 @@ export function evaluateInitiative(input) {
   if (values.description.length >= 500) score += 8;
   if (values.legalReference.length >= 8) score += 9;
   if (values.expectedImpact.length >= 40) score += 7;
+  if (values.legislativeText.length >= 80) score += 9;
+  if (values.articleExplanation.length >= 120) score += 7;
+  if (values.comparativeReview.length >= 120) score += 5;
+  if (values.impactAssessment.length >= 120) score += 5;
 
   const boundedScore = Math.max(0, Math.min(100, Math.round(score)));
   const risk = budgetHits.length >= 3 || boundedScore < 45 ? "high" : budgetHits.length > 0 || vagueHits.length > 1 ? "medium" : "low";
@@ -135,6 +183,9 @@ export function evaluateInitiative(input) {
       legalHits.length
         ? `Zaznane pravne oporne tocke: ${legalHits.join(", ")}.`
         : "Dodajte jasnejso pravno podlago ali navedbo zakona.",
+      completeness.missing.length
+        ? `Za DZ manjkajo ali so prekratka polja: ${completeness.missing.map((field) => FIELD_LABELS[field] || field).join(", ")}.`
+        : "Predlog vsebuje obvezne vsebinske sklope za predlog zakona.",
       budgetHits.length
         ? `Pobuda omenja proracunsko obcutljive pojme: ${budgetHits.join(", ")}.`
         : "Ni ocitnih proracunskih opozoril v osnovnem pregledu.",
@@ -166,6 +217,15 @@ export function createInitiative(input, actor, review = evaluateInitiative(input
     category: values.category,
     legalReference: values.legalReference,
     expectedImpact: values.expectedImpact,
+    legislativeText: values.legislativeText,
+    articleExplanation: values.articleExplanation,
+    financialImpact: values.financialImpact,
+    budgetFunding: values.budgetFunding,
+    comparativeReview: values.comparativeReview,
+    impactAssessment: values.impactAssessment,
+    publicParticipation: values.publicParticipation,
+    proposerRepresentatives: values.proposerRepresentatives,
+    affectedProvisions: values.affectedProvisions,
     status: review.risk === "high" ? "review" : "active",
     createdAt: now,
     updatedAt: now,
@@ -293,7 +353,16 @@ export function normalizeInput(input) {
     summary: String(input?.summary || "").trim(),
     description: String(input?.description || "").trim(),
     legalReference: String(input?.legalReference || "").trim(),
-    expectedImpact: String(input?.expectedImpact || "").trim()
+    expectedImpact: String(input?.expectedImpact || "").trim(),
+    legislativeText: String(input?.legislativeText || "").trim(),
+    articleExplanation: String(input?.articleExplanation || "").trim(),
+    financialImpact: String(input?.financialImpact || "").trim(),
+    budgetFunding: String(input?.budgetFunding || "").trim(),
+    comparativeReview: String(input?.comparativeReview || "").trim(),
+    impactAssessment: String(input?.impactAssessment || "").trim(),
+    publicParticipation: String(input?.publicParticipation || "").trim(),
+    proposerRepresentatives: String(input?.proposerRepresentatives || "").trim(),
+    affectedProvisions: String(input?.affectedProvisions || "").trim()
   };
 }
 
@@ -302,13 +371,9 @@ function findHits(text, keywords) {
 }
 
 function completenessChecks(values) {
-  const checks = {
-    title: values.title.length >= REQUIRED_MIN.title,
-    summary: values.summary.length >= REQUIRED_MIN.summary,
-    description: values.description.length >= REQUIRED_MIN.description,
-    legalReference: values.legalReference.length >= 8,
-    expectedImpact: values.expectedImpact.length >= 40
-  };
+  const checks = Object.fromEntries(
+    Object.entries(REQUIRED_MIN).map(([field, minLength]) => [field, values[field].length >= minLength])
+  );
   const passed = Object.values(checks).filter(Boolean).length;
 
   return {

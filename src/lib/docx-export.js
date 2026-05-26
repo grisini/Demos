@@ -2,6 +2,8 @@ import { riskLabel, statusLabel, suitabilityLabel } from "../domain/validation.j
 
 export const DOCX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 export const ODT_MIME_TYPE = "application/vnd.oasis.opendocument.text";
+const LEGAL_COMPLIANCE_CERTIFICATE =
+  "Certifikat skladnosti s slovensko zakonodajo: dokument je pripravljen po kontrolnem seznamu za predlog zakona po slovenski zakonodaji in Poslovniku Drzavnega zbora. Pravna skladnost pred uradno vlozitvijo ostaja odgovornost predlagatelja.";
 
 export function buildInitiativeDocxBlob(initiative, user, options = {}) {
   return new Blob([buildInitiativeDocxPackage(initiative, user, options)], { type: DOCX_MIME_TYPE });
@@ -59,7 +61,7 @@ function initiativeDocxDocumentXml(initiative, user, generatedAt) {
       size: 18,
       spacingAfter: 40
     }),
-    docxParagraph("Izvoz zakonodajne pobude za DZ", {
+    docxParagraph("Izvoz predloga zakona za DZ", {
       bold: true,
       size: 32,
       spacingAfter: 80
@@ -90,14 +92,27 @@ function initiativeDocxDocumentXml(initiative, user, generatedAt) {
       spacingAfter: 200
     }),
 
-    docxHeading("Obrazlozitev"),
-    docxTextBlock(initiative.description),
-
-    docxHeading("Pravna podlaga in pricakovani ucinek"),
+    docxHeading("Uvod predloga zakona"),
     docxKeyValueTable([
       ["Pravna podlaga", initiative.legalReference || "Ni navedena."],
-      ["Pricakovani ucinek", initiative.expectedImpact || "Ni naveden."]
+      ["Ocena stanja in razlogi", initiative.description || "Ni navedeno."],
+      ["Cilji, nacela in poglavitne resitve", initiative.expectedImpact || "Ni navedeno."],
+      ["Financne posledice", initiative.financialImpact || "Ni navedeno."],
+      ["Zagotovitev sredstev", initiative.budgetFunding || "Ni navedeno."],
+      ["Primerjalni prikaz in pravo EU", initiative.comparativeReview || "Ni navedeno."],
+      ["Presoja posledic", initiative.impactAssessment || "Ni navedena."],
+      ["Sodelovanje javnosti", initiative.publicParticipation || "Ni navedeno."],
+      ["Predstavniki predlagatelja", initiative.proposerRepresentatives || "Ni navedeno."]
     ]),
+
+    docxHeading("Besedilo clenov"),
+    docxTextBlock(initiative.legislativeText || "Ni navedeno."),
+
+    docxHeading("Obrazlozitev clenov"),
+    docxTextBlock(initiative.articleExplanation || "Ni navedena."),
+
+    docxHeading("Dolocbe, ki se spreminjajo"),
+    docxTextBlock(initiative.affectedProvisions || "Ni sprememb obstojecega zakona oziroma ni navedeno."),
 
     docxHeading("Podpora in evidenca"),
     docxKeyValueTable([
@@ -121,17 +136,23 @@ function initiativeDocxDocumentXml(initiative, user, generatedAt) {
     docxHeading("Potrditev priprave"),
     docxKeyValueTable([
       ["Izvoz pripravil", user?.name || user?.id || "Uporabnik"],
-      ["Namen izvoza", "Oddaja zakonodajne pobude v nadaljnji postopek."]
+      ["Namen izvoza", "Oddaja predloga zakona v zakonodajni postopek."]
     ]),
     docxParagraph("____________________________", { spacingBefore: 340, spacingAfter: 20 }),
     docxParagraph("Podpis odgovorne osebe", { size: 19, spacingAfter: 260 }),
+    docxParagraph(LEGAL_COMPLIANCE_CERTIFICATE, {
+      bold: true,
+      topBorder: "D1D5DB",
+      color: "111827",
+      size: 18,
+      spacingBefore: 80,
+      spacingAfter: 80
+    }),
     docxParagraph(
       "Dokument je ustvarjen iz podatkov aplikacije Demokracija 2.0. Za uradno oddajo preverite aktualna pravila in zahtevane priloge Drzavnega zbora.",
       {
-        topBorder: "D1D5DB",
         color: "4B5563",
         size: 18,
-        spacingBefore: 80,
         spacingAfter: 0
       }
     )
@@ -154,7 +175,7 @@ function initiativeOdtContentXml(initiative, user, generatedAt) {
   const findings = Array.isArray(review.findings) ? review.findings : [];
   const content = [
     odtParagraph("Demokracija 2.0", "DemosBrand"),
-    odtParagraph("Izvoz zakonodajne pobude za DZ", "DemosTitle"),
+    odtParagraph("Izvoz predloga zakona za DZ", "DemosTitle"),
     odtParagraph(`Izvoz ustvarjen: ${formatDate(generatedAt)}`, "DemosMuted"),
 
     odtHeading("Identifikacija pobude"),
@@ -171,14 +192,27 @@ function initiativeOdtContentXml(initiative, user, generatedAt) {
     odtHeading("Kratek povzetek"),
     odtParagraph(initiative.summary, "DemosSummary"),
 
-    odtHeading("Obrazlozitev"),
-    odtTextBlock(initiative.description),
-
-    odtHeading("Pravna podlaga in pricakovani ucinek"),
+    odtHeading("Uvod predloga zakona"),
     odtKeyValueTable([
       ["Pravna podlaga", initiative.legalReference || "Ni navedena."],
-      ["Pricakovani ucinek", initiative.expectedImpact || "Ni naveden."]
+      ["Ocena stanja in razlogi", initiative.description || "Ni navedeno."],
+      ["Cilji, nacela in poglavitne resitve", initiative.expectedImpact || "Ni navedeno."],
+      ["Financne posledice", initiative.financialImpact || "Ni navedeno."],
+      ["Zagotovitev sredstev", initiative.budgetFunding || "Ni navedeno."],
+      ["Primerjalni prikaz in pravo EU", initiative.comparativeReview || "Ni navedeno."],
+      ["Presoja posledic", initiative.impactAssessment || "Ni navedena."],
+      ["Sodelovanje javnosti", initiative.publicParticipation || "Ni navedeno."],
+      ["Predstavniki predlagatelja", initiative.proposerRepresentatives || "Ni navedeno."]
     ]),
+
+    odtHeading("Besedilo clenov"),
+    odtTextBlock(initiative.legislativeText || "Ni navedeno."),
+
+    odtHeading("Obrazlozitev clenov"),
+    odtTextBlock(initiative.articleExplanation || "Ni navedena."),
+
+    odtHeading("Dolocbe, ki se spreminjajo"),
+    odtTextBlock(initiative.affectedProvisions || "Ni sprememb obstojecega zakona oziroma ni navedeno."),
 
     odtHeading("Podpora in evidenca"),
     odtKeyValueTable([
@@ -202,10 +236,11 @@ function initiativeOdtContentXml(initiative, user, generatedAt) {
     odtHeading("Potrditev priprave"),
     odtKeyValueTable([
       ["Izvoz pripravil", user?.name || user?.id || "Uporabnik"],
-      ["Namen izvoza", "Oddaja zakonodajne pobude v nadaljnji postopek."]
+      ["Namen izvoza", "Oddaja predloga zakona v zakonodajni postopek."]
     ]),
     odtParagraph("____________________________", "DemosSignatureLine"),
     odtParagraph("Podpis odgovorne osebe", "DemosMuted"),
+    odtParagraph(LEGAL_COMPLIANCE_CERTIFICATE, "DemosCertificate"),
     odtParagraph(
       "Dokument je ustvarjen iz podatkov aplikacije Demokracija 2.0. Za uradno oddajo preverite aktualna pravila in zahtevane priloge Drzavnega zbora.",
       "DemosFooter"
@@ -498,7 +533,7 @@ function docxCorePropertiesXml(initiative, user, generatedAt) {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <dc:title>${escapeXml(title)}</dc:title>
-  <dc:subject>Izvoz zakonodajne pobude za DZ</dc:subject>
+  <dc:subject>Izvoz predloga zakona za DZ</dc:subject>
   <dc:creator>${escapeXml(creator)}</dc:creator>
   <cp:lastModifiedBy>${escapeXml(creator)}</cp:lastModifiedBy>
   <dcterms:created xsi:type="dcterms:W3CDTF">${escapeXml(new Date(generatedAt).toISOString())}</dcterms:created>
@@ -564,7 +599,7 @@ function odtMetaXml(initiative, user, generatedAt) {
   <office:meta>
     <meta:generator>Demokracija 2.0</meta:generator>
     <dc:title>${escapeXml(title)}</dc:title>
-    <dc:subject>Izvoz zakonodajne pobude za DZ</dc:subject>
+    <dc:subject>Izvoz predloga zakona za DZ</dc:subject>
     <dc:creator>${escapeXml(creator)}</dc:creator>
     <meta:creation-date>${escapeXml(timestamp)}</meta:creation-date>
     <dc:date>${escapeXml(timestamp)}</dc:date>
@@ -614,6 +649,10 @@ function odtStylesXml() {
     <style:style style:name="DemosFooter" style:family="paragraph" style:parent-style-name="Standard">
       <style:paragraph-properties fo:margin-top="0.12in" fo:border-top="0.5pt solid #D1D5DB" fo:padding-top="0.06in"/>
       <style:text-properties fo:font-size="9pt" fo:color="#4B5563"/>
+    </style:style>
+    <style:style style:name="DemosCertificate" style:family="paragraph" style:parent-style-name="Standard">
+      <style:paragraph-properties fo:margin-top="0.12in" fo:border-top="0.5pt solid #D1D5DB" fo:padding-top="0.06in"/>
+      <style:text-properties fo:font-size="9pt" fo:font-weight="bold" fo:color="#111827"/>
     </style:style>
     <style:style style:name="DemosSpacer" style:family="paragraph" style:parent-style-name="Standard">
       <style:paragraph-properties fo:margin-bottom="0.1in"/>

@@ -201,7 +201,16 @@ export function estimateInitiativeTokens(initiative) {
     initiative?.summary,
     initiative?.description,
     initiative?.legalReference,
-    initiative?.expectedImpact
+    initiative?.expectedImpact,
+    initiative?.legislativeText,
+    initiative?.articleExplanation,
+    initiative?.financialImpact,
+    initiative?.budgetFunding,
+    initiative?.comparativeReview,
+    initiative?.impactAssessment,
+    initiative?.publicParticipation,
+    initiative?.proposerRepresentatives,
+    initiative?.affectedProvisions
   ]
     .filter(Boolean)
     .join(" ");

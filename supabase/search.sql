@@ -1,6 +1,11 @@
 
 create extension if not exists pg_trgm;
 
+drop function if exists public.search_initiative_suggestions(text, boolean, integer);
+drop function if exists public.search_initiatives(text, text, text, boolean, text, integer, integer);
+drop index if exists public.initiatives_search_tsv_idx;
+drop index if exists public.initiatives_search_trgm_idx;
+
 create or replace function public.search_normalize(value text)
 returns text
 language sql
@@ -25,7 +30,16 @@ create or replace function public.initiative_search_text(
   category text,
   description text,
   legal_reference text,
-  expected_impact text
+  expected_impact text,
+  legislative_text text,
+  article_explanation text,
+  financial_impact text,
+  budget_funding text,
+  comparative_review text,
+  impact_assessment text,
+  public_participation text,
+  proposer_representatives text,
+  affected_provisions text
 )
 returns text
 language sql
@@ -40,7 +54,16 @@ as $$
       repeat(coalesce(category, '') || ' ', 2),
       coalesce(description, ''),
       coalesce(legal_reference, ''),
-      coalesce(expected_impact, '')
+      coalesce(expected_impact, ''),
+      coalesce(legislative_text, ''),
+      coalesce(article_explanation, ''),
+      coalesce(financial_impact, ''),
+      coalesce(budget_funding, ''),
+      coalesce(comparative_review, ''),
+      coalesce(impact_assessment, ''),
+      coalesce(public_participation, ''),
+      coalesce(proposer_representatives, ''),
+      coalesce(affected_provisions, '')
     )
   );
 $$;
@@ -74,7 +97,16 @@ create index if not exists initiatives_search_tsv_idx
         public.initiative_category_label(category),
         description,
         legal_reference,
-        expected_impact
+        expected_impact,
+        legislative_text,
+        article_explanation,
+        financial_impact,
+        budget_funding,
+        comparative_review,
+        impact_assessment,
+        public_participation,
+        proposer_representatives,
+        affected_provisions
       )
     )
   );
@@ -88,7 +120,16 @@ create index if not exists initiatives_search_trgm_idx
       public.initiative_category_label(category),
       description,
       legal_reference,
-      expected_impact
+      expected_impact,
+      legislative_text,
+      article_explanation,
+      financial_impact,
+      budget_funding,
+      comparative_review,
+      impact_assessment,
+      public_participation,
+      proposer_representatives,
+      affected_provisions
     ) gin_trgm_ops
   );
 
@@ -109,6 +150,15 @@ returns table (
   category text,
   legal_reference text,
   expected_impact text,
+  legislative_text text,
+  article_explanation text,
+  financial_impact text,
+  budget_funding text,
+  comparative_review text,
+  impact_assessment text,
+  public_participation text,
+  proposer_representatives text,
+  affected_provisions text,
   status text,
   author_ref text,
   author_name text,
@@ -165,7 +215,16 @@ as $$
         public.initiative_category_label(i.category),
         i.description,
         i.legal_reference,
-        i.expected_impact
+        i.expected_impact,
+        i.legislative_text,
+        i.article_explanation,
+        i.financial_impact,
+        i.budget_funding,
+        i.comparative_review,
+        i.impact_assessment,
+        i.public_participation,
+        i.proposer_representatives,
+        i.affected_provisions
       ) as search_text,
       coalesce(v.vote_count, 0) as vote_count,
       coalesce(s.signature_count, 0) as signature_count,
@@ -294,6 +353,15 @@ as $$
     public.initiative_category_label(s.category),
     s.legal_reference,
     s.expected_impact,
+    s.legislative_text,
+    s.article_explanation,
+    s.financial_impact,
+    s.budget_funding,
+    s.comparative_review,
+    s.impact_assessment,
+    s.public_participation,
+    s.proposer_representatives,
+    s.affected_provisions,
     public.initiative_status_label(s.status),
     s.author_ref,
     s.author_name,
@@ -371,4 +439,3 @@ $$;
 
 grant execute on function public.search_initiatives(text, text, text, boolean, text, integer, integer) to anon, authenticated;
 grant execute on function public.search_initiative_suggestions(text, boolean, integer) to anon, authenticated;
-

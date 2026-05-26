@@ -58,6 +58,9 @@ const ANONYMOUS_VOTER_KEY = "demos.anonymousVoterId";
 const REMOTE_SEARCH_DEBOUNCE_MS = 800;
 const REMOTE_SEARCH_MIN_LENGTH = 2;
 const EXPORTABLE_INITIATIVE_STATUSES = ["signature_collection", "submitted"];
+const INITIATIVE_TURNSTILE_ACTION = "submit_initiative";
+const LEGAL_COMPLIANCE_CERTIFICATE =
+  "Certifikat skladnosti s slovensko zakonodajo: dokument je pripravljen po kontrolnem seznamu za predlog zakona po slovenski zakonodaji in Poslovniku Drzavnega zbora. Pravna skladnost pred uradno vlozitvijo ostaja odgovornost predlagatelja.";
 const INITIATIVE_EXPORT_ACTIONS = {
   "print-pdf": {
     systemEvent: "initiative_pdf_print",
@@ -218,7 +221,20 @@ class DemocracyApp {
     const query = this.state.query.toLowerCase();
     const source = this.visibleInitiatives();
     const filtered = source.filter((initiative) => {
-      const text = `${initiative.title} ${initiative.summary} ${initiative.category}`.toLowerCase();
+      const text = [
+        initiative.title,
+        initiative.summary,
+        initiative.category,
+        initiative.description,
+        initiative.legalReference,
+        initiative.expectedImpact,
+        initiative.legislativeText,
+        initiative.articleExplanation,
+        initiative.comparativeReview,
+        initiative.impactAssessment
+      ]
+        .join(" ")
+        .toLowerCase();
       const queryMatch = !query || text.includes(query);
       const categoryMatch = this.state.category === "all" || initiative.category === this.state.category;
       const statusMatch = this.state.status === "all" || initiative.status === this.state.status;
@@ -431,7 +447,7 @@ class DemocracyApp {
           <div class="filters">
             <label>
               <span>Iskanje</span>
-              <input type="search" value="${escapeAttribute(this.state.query)}" data-filter="query" placeholder="Naslov, povzetek, kategorija" />
+              <input type="search" value="${escapeAttribute(this.state.query)}" data-filter="query" placeholder="Naslov, povzetek, cleni" />
             </label>
             <label>
               <span>Kategorija</span>
@@ -496,9 +512,18 @@ class DemocracyApp {
             ${this.error("category")}
           </label>
           ${this.textarea("summary", "Kratek povzetek", 3)}
-          ${this.textarea("description", "Obrazlozitev", 7)}
           ${this.input("legalReference", "Pravna podlaga", "zakon, clen, pravilnik ali sorodna podlaga")}
-          ${this.textarea("expectedImpact", "Pricakovani ucinek", 3)}
+          ${this.textarea("description", "Ocena stanja in razlogi za sprejem", 6)}
+          ${this.textarea("expectedImpact", "Cilji, nacela in poglavitne resitve", 4)}
+          ${this.textarea("legislativeText", "Besedilo clenov", 7)}
+          ${this.textarea("articleExplanation", "Obrazlozitev clenov", 6)}
+          ${this.textarea("financialImpact", "Financne posledice za proracun in javna sredstva", 3)}
+          ${this.textarea("budgetFunding", "Zagotovitev sredstev", 3)}
+          ${this.textarea("comparativeReview", "Primerjalni prikaz in skladnost s pravom EU", 5)}
+          ${this.textarea("impactAssessment", "Presoja posledic", 5)}
+          ${this.textarea("publicParticipation", "Sodelovanje javnosti", 3)}
+          ${this.input("proposerRepresentatives", "Predstavniki predlagatelja", "ime, funkcija ali kontakt")}
+          ${this.textarea("affectedProvisions", "Besedilo dolocb, ki se spreminjajo", 4)}
           ${this.renderSecurityGate(INITIATIVE_TURNSTILE_ACTION)}
           <div class="form-actions">
             <button class="button primary" type="submit" ${this.state.turnstileVerifying ? "disabled" : ""}>${
@@ -1124,6 +1149,7 @@ class DemocracyApp {
     const signed = user && initiative.signatures.some((signature) => signature.userId === user.id);
     const review = initiative.aiReview || { score: 0, risk: "low", findings: [] };
     const exportReady = canExportInitiative(initiative);
+    const admin = this.isAdminUser(user);
 
     return `
       <div class="detail-header">
@@ -1170,12 +1196,18 @@ class DemocracyApp {
             `
             : ""
         }
-        <label class="status-select">
-          <span>Status</span>
-          <select data-status-id="${initiative.id}">
-            ${STATUSES.map((status) => option(status.value, status.label, initiative.status)).join("")}
-          </select>
-        </label>
+        ${
+          admin
+            ? `
+              <label class="status-select">
+                <span>Status</span>
+                <select data-status-id="${initiative.id}">
+                  ${STATUSES.map((status) => option(status.value, status.label, initiative.status)).join("")}
+                </select>
+              </label>
+            `
+            : ""
+        }
       </div>
       <div class="detail-metrics">
         ${this.metric("Glasovi", initiative.votes.length, "en uporabnik, en glas")}
@@ -1184,7 +1216,7 @@ class DemocracyApp {
         ${this.metric("AI ocena", `${review.score}%`, riskLabel(review.risk))}
       </div>
       <section class="detail-section">
-        <h3>Obrazlozitev</h3>
+        <h3>Ocena stanja in razlogi</h3>
         <p>${escapeHtml(initiative.description)}</p>
       </section>
       <section class="detail-section two-columns">
@@ -1193,9 +1225,49 @@ class DemocracyApp {
           <p>${escapeHtml(initiative.legalReference || "Ni navedena.")}</p>
         </div>
         <div>
-          <h3>Pricakovani ucinek</h3>
-          <p>${escapeHtml(initiative.expectedImpact || "Ni naveden.")}</p>
+          <h3>Cilji in resitve</h3>
+          <p>${escapeHtml(initiative.expectedImpact || "Ni navedeno.")}</p>
         </div>
+      </section>
+      <section class="detail-section">
+        <h3>Besedilo clenov</h3>
+        <p>${escapeHtml(initiative.legislativeText || "Ni navedeno.")}</p>
+      </section>
+      <section class="detail-section">
+        <h3>Obrazlozitev clenov</h3>
+        <p>${escapeHtml(initiative.articleExplanation || "Ni navedena.")}</p>
+      </section>
+      <section class="detail-section two-columns">
+        <div>
+          <h3>Financne posledice</h3>
+          <p>${escapeHtml(initiative.financialImpact || "Ni navedeno.")}</p>
+        </div>
+        <div>
+          <h3>Zagotovitev sredstev</h3>
+          <p>${escapeHtml(initiative.budgetFunding || "Ni navedena.")}</p>
+        </div>
+      </section>
+      <section class="detail-section">
+        <h3>Primerjalni prikaz in pravo EU</h3>
+        <p>${escapeHtml(initiative.comparativeReview || "Ni navedeno.")}</p>
+      </section>
+      <section class="detail-section">
+        <h3>Presoja posledic</h3>
+        <p>${escapeHtml(initiative.impactAssessment || "Ni navedena.")}</p>
+      </section>
+      <section class="detail-section two-columns">
+        <div>
+          <h3>Sodelovanje javnosti</h3>
+          <p>${escapeHtml(initiative.publicParticipation || "Ni navedeno.")}</p>
+        </div>
+        <div>
+          <h3>Predstavniki predlagatelja</h3>
+          <p>${escapeHtml(initiative.proposerRepresentatives || "Ni navedeno.")}</p>
+        </div>
+      </section>
+      <section class="detail-section">
+        <h3>Dolocbe, ki se spreminjajo</h3>
+        <p>${escapeHtml(initiative.affectedProvisions || "Ni sprememb obstojecega zakona oziroma ni navedeno.")}</p>
       </section>
       <section class="detail-section">
         <h3>AI ugotovitve</h3>
@@ -1808,6 +1880,12 @@ class DemocracyApp {
         return;
       }
 
+      if (!this.isAdminUser()) {
+        this.toast("Status pobude lahko spremeni samo administrator.");
+        this.render();
+        return;
+      }
+
       try {
         const previous = this.state.initiatives.find((initiative) => initiative.id === statusId);
         const updated = await this.repository.updateStatus(statusId, event.target.value);
@@ -1980,7 +2058,16 @@ class DemocracyApp {
       values?.summary,
       values?.description,
       values?.legalReference,
-      values?.expectedImpact
+      values?.expectedImpact,
+      values?.legislativeText,
+      values?.articleExplanation,
+      values?.financialImpact,
+      values?.budgetFunding,
+      values?.comparativeReview,
+      values?.impactAssessment,
+      values?.publicParticipation,
+      values?.proposerRepresentatives,
+      values?.affectedProvisions
     ].join(" "));
     if (!this.config.AI_REVIEW_ENDPOINT || this.config.AI_PROVIDER !== "huggingface") {
       this.recordSystemEvent("ai_review", {
@@ -2216,7 +2303,16 @@ function emptyDraft() {
     summary: "",
     description: "",
     legalReference: "",
-    expectedImpact: ""
+    expectedImpact: "",
+    legislativeText: "",
+    articleExplanation: "",
+    financialImpact: "",
+    budgetFunding: "",
+    comparativeReview: "",
+    impactAssessment: "",
+    publicParticipation: "",
+    proposerRepresentatives: "",
+    affectedProvisions: ""
   };
 }
 
@@ -2442,14 +2538,29 @@ function renderInitiativePdfPages(initiative, user) {
   pdfRenderSectionTitle(renderer, "Kratek povzetek");
   pdfRenderSummaryBox(renderer, initiative.summary);
 
-  pdfRenderSectionTitle(renderer, "Obrazlozitev");
-  pdfRenderParagraph(renderer, initiative.description, { bottomGap: 8 });
-
-  pdfRenderSectionTitle(renderer, "Pravna podlaga in pricakovani ucinek");
+  pdfRenderSectionTitle(renderer, "Uvod predloga zakona");
   pdfRenderKeyValueTable(renderer, [
     ["Pravna podlaga", initiative.legalReference || "Ni navedena."],
-    ["Pricakovani ucinek", initiative.expectedImpact || "Ni naveden."]
+    ["Ocena stanja in razlogi", initiative.description || "Ni navedeno."],
+    ["Cilji, nacela in poglavitne resitve", initiative.expectedImpact || "Ni navedeno."],
+    ["Financne posledice", initiative.financialImpact || "Ni navedeno."],
+    ["Zagotovitev sredstev", initiative.budgetFunding || "Ni navedeno."],
+    ["Primerjalni prikaz in pravo EU", initiative.comparativeReview || "Ni navedeno."],
+    ["Presoja posledic", initiative.impactAssessment || "Ni navedeno."],
+    ["Sodelovanje javnosti", initiative.publicParticipation || "Ni navedeno."],
+    ["Predstavniki predlagatelja", initiative.proposerRepresentatives || "Ni navedeno."]
   ]);
+
+  pdfRenderSectionTitle(renderer, "Besedilo clenov");
+  pdfRenderParagraph(renderer, initiative.legislativeText || "Ni navedeno.", { bottomGap: 8 });
+
+  pdfRenderSectionTitle(renderer, "Obrazlozitev clenov");
+  pdfRenderParagraph(renderer, initiative.articleExplanation || "Ni navedena.", { bottomGap: 8 });
+
+  pdfRenderSectionTitle(renderer, "Dolocbe, ki se spreminjajo");
+  pdfRenderParagraph(renderer, initiative.affectedProvisions || "Ni sprememb obstojecega zakona oziroma ni navedeno.", {
+    bottomGap: 8
+  });
 
   pdfRenderSectionTitle(renderer, "Podpora in evidenca");
   pdfRenderKeyValueTable(renderer, [
@@ -2491,7 +2602,7 @@ function renderInitiativePdfPages(initiative, user) {
   pdfRenderSectionTitle(renderer, "Potrditev priprave");
   pdfRenderKeyValueTable(renderer, [
     ["Izvoz pripravil", user?.name || user?.id || "Uporabnik"],
-    ["Namen izvoza", "Oddaja zakonodajne pobude v nadaljnji postopek."]
+    ["Namen izvoza", "Oddaja predloga zakona v zakonodajni postopek."]
   ]);
   pdfRenderSignatureLine(renderer);
   pdfRenderFooter(renderer);
@@ -2513,7 +2624,7 @@ function pdfRenderHeader(renderer, generatedAt) {
     color: PDF_COLORS.green
   });
   renderer.y -= 16;
-  pdfRenderParagraph(renderer, "Izvoz zakonodajne pobude za DZ", {
+  pdfRenderParagraph(renderer, "Izvoz predloga zakona za DZ", {
     size: 22,
     lineHeight: 25,
     bold: true,
@@ -2660,9 +2771,16 @@ function pdfRenderSignatureLine(renderer) {
 }
 
 function pdfRenderFooter(renderer) {
-  pdfEnsureSpace(renderer, 54);
+  pdfEnsureSpace(renderer, 72);
   pdfStrokeLine(renderer, PDF_MARGIN, renderer.y, PDF_MARGIN + PDF_CONTENT_WIDTH, renderer.y, PDF_COLORS.line, 0.75);
   renderer.y -= 12;
+  pdfRenderParagraph(renderer, LEGAL_COMPLIANCE_CERTIFICATE, {
+    size: 9,
+    lineHeight: 12,
+    color: PDF_COLORS.text,
+    bold: true,
+    bottomGap: 3
+  });
   pdfRenderParagraph(
     renderer,
     "Dokument je ustvarjen iz podatkov aplikacije Demokracija 2.0. Za uradno oddajo preverite aktualna pravila in zahtevane priloge Drzavnega zbora.",
@@ -2847,12 +2965,16 @@ function initiativePdfHtml(initiative, user) {
       margin-top: 28px;
       padding-top: 10px;
     }
+    .certificate {
+      color: #111827;
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
   <header>
     <p class="eyebrow">Demokracija 2.0</p>
-    <h1>Izvoz zakonodajne pobude za DZ</h1>
+    <h1>Izvoz predloga zakona za DZ</h1>
     <p class="muted">Izvoz ustvarjen: ${escapeHtml(formatDate(generatedAt))}</p>
   </header>
 
@@ -2875,16 +2997,33 @@ function initiativePdfHtml(initiative, user) {
   </section>
 
   <section>
-    <h2>Obrazlozitev</h2>
-    <p class="text-block">${escapeHtml(initiative.description)}</p>
+    <h2>Uvod predloga zakona</h2>
+    <table>
+      <tr><th>Pravna podlaga</th><td class="text-block">${escapeHtml(initiative.legalReference || "Ni navedena.")}</td></tr>
+      <tr><th>Ocena stanja in razlogi</th><td class="text-block">${escapeHtml(initiative.description || "Ni navedeno.")}</td></tr>
+      <tr><th>Cilji, nacela in poglavitne resitve</th><td class="text-block">${escapeHtml(initiative.expectedImpact || "Ni navedeno.")}</td></tr>
+      <tr><th>Financne posledice</th><td class="text-block">${escapeHtml(initiative.financialImpact || "Ni navedeno.")}</td></tr>
+      <tr><th>Zagotovitev sredstev</th><td class="text-block">${escapeHtml(initiative.budgetFunding || "Ni navedeno.")}</td></tr>
+      <tr><th>Primerjalni prikaz in pravo EU</th><td class="text-block">${escapeHtml(initiative.comparativeReview || "Ni navedeno.")}</td></tr>
+      <tr><th>Presoja posledic</th><td class="text-block">${escapeHtml(initiative.impactAssessment || "Ni navedena.")}</td></tr>
+      <tr><th>Sodelovanje javnosti</th><td class="text-block">${escapeHtml(initiative.publicParticipation || "Ni navedeno.")}</td></tr>
+      <tr><th>Predstavniki predlagatelja</th><td class="text-block">${escapeHtml(initiative.proposerRepresentatives || "Ni navedeno.")}</td></tr>
+    </table>
   </section>
 
   <section>
-    <h2>Pravna podlaga in pricakovani ucinek</h2>
-    <table>
-      <tr><th>Pravna podlaga</th><td class="text-block">${escapeHtml(initiative.legalReference || "Ni navedena.")}</td></tr>
-      <tr><th>Pricakovani ucinek</th><td class="text-block">${escapeHtml(initiative.expectedImpact || "Ni naveden.")}</td></tr>
-    </table>
+    <h2>Besedilo clenov</h2>
+    <p class="text-block">${escapeHtml(initiative.legislativeText || "Ni navedeno.")}</p>
+  </section>
+
+  <section>
+    <h2>Obrazlozitev clenov</h2>
+    <p class="text-block">${escapeHtml(initiative.articleExplanation || "Ni navedena.")}</p>
+  </section>
+
+  <section>
+    <h2>Dolocbe, ki se spreminjajo</h2>
+    <p class="text-block">${escapeHtml(initiative.affectedProvisions || "Ni sprememb obstojecega zakona oziroma ni navedeno.")}</p>
   </section>
 
   <section>
@@ -2914,12 +3053,13 @@ function initiativePdfHtml(initiative, user) {
     <h2>Potrditev priprave</h2>
     <table>
       <tr><th>Izvoz pripravil</th><td>${escapeHtml(user?.name || user?.id || "Uporabnik")}</td></tr>
-      <tr><th>Namen izvoza</th><td>Oddaja zakonodajne pobude v nadaljnji postopek.</td></tr>
+      <tr><th>Namen izvoza</th><td>Oddaja predloga zakona v zakonodajni postopek.</td></tr>
     </table>
     <p><span class="signature-line">Podpis odgovorne osebe</span></p>
   </section>
 
   <footer>
+    <p class="certificate">${escapeHtml(LEGAL_COMPLIANCE_CERTIFICATE)}</p>
     <p>Dokument je ustvarjen iz podatkov aplikacije Demokracija 2.0. Za uradno oddajo preverite aktualna pravila in zahtevane priloge Drzavnega zbora.</p>
   </footer>
 </body>

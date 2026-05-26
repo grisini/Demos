@@ -71,6 +71,15 @@ create table if not exists initiatives (
   category initiative_category not null,
   legal_reference text not null default '',
   expected_impact text not null default '',
+  legislative_text text not null default '',
+  article_explanation text not null default '',
+  financial_impact text not null default '',
+  budget_funding text not null default '',
+  comparative_review text not null default '',
+  impact_assessment text not null default '',
+  public_participation text not null default '',
+  proposer_representatives text not null default '',
+  affected_provisions text not null default '',
   status initiative_status not null default 'review',
   author_ref text not null,
   author_name text not null,
@@ -82,6 +91,16 @@ create table if not exists initiatives (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table initiatives add column if not exists legislative_text text not null default '';
+alter table initiatives add column if not exists article_explanation text not null default '';
+alter table initiatives add column if not exists financial_impact text not null default '';
+alter table initiatives add column if not exists budget_funding text not null default '';
+alter table initiatives add column if not exists comparative_review text not null default '';
+alter table initiatives add column if not exists impact_assessment text not null default '';
+alter table initiatives add column if not exists public_participation text not null default '';
+alter table initiatives add column if not exists proposer_representatives text not null default '';
+alter table initiatives add column if not exists affected_provisions text not null default '';
 
 create table if not exists votes (
   id uuid primary key default gen_random_uuid(),
@@ -292,7 +311,16 @@ select
       where c.initiative_id = i.id
     ),
     '[]'::jsonb
-  ) as comments
+  ) as comments,
+  i.legislative_text,
+  i.article_explanation,
+  i.financial_impact,
+  i.budget_funding,
+  i.comparative_review,
+  i.impact_assessment,
+  i.public_participation,
+  i.proposer_representatives,
+  i.affected_provisions
 from initiatives i;
 
 create or replace view initiative_analytics as

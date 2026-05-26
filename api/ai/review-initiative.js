@@ -74,7 +74,16 @@ async function reviewInitiativeWithHuggingFace(payload, env) {
     values.summary,
     values.description,
     values.legalReference,
-    values.expectedImpact
+    values.expectedImpact,
+    values.legislativeText,
+    values.articleExplanation,
+    values.financialImpact,
+    values.budgetFunding,
+    values.comparativeReview,
+    values.impactAssessment,
+    values.publicParticipation,
+    values.proposerRepresentatives,
+    values.affectedProvisions
   ].join("\n\n");
 
   const [categoryResult, suitabilityResult] = await Promise.all([

@@ -43,7 +43,25 @@ const validInput = {
   description:
     "Predlog doloca, da mora biti vsaka sprememba zakonodajnega predloga objavljena v primerjalnem prikazu z navedbo predlagatelja, faze postopka in obrazlozitve. Uporabniki lahko primerjajo razlicice po clenu in izvozijo povzetek sprememb.",
   legalReference: "Zakon o dostopu do informacij javnega znacaja",
-  expectedImpact: "Vecja preglednost zakonodajnih postopkov in lazje sodelovanje javnosti."
+  expectedImpact:
+    "Cilj je zagotoviti sledljivost zakonodajnih sprememb, nacelo javnosti postopka in enoten digitalen prikaz poglavitnih resitev.",
+  legislativeText:
+    "1. clen\nPredlagatelj spremembe zakonodajnega predloga mora navesti besedilo spremembe, razlog zanjo in fazo postopka.\n\n2. clen\nDrzavni organ objavi primerjalni prikaz sprememb v strojno berljivi obliki.",
+  articleExplanation:
+    "K 1. clenu: clen doloca obvezne podatke pri vsaki spremembi predloga zakona.\n\nK 2. clenu: clen doloca javno objavo primerjalnega prikaza in tehnicno obliko objave.",
+  financialImpact:
+    "Predlog ne predvideva pomembnih dodatnih izdatkov drzavnega proracuna; izvedba se zagotovi z nadgradnjo obstojecih informacijskih resitev.",
+  budgetFunding:
+    "Sredstva za izvedbo se zagotovijo v okviru ze sprejetih postavk za digitalizacijo zakonodajnih postopkov.",
+  comparativeReview:
+    "Primerljive resitve poznajo Estonija, Finska in Avstrija, kjer so zakonodajna gradiva javno dostopna z elektronskimi sledmi sprememb. Predlog je skladen s pravom Evropske unije, ker krepi transparentnost in dostop do informacij.",
+  impactAssessment:
+    "Administrativne posledice so omejene na dopolnitev objav. Okoljskih ali prostorskih posledic ni. Gospodarski in socialni ucinki so pozitivni zaradi lazjega spremljanja pravil. Predlog podpira razvojno nacrtovanje digitalne drzave.",
+  publicParticipation:
+    "Javnost je sodelovala prek komentarjev v aplikaciji, evidentiranih glasov podpore in demo podpisov pobude.",
+  proposerRepresentatives: "Demo uporabnik, predstavnik predlagateljev",
+  affectedProvisions:
+    "Ce bi se predlog vlozil kot novela, se prilozi besedilo dolocb zakona, ki urejajo objavo zakonodajnih gradiv."
 };
 
 const actor = {
@@ -63,6 +81,17 @@ test("validateInitiative zavrne prekratko pobudo", () => {
   assert.ok(result.errors.title);
   assert.ok(result.errors.summary);
   assert.ok(result.errors.description);
+  assert.ok(result.errors.legislativeText);
+  assert.ok(result.errors.articleExplanation);
+  assert.ok(result.errors.comparativeReview);
+});
+
+test("validateInitiative sprejme DZ popoln predlog zakona", () => {
+  const result = validateInitiative(validInput);
+
+  assert.equal(result.valid, true);
+  assert.equal(result.values.legislativeText, validInput.legislativeText);
+  assert.equal(result.values.articleExplanation, validInput.articleExplanation);
 });
 
 test("evaluateInitiative oznaci proracunsko tveganje", () => {
@@ -142,6 +171,9 @@ test("DOCX izvoz ustvari OpenXML paket za Word", () => {
   assert.match(decoded, /\[Content_Types\]\.xml/);
   assert.match(decoded, /word\/document\.xml/);
   assert.match(decoded, /Javna sledljivost zakonodajnih sprememb/);
+  assert.match(decoded, /Besedilo clenov/);
+  assert.match(decoded, /Primerjalni prikaz in pravo EU/);
+  assert.match(decoded, /Certifikat skladnosti s slovensko zakonodajo/);
   assert.equal(blob.type, DOCX_MIME_TYPE);
   assert.ok(blob.size > 4000);
   assert.equal(
@@ -167,6 +199,9 @@ test("ODT izvoz ustvari OpenDocument paket", () => {
   assert.match(decoded, /application\/vnd\.oasis\.opendocument\.text/);
   assert.match(decoded, /content\.xml/);
   assert.match(decoded, /Javna sledljivost zakonodajnih sprememb/);
+  assert.match(decoded, /Besedilo clenov/);
+  assert.match(decoded, /Primerjalni prikaz in pravo EU/);
+  assert.match(decoded, /Certifikat skladnosti s slovensko zakonodajo/);
   assert.equal(blob.type, ODT_MIME_TYPE);
   assert.ok(blob.size > 4000);
   assert.equal(
