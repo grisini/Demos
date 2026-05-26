@@ -112,7 +112,7 @@ Ta pristop je viden v git zgodovini: projekt se je razvijal od osnovnega prototi
 ### Oddaja pobude
 
 1. Uporabnik se prijavi z demo identiteto.
-2. Izpolni naslov, kategorijo, povzetek, obrazlozitev, pravno podlago in pricakovani ucinek.
+2. Izpolni naslov, kategorijo, povzetek in vsebinske sklope za predlog zakona: uvod, besedilo clenov, obrazlozitev clenov, financne posledice, primerjalni prikaz, presojo posledic, sodelovanje javnosti in predstavnike predlagatelja.
 3. Aplikacija izvede validacijo.
 4. Lokalni ali Hugging Face AI predpregled pripravi oceno.
 5. Pobuda se shrani v izbrani repozitorij.

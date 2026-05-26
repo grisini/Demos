@@ -75,7 +75,16 @@ Shranjuje:
 - podrobno obrazlozitev (`description`),
 - kategorijo (`category`),
 - pravno podlago (`legal_reference`),
-- pricakovani ucinek (`expected_impact`),
+- cilje, nacela in poglavitne resitve (`expected_impact`),
+- besedilo clenov (`legislative_text`),
+- obrazlozitev clenov (`article_explanation`),
+- financne posledice (`financial_impact`),
+- zagotovitev sredstev (`budget_funding`),
+- primerjalni prikaz in skladnost s pravom EU (`comparative_review`),
+- presojo posledic (`impact_assessment`),
+- sodelovanje javnosti (`public_participation`),
+- predstavnike predlagatelja (`proposer_representatives`),
+- besedilo dolocb, ki se spreminjajo (`affected_provisions`),
 - status pobude (`status`),
 - avtorja pobude (`author_ref`, `author_name`),
 - rezultat AI ocene (`ai_score`, `ai_risk`, `ai_findings`, `ai_checks`),
@@ -310,6 +319,15 @@ Zato repozitorij opravlja mapiranje med:
 
 - `legalReference` <-> `legal_reference`
 - `expectedImpact` <-> `expected_impact`
+- `legislativeText` <-> `legislative_text`
+- `articleExplanation` <-> `article_explanation`
+- `financialImpact` <-> `financial_impact`
+- `budgetFunding` <-> `budget_funding`
+- `comparativeReview` <-> `comparative_review`
+- `impactAssessment` <-> `impact_assessment`
+- `publicParticipation` <-> `public_participation`
+- `proposerRepresentatives` <-> `proposer_representatives`
+- `affectedProvisions` <-> `affected_provisions`
 - `createdAt` <-> `created_at`
 - `updatedAt` <-> `updated_at`
 

@@ -86,6 +86,15 @@ classDiagram
     string description
     string legalReference
     string expectedImpact
+    string legislativeText
+    string articleExplanation
+    string financialImpact
+    string budgetFunding
+    string comparativeReview
+    string impactAssessment
+    string publicParticipation
+    string proposerRepresentatives
+    string affectedProvisions
     AiReview aiReview
     Vote[] votes
     Signature[] signatures
@@ -148,7 +157,20 @@ erDiagram
   INITIATIVES {
     uuid id PK
     text title
+    text summary
+    text description
     text category
+    text legal_reference
+    text expected_impact
+    text legislative_text
+    text article_explanation
+    text financial_impact
+    text budget_funding
+    text comparative_review
+    text impact_assessment
+    text public_participation
+    text proposer_representatives
+    text affected_provisions
     initiative_status status
     integer ai_score
     text ai_risk

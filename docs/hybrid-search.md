@@ -70,7 +70,7 @@ RPC funkciji:
 
 Search je kombinacija vec signalov:
 
-- full-text match cez naslov, povzetek, kategorijo, opis, pravno podlago in pricakovani ucinek,
+- full-text match cez naslov, povzetek, kategorijo, opis, pravno podlago, cilje, clene, obrazlozitev clenov, financne posledice, primerjalni prikaz in presoje posledic,
 - substring match po naslovu, povzetku in kategoriji,
 - fuzzy match predvsem po naslovu in kategoriji,
 - dodatni boost po podpori in svezi aktivnosti.

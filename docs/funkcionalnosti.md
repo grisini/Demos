@@ -19,8 +19,8 @@ Statusi v tabeli:
 | ID | Funkcionalnost | Status | Dokaz v kodi | Preverjanje | Opombe |
 | --- | --- | --- | --- | --- | --- |
 | F-01 | Demo prijava uporabnika | Implementirano | `src/lib/auth.js`, `src/main.js` | Rocni zagon aplikacije | Identiteta se hrani v `localStorage`; to ni produkcijski SI-PASS tok. |
-| F-02 | Oddaja zakonodajne pobude | Implementirano | `src/main.js`, `src/domain/validation.js` | `tests/domain.test.mjs` | Pobuda zahteva naslov, kategorijo, povzetek in obrazlozitev. |
-| F-03 | Validacija pobude | Implementirano | `src/domain/validation.js`, `supabase/schema.sql` | `npm test` | Minimalne dolzine so preverjene v domeni in delno v SQL `check` omejitvah. |
+| F-02 | Oddaja zakonodajne pobude | Implementirano | `src/main.js`, `src/domain/validation.js` | `tests/domain.test.mjs` | Obrazec zajame sestavine predloga zakona za DZ: uvod, besedilo clenov, obrazlozitev, financne posledice, primerjalni prikaz, presoje posledic, javnost in predstavnike. |
+| F-03 | Validacija pobude | Implementirano | `src/domain/validation.js`, `supabase/schema.sql` | `npm test` | Minimalne dolzine so preverjene v domeni; SQL shema hrani tudi dodatna DZ polja. |
 | F-04 | Lokalni AI predpregled | Implementirano | `evaluateInitiative()` v `src/domain/validation.js` | `npm test` | Uporablja pravila za obseg, pravne izraze, proracunska tveganja in kategorijo. |
 | F-05 | Hugging Face AI predpregled | Delno implementirano | `scripts/dev-server.mjs`, `src/main.js` | Rocni POST na `/api/ai/review-initiative` | Deluje v razvojnem strezniku, produkcijsko mora v backend ali Supabase Edge Function. |
 | F-06 | AI fallback ob napaki | Implementirano | `reviewInitiative()` v `src/main.js` | Rocni test brez `HF_TOKEN` | Ob nedosegljivem zunanjem modelu aplikacija uporabi lokalno presojo. |
@@ -55,8 +55,8 @@ Statusi v tabeli:
 | F-35 | Javni pogled za neprijavljene | Implementirano | `visibleInitiatives()`, `renderDashboardView()`, `renderPublicInitiativeDetail()` | Rocni zagon aplikacije | Brez prijave so vidne samo pobude s statusom `active` ali `signature_collection`; oddaja pobude, komentarji, podpisi in analitike ostanejo zaklenjeni. |
 | F-36 | Anonimno enkratno glasovanje | Delno implementirano | `anonymousActor()`, `voteForInitiative()`, `LocalInitiativeRepository.vote()` | `npm test`, rocni zagon aplikacije | Uporablja lokalni ID `demos.anonymousVoterId` in domensko pravilo en glas na pobudo. To je prototipna zascita; produkcijsko mora biti podprta z backend omejitvami. |
 | F-37 | Admin-only integracije | Implementirano | `normalizeView()`, `render()` navigacija, `renderIntegrationsView()` | Rocni zagon aplikacije kot demo uporabnik in demo admin | Zavihek `Integracije` vidi samo demo admin; navaden uporabnik je preusmerjen na pregled. |
-| F-38 | PDF izvoz pobude za DZ | Implementirano | `renderInitiativeDetail()`, `openInitiativePrintExport()`, `downloadInitiativePdfExport()` v `src/main.js` | Rocni zagon aplikacije, status `Zbiranje podpisov` ali `Oddana DZ` | Izvoz je omogocen pri `signature_collection` in `submitted`; prikazana sta locena gumba z ikonama za tiskanje in prenos PDF. |
-| F-39 | DOCX/Word izvoz pobude za DZ | Implementirano | `src/lib/docx-export.js`, `downloadInitiativeDocxExport()` in `renderIntegrationsView()` v `src/main.js` | `npm test`, rocni zagon aplikacije, status `Zbiranje podpisov` ali `Oddana DZ` | Aplikacija ustvari `.docx` OpenXML paket v brskalniku, z identifikacijo pobude, podpisniki, AI predpregledom in metapodatki dokumenta. |
+| F-38 | PDF izvoz pobude za DZ | Implementirano | `renderInitiativeDetail()`, `openInitiativePrintExport()`, `downloadInitiativePdfExport()` v `src/main.js` | Rocni zagon aplikacije, status `Zbiranje podpisov` ali `Oddana DZ` | Izvoz je omogocen pri `signature_collection` in `submitted`; PDF vsebuje formalne sklope predloga zakona. |
+| F-39 | DOCX/ODT izvoz pobude za DZ | Implementirano | `src/lib/docx-export.js`, `downloadInitiativeDocxExport()`, `downloadInitiativeOdtExport()` in `renderInitiativeDetail()` v `src/main.js` | `npm test`, rocni zagon aplikacije, status `Zbiranje podpisov` ali `Oddana DZ` | Aplikacija ustvari `.docx` OpenXML ali `.odt` OpenDocument paket v brskalniku, z obveznimi vsebinskimi sklopi za DZ, podpisniki, AI predpregledom in metapodatki dokumenta. |
 | F-40 | Cloudflare Turnstile za oddajo pobude | Delno implementirano | `src/lib/turnstile.js`, `api/security/turnstile.js`, `server/turnstile.mjs`, `src/main.js` | `npm test`, nastavljen `TURNSTILE_SITE_KEY` in `TURNSTILE_SECRET_KEY` | Oddaja pobude pred zapisom preveri Turnstile token na backendu. Za polno produkcijsko varnost je treba pisalne Supabase akcije prestaviti na backend in dodati rate limiting. |
 
 ## Sprejemni kriteriji po funkcionalnih sklopih
@@ -64,7 +64,7 @@ Statusi v tabeli:
 ### Pobude
 
 - Uporabnik se lahko prijavi z demo identiteto.
-- Uporabnik lahko odda pobudo z naslovom, kategorijo, povzetkom, obrazlozitvijo, pravno podlago in pricakovanim ucinkom.
+- Uporabnik lahko odda pobudo z naslovom, kategorijo, povzetkom, pravno podlago, oceno stanja, cilji in resitvami, besedilom clenov, obrazlozitvijo clenov, financnimi posledicami, primerjalnim prikazom, presojo posledic, sodelovanjem javnosti in predstavniki predlagatelja.
 - Prekratka ali nepopolna pobuda se zavrne z razumljivimi napakami.
 - Pobuda dobi zacetni status glede na AI tveganje.
 

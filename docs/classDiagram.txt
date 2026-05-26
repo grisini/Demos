@@ -8,6 +8,15 @@ classDiagram
     string description
     string legalReference
     string expectedImpact
+    string legislativeText
+    string articleExplanation
+    string financialImpact
+    string budgetFunding
+    string comparativeReview
+    string impactAssessment
+    string publicParticipation
+    string proposerRepresentatives
+    string affectedProvisions
     AiReview aiReview
     Vote[] votes
     Signature[] signatures
