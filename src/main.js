@@ -52,13 +52,15 @@ import {
 } from "./lib/vercel-speed-insights.js";
 
 const DEMO_ADMIN_EMAIL = "admin@demos.local";
-const APP_VIEWS = ["dashboard", "submit", "analytics", "integrations", "systemAnalytics"];
+const APP_VIEWS = ["dashboard", "submit", "analytics", "integrations", "systemAnalytics", "accessibility"];
 const PUBLIC_INITIATIVE_STATUSES = ["active", "signature_collection"];
 const ANONYMOUS_VOTER_KEY = "demos.anonymousVoterId";
 const REMOTE_SEARCH_DEBOUNCE_MS = 800;
 const REMOTE_SEARCH_MIN_LENGTH = 2;
 const EXPORTABLE_INITIATIVE_STATUSES = ["signature_collection", "submitted"];
 const INITIATIVE_TURNSTILE_ACTION = "submit_initiative";
+const ACCESSIBILITY_STANDARD = "EN 301 549 v3.2.1 / WCAG 2.1 AA";
+const ACCESSIBILITY_REVIEW_DATE = "26. 5. 2026";
 const LEGAL_COMPLIANCE_CERTIFICATE =
   "Certifikat skladnosti s slovensko zakonodajo: dokument je pripravljen po kontrolnem seznamu za predlog zakona po slovenski zakonodaji in Poslovniku Drzavnega zbora. Pravna skladnost pred uradno vlozitvijo ostaja odgovornost predlagatelja.";
 const INITIATIVE_EXPORT_ACTIONS = {
@@ -97,6 +99,7 @@ class DemocracyApp {
     this.telemetry = telemetry;
     this.clarityInsightsClient = clarityInsightsClient;
     this.config = appConfig;
+    this.pendingMainFocus = false;
     this.anonymousVoterSessionId = "";
     this.searchRequestId = 0;
     this.searchDebounceTimer = null;
@@ -133,6 +136,7 @@ class DemocracyApp {
     this.root.addEventListener("submit", (event) => this.handleSubmit(event));
     this.root.addEventListener("input", (event) => this.handleInput(event));
     this.root.addEventListener("change", (event) => this.handleChange(event));
+    window.addEventListener("keydown", (event) => this.handleGlobalKeydown(event));
     window.addEventListener("popstate", () => this.handleRouteChange());
   }
 
@@ -339,6 +343,7 @@ class DemocracyApp {
     this.root.className = `app-shell ${sidebarState}`;
 
     this.root.innerHTML = `
+      <a class="skip-link" href="#main-content">Preskoci na glavno vsebino</a>
       <button class="sidebar-backdrop" type="button" data-action="close-sidebar" aria-label="Zapri meni"></button>
       <button class="sidebar-edge-toggle" type="button" data-action="toggle-sidebar" aria-controls="app-sidebar" aria-expanded="${this.state.sidebarOpen ? "true" : "false"}" aria-label="${this.state.sidebarOpen ? "Zapri meni" : "Odpri meni"}">
         <span class="toggle-icon" aria-hidden="true">
@@ -370,20 +375,20 @@ class DemocracyApp {
         </div>
       </aside>
 
-      <main class="content">
+      <main id="main-content" class="content" tabindex="-1" aria-busy="${this.state.loading ? "true" : "false"}" aria-labelledby="page-title">
         <header class="topbar">
           <div class="topbar-title">
             <div>
               <p class="eyebrow">Projekt Demos</p>
-              <h1>${this.pageTitle()}</h1>
+              <h1 id="page-title" tabindex="-1">${this.pageTitle()}</h1>
             </div>
           </div>
           <div class="topbar-actions">
             <span class="env-pill">${this.config.SIPASS_ENV === "test" ? "SI-PASS test" : "SI-PASS prod"}</span>
-            <button class="button secondary" data-action="refresh">Osvezi</button>
+            <button class="button secondary" type="button" data-action="refresh">Osvezi</button>
           </div>
         </header>
-        ${this.state.toast ? `<div class="toast" role="status">${escapeHtml(this.state.toast)}</div>` : ""}
+        ${this.state.toast ? `<div class="toast" role="status" aria-live="polite" aria-atomic="true">${escapeHtml(this.state.toast)}</div>` : ""}
         ${
           this.state.loading
             ? this.renderLoading()
@@ -392,6 +397,7 @@ class DemocracyApp {
       </main>
     `;
     this.restoreFocusState(focusState);
+    this.focusMainHeading();
     this.syncExternalAnalytics();
     this.syncSecurityWidgets();
   }
@@ -415,6 +421,7 @@ class DemocracyApp {
         </div>
         <div class="footer-badges" aria-label="Stanje sistema">
           <span>Kontrolni seznam DZ</span>
+          <span>${escapeHtml(ACCESSIBILITY_STANDARD)}</span>
           <span>${escapeHtml(dataMode)}</span>
           <span>${escapeHtml(sipassMode)}</span>
           <span>${escapeHtml(securityMode)}</span>
@@ -423,6 +430,7 @@ class DemocracyApp {
           <button type="button" data-action="view" data-view="dashboard">Pregled pobud</button>
           ${this.currentUser() ? `<button type="button" data-action="view" data-view="submit">Nova pobuda</button>` : ""}
           ${this.currentUser() ? `<button type="button" data-action="view" data-view="analytics">Analitika</button>` : ""}
+          <button type="button" data-action="view" data-view="accessibility">Dostopnost</button>
           <button type="button" data-action="refresh">Osvezi podatke</button>
         </nav>
         <div class="footer-bottom">
@@ -456,12 +464,26 @@ class DemocracyApp {
     }
   }
 
+  requestMainFocus() {
+    this.pendingMainFocus = true;
+  }
+
+  focusMainHeading() {
+    if (!this.pendingMainFocus) return;
+    this.pendingMainFocus = false;
+    const heading = this.root.querySelector("#page-title");
+    if (heading) heading.focus({ preventScroll: true });
+  }
+
   renderView(analytics, selected) {
-    if (!this.currentUser() && this.state.activeView !== "dashboard") return this.renderLoginRequiredView();
+    if (!this.currentUser() && !["dashboard", "accessibility"].includes(this.state.activeView)) {
+      return this.renderLoginRequiredView();
+    }
     if (this.state.activeView === "submit") return this.renderSubmitView();
     if (this.state.activeView === "analytics") return this.renderAnalyticsView(analytics);
     if (this.state.activeView === "integrations") return this.renderIntegrationsView();
     if (this.state.activeView === "systemAnalytics") return this.renderSystemAnalyticsView();
+    if (this.state.activeView === "accessibility") return this.renderAccessibilityView();
     return this.renderDashboardView(analytics, selected);
   }
 
@@ -514,9 +536,9 @@ class DemocracyApp {
                 </select>
               </label>
             </div>
-            ${this.state.searchLoading ? `<div class="empty-state">Iskanje...</div>` : ""}
-            ${this.state.searchError ? `<div class="empty-state">${escapeHtml(this.state.searchError)}</div>` : ""}
-            <div class="initiative-list">
+            ${this.state.searchLoading ? `<div class="empty-state" role="status" aria-live="polite">Iskanje...</div>` : ""}
+            ${this.state.searchError ? `<div class="empty-state" role="alert">${escapeHtml(this.state.searchError)}</div>` : ""}
+            <div class="initiative-list" role="list" aria-label="Seznam pobud">
               ${
                 this.state.searchLoading
                   ? ""
@@ -536,19 +558,20 @@ class DemocracyApp {
 
   renderSubmitView() {
     const review = this.state.aiPreviewReview || evaluateInitiative(this.state.draft);
+    const categoryId = this.fieldId("category");
     return `
       <section class="submit-grid">
-        <form class="panel form-panel" data-form="initiative">
+        <form class="panel form-panel" data-form="initiative" aria-labelledby="submit-form-title">
           <div class="panel-header">
             <div>
               <p class="eyebrow">Nova zakonodajna pobuda</p>
-              <h2>Oddaja pobude</h2>
+              <h2 id="submit-form-title">Oddaja pobude</h2>
             </div>
           </div>
           ${this.input("title", "Naslov pobude", "npr. Javna sledljivost zakonodajnih sprememb")}
-          <label class="field">
+          <label class="field" for="${categoryId}">
             <span>Kategorija</span>
-            <select name="category" data-draft="category">
+            <select id="${categoryId}" name="category" data-draft="category" ${this.fieldAriaAttributes("category")}>
               <option value="">Izberi kategorijo</option>
               ${CATEGORIES.map((category) => option(category, category, this.state.draft.category)).join("")}
             </select>
@@ -612,7 +635,7 @@ class DemocracyApp {
                 (item) => `
                   <div class="bar-row">
                     <span>${item.label}</span>
-                    <div class="bar-track"><div style="width:${analytics.initiativeCount ? (item.count / analytics.initiativeCount) * 100 : 0}%"></div></div>
+                    <div class="bar-track" aria-hidden="true"><div style="width:${analytics.initiativeCount ? (item.count / analytics.initiativeCount) * 100 : 0}%"></div></div>
                     <strong title="${item.votes} glasov">${item.count}</strong>
                   </div>
                 `
@@ -643,12 +666,12 @@ class DemocracyApp {
           <h2>Napredna tabela pobud</h2>
           <div class="initiative-analytics-table" role="table" aria-label="Glasovi na pobudo">
             <div class="initiative-analytics-head" role="row">
-              <span>Pobuda</span>
-              <span>Glasovi</span>
-              <span>Delez</span>
-              <span>Podpisi</span>
-              <span>Komentarji</span>
-              <span>AI</span>
+              <span role="columnheader">Pobuda</span>
+              <span role="columnheader">Glasovi</span>
+              <span role="columnheader">Delez</span>
+              <span role="columnheader">Podpisi</span>
+              <span role="columnheader">Komentarji</span>
+              <span role="columnheader">AI</span>
             </div>
             ${
               analytics.initiativeStats.length
@@ -743,7 +766,7 @@ class DemocracyApp {
                     <small>${escapeHtml(row.secondary || chart.metricName)}</small>
                   </span>
                   <em>${escapeHtml(formatClarityMetric(row.value, row.unit))}</em>
-                  <div class="bar-track"><div style="width:${Math.min(100, ((Number(row.value) || 0) / maxValue) * 100)}%"></div></div>
+                  <div class="bar-track" aria-hidden="true"><div style="width:${Math.min(100, ((Number(row.value) || 0) / maxValue) * 100)}%"></div></div>
                 </div>
               `
             )
@@ -969,6 +992,50 @@ class DemocracyApp {
     `;
   }
 
+  renderAccessibilityView() {
+    return `
+      <section class="accessibility-grid">
+        <div class="panel wide-panel">
+          <p class="eyebrow">Dostopnost</p>
+          <h2>Izjava o dostopnosti</h2>
+          <p class="summary">Aplikacija Demokracija 2.0 je pripravljena z namenom skladnosti s standardom ${escapeHtml(ACCESSIBILITY_STANDARD)} za spletne strani javnega sektorja.</p>
+          <dl class="config-list">
+            <div><dt>Standard</dt><dd>${escapeHtml(ACCESSIBILITY_STANDARD)}</dd></div>
+            <div><dt>Obseg</dt><dd>Spletna aplikacija, obrazci, pregled pobud in analitika</dd></div>
+            <div><dt>Metoda pregleda</dt><dd>Samoocena prototipa, pregled tipkovnice in avtomatizirani domenjski testi</dd></div>
+            <div><dt>Datum pregleda</dt><dd>${escapeHtml(ACCESSIBILITY_REVIEW_DATE)}</dd></div>
+          </dl>
+        </div>
+        <div class="panel">
+          <p class="eyebrow">Vkljuceno</p>
+          <h2>Tehnicni ukrepi</h2>
+          <ul class="check-list">
+            <li>Semanticni pogledi z glavnim obmocjem, navigacijo, obrazci in statusnimi obvestili.</li>
+            <li>Preskok na glavno vsebino in vidna tipkovnicna fokusna oznaka.</li>
+            <li>Oznacena polja, povezane napake obrazcev in opisi gumbov z ikonami.</li>
+            <li>Graficni kazalniki imajo tekstovne vrednosti in niso edini vir informacije.</li>
+            <li>Postovana je nastavitev za zmanjsano gibanje v brskalniku.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <p class="eyebrow">Omejitve</p>
+          <h2>Znane neskladnosti</h2>
+          <ul class="check-list">
+            <li>Varnostni gradnik Turnstile je zunanji element in je odvisen od dostopnosti ponudnika.</li>
+            <li>Izvoz PDF je namenjen tiskanju in se ne razglasa kot popolnoma oznacen dostopen PDF.</li>
+            <li>DOCX in ODT izvoz uporabljata osnovno strukturo dokumenta; pred uradno objavo je potreben rocni pregled dokumenta.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <p class="eyebrow">Povratne informacije</p>
+          <h2>Postopek izboljsav</h2>
+          <p class="summary">Dostopnost je treba preveriti ob vsaki vecji spremembi uporabniskega vmesnika, posebej pri novih obrazcih, grafih, dokumentih in integracijah.</p>
+          <p class="note">Za ugotovljene ovire uporabite projektni repozitorij ali kontakt skrbnika projekta, da se napaka evidentira in popravi v naslednji iteraciji.</p>
+        </div>
+      </section>
+    `;
+  }
+
   renderCategoryAnalytics(item, maxVotes) {
     return `
       <div class="category-analytics-row">
@@ -977,7 +1044,7 @@ class DemocracyApp {
           <small>${item.count} pobud - ${item.votes} glasov - ${item.comments} komentarjev</small>
         </div>
         <em>${item.averageAiScore}% AI</em>
-        <div class="bar-track"><div style="width:${(item.votes / maxVotes) * 100}%"></div></div>
+        <div class="bar-track" aria-hidden="true"><div style="width:${(item.votes / maxVotes) * 100}%"></div></div>
       </div>
     `;
   }
@@ -1036,18 +1103,18 @@ class DemocracyApp {
   renderInitiativeAnalyticsRow(item, maxVotes) {
     return `
       <div class="initiative-analytics-row" role="row">
-        <div>
+        <div role="cell">
           <strong>${escapeHtml(item.title)}</strong>
           <small>${escapeHtml(item.category)} - ${statusLabel(item.status)}</small>
         </div>
-        <div>
+        <div role="cell">
           <strong>${item.votes}</strong>
-          <div class="mini-bar"><div style="width:${(item.votes / maxVotes) * 100}%"></div></div>
+          <div class="mini-bar" aria-hidden="true"><div style="width:${(item.votes / maxVotes) * 100}%"></div></div>
         </div>
-        <span>${item.voteShare}%</span>
-        <span>${item.signatures}</span>
-        <span>${item.comments}</span>
-        <span>${item.aiScore}%</span>
+        <span role="cell">${item.voteShare}%</span>
+        <span role="cell">${item.signatures}</span>
+        <span role="cell">${item.comments}</span>
+        <span role="cell">${item.aiScore}%</span>
       </div>
     `;
   }
@@ -1083,7 +1150,7 @@ class DemocracyApp {
             <div><dt>Avtoriteta</dt><dd>${escapeHtml(this.config.SIPASS_AUTHORITY)}</dd></div>
             <div><dt>Client ID</dt><dd>${this.config.SIPASS_CLIENT_ID ? "nastavljen" : "ni nastavljen"}</dd></div>
           </dl>
-          <button class="button secondary" data-action="sipass-login">SI-PASS prijava</button>
+          <button class="button secondary" type="button" data-action="sipass-login">SI-PASS prijava</button>
         </div>
         <div class="panel">
           <p class="eyebrow">AI presoja</p>
@@ -1158,7 +1225,7 @@ class DemocracyApp {
             <div><dt>Test akterja</dt><dd>${this.config.EMAIL_NOTIFY_ACTOR ? "vklopljen" : "izklopljen"}</dd></div>
             <div><dt>Dogodki</dt><dd>status, komentar, podpora, nova sorodna pobuda</dd></div>
           </dl>
-          <button class="button secondary" data-action="test-email">Test email obvestila</button>
+          <button class="button secondary" type="button" data-action="test-email">Test email obvestila</button>
           <p class="note">V dev nacinu endpoint obvestila zapise v outbox ali jih poslje prek SMTP, ce je nastavljen.</p>
         </div>
       </section>
@@ -1170,15 +1237,20 @@ class DemocracyApp {
     const active = initiative.id === this.state.selectedId ? "active" : "";
     const voteCount = initiative.votes.length;
     const commentCount = initiative.comments.length;
+    const description = `${initiative.title}, ${statusLabel(initiative.status)}, ${voteCount} glasov${
+      user ? `, ${commentCount} komentarjev` : ""
+    }`;
     return `
-      <article class="initiative-card ${active}">
-        <button class="card-button" data-action="select" data-id="${initiative.id}">
-          <span class="status-dot ${initiative.status}"></span>
+      <article class="initiative-card ${active}" role="listitem">
+        <button class="card-button" type="button" data-action="select" data-id="${initiative.id}" aria-pressed="${
+          active ? "true" : "false"
+        }" aria-label="Izberi pobudo: ${escapeAttribute(description)}">
+          <span class="status-dot ${initiative.status}" aria-hidden="true"></span>
           <span>
             <strong>${escapeHtml(initiative.title)}</strong>
             <small>${escapeHtml(initiative.category)} - ${statusLabel(initiative.status)} - ${voteCount} glasov${user ? ` - ${commentCount} komentarjev` : ""}</small>
           </span>
-          <span class="support-count" title="Glasovi">${voteCount}</span>
+          <span class="support-count" title="Glasovi" aria-hidden="true">${voteCount}</span>
         </button>
       </article>
     `;
@@ -1203,24 +1275,24 @@ class DemocracyApp {
         <span class="status-badge ${initiative.status}">${statusLabel(initiative.status)}</span>
       </div>
       <p class="summary">${escapeHtml(initiative.summary)}</p>
-      <div class="support-actions">
-        <button class="button primary" data-action="vote" data-id="${initiative.id}" ${voted ? "disabled" : ""}>
+      <div class="support-actions" aria-label="Dejanja pobude">
+        <button class="button primary" type="button" data-action="vote" data-id="${initiative.id}" ${voted ? "disabled" : ""}>
           ${voted ? "Glas oddan" : "Glasuj"}
         </button>
-        <button class="button secondary" data-action="sign" data-id="${initiative.id}" ${signed ? "disabled" : ""}>
+        <button class="button secondary" type="button" data-action="sign" data-id="${initiative.id}" ${signed ? "disabled" : ""}>
           ${signed ? "Podpis evidentiran" : "Demo podpis"}
         </button>
         ${
           exportReady
             ? `
-              <button class="button secondary icon-button" data-action="print-pdf" data-id="${initiative.id}" aria-label="Natisni izvoz za DZ" title="Natisni izvoz za DZ">
+              <button class="button secondary icon-button" type="button" data-action="print-pdf" data-id="${initiative.id}" aria-label="Natisni izvoz za DZ" title="Natisni izvoz za DZ">
                 ${printIcon()}
               </button>
-              <button class="button secondary icon-button" data-action="download-pdf" data-id="${initiative.id}" aria-label="Prenesi PDF za DZ" title="Prenesi PDF za DZ">
+              <button class="button secondary icon-button" type="button" data-action="download-pdf" data-id="${initiative.id}" aria-label="Prenesi PDF za DZ" title="Prenesi PDF za DZ">
                 ${downloadIcon()}
               </button>
               <details class="export-menu">
-                <summary class="button secondary export-menu-trigger" aria-label="Prenesi dokument za DZ" title="Prenesi dokument za DZ">
+                <summary class="button secondary export-menu-trigger" aria-haspopup="menu" aria-label="Prenesi dokument za DZ" title="Prenesi dokument za DZ">
                   ${wordIcon()}
                   <span>DOCX/ODT</span>
                   ${chevronDownIcon()}
@@ -1322,10 +1394,11 @@ class DemocracyApp {
       <section class="detail-section">
         <h3>Komentarji</h3>
         <form class="comment-form" data-form="comment" data-id="${initiative.id}">
-          <input name="body" placeholder="Dodaj komentar" autocomplete="off" />
+          <label class="sr-only" for="comment-body-${escapeAttribute(initiative.id)}">Dodaj komentar</label>
+          <input id="comment-body-${escapeAttribute(initiative.id)}" name="body" placeholder="Dodaj komentar" autocomplete="off" />
           <button class="button secondary" type="submit">Objavi</button>
         </form>
-        <div class="comments">
+        <div class="comments" aria-live="polite">
           ${
             initiative.comments.length
               ? initiative.comments.map((comment) => this.renderComment(comment)).join("")
@@ -1358,9 +1431,10 @@ class DemocracyApp {
 
   renderLoading() {
     return `
-      <section class="panel">
-        <div class="loading-line"></div>
-        <div class="loading-line short"></div>
+      <section class="panel" role="status" aria-live="polite" aria-label="Nalaganje podatkov">
+        <span class="sr-only">Nalaganje podatkov.</span>
+        <div class="loading-line" aria-hidden="true"></div>
+        <div class="loading-line short" aria-hidden="true"></div>
       </section>
     `;
   }
@@ -1373,7 +1447,7 @@ class DemocracyApp {
     const canCallRemoteAi = options.showRemoteAiAction && this.config.AI_REVIEW_ENDPOINT;
     return `
       <p class="eyebrow">AI predpregled</p>
-      <div class="score-ring" style="--score: ${review.score}">
+      <div class="score-ring" style="--score: ${review.score}" role="img" aria-label="AI ocena ${review.score} odstotkov, tveganje ${escapeAttribute(riskLabel(review.risk))}">
         <strong>${review.score}%</strong>
         <span>${riskLabel(review.risk)}</span>
       </div>
@@ -1430,14 +1504,14 @@ class DemocracyApp {
 
   renderLogin() {
     return `
-      <form class="login-form" data-form="login">
+      <form class="login-form" data-form="login" aria-label="Demo prijava">
         <label>
           <span>Ime</span>
-          <input name="name" value="Demo uporabnik" />
+          <input name="name" type="text" value="Demo uporabnik" autocomplete="name" />
         </label>
         <label>
           <span>E-posta</span>
-          <input name="email" value="demo@demos.local" />
+          <input name="email" type="email" value="demo@demos.local" autocomplete="email" inputmode="email" />
         </label>
         <div class="login-actions">
           <button class="button primary compact" type="submit">Demo prijava</button>
@@ -1462,7 +1536,7 @@ class DemocracyApp {
       </div>
       <p class="summary">${escapeHtml(initiative.summary)}</p>
       <div class="support-actions">
-        <button class="button primary" data-action="vote" data-id="${initiative.id}" ${voted ? "disabled" : ""}>
+        <button class="button primary" type="button" data-action="vote" data-id="${initiative.id}" ${voted ? "disabled" : ""}>
           ${voted ? "Anonimni glas oddan" : "Glasuj anonimno"}
         </button>
       </div>
@@ -1479,11 +1553,11 @@ class DemocracyApp {
   renderUser(user) {
     const admin = this.isAdminUser(user);
     return `
-      <div class="signed-user">
+      <div class="signed-user" aria-label="Prijavljen uporabnik">
         <span>${escapeHtml(user.name)}</span>
         <small>${escapeHtml(admin ? "Demo admin" : user.provider === "demo" ? "Demo identiteta" : user.provider || "Uporabnik")}</small>
         ${admin ? "" : `<button class="button secondary compact" type="button" data-action="demo-admin-login">Demo admin</button>`}
-        <button class="button secondary compact" data-action="logout">Odjava</button>
+        <button class="button secondary compact" type="button" data-action="logout">Odjava</button>
       </div>
     `;
   }
@@ -1491,8 +1565,10 @@ class DemocracyApp {
   navButton(view, label, number) {
     const active = this.state.activeView === view ? "active" : "";
     return `
-      <button class="nav-button ${active}" data-action="view" data-view="${view}">
-        <span>${number}</span>
+      <button class="nav-button ${active}" type="button" data-action="view" data-view="${view}" ${
+        active ? 'aria-current="page"' : ""
+      }>
+        <span aria-hidden="true">${number}</span>
         ${label}
       </button>
     `;
@@ -1500,10 +1576,10 @@ class DemocracyApp {
 
   metric(label, value, hint) {
     return `
-      <div class="metric-card">
-        <span>${label}</span>
-        <strong>${value}</strong>
-        <small>${hint}</small>
+      <div class="metric-card" role="group" aria-label="${escapeAttribute(`${label}: ${value}. ${hint}`)}">
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(value)}</strong>
+        <small>${escapeHtml(hint)}</small>
       </div>
     `;
   }
@@ -1518,36 +1594,54 @@ class DemocracyApp {
   }
 
   input(name, label, placeholder) {
+    const id = this.fieldId(name);
     return `
-      <label class="field">
+      <label class="field" for="${id}">
         <span>${label}</span>
-        <input name="${name}" data-draft="${name}" value="${escapeAttribute(this.state.draft[name])}" placeholder="${placeholder}" />
+        <input id="${id}" name="${name}" data-draft="${name}" value="${escapeAttribute(this.state.draft[name])}" placeholder="${escapeAttribute(placeholder)}" ${this.fieldAriaAttributes(name)} />
         ${this.error(name)}
       </label>
     `;
   }
 
   textarea(name, label, rows) {
+    const id = this.fieldId(name);
     return `
-      <label class="field">
+      <label class="field" for="${id}">
         <span>${label}</span>
-        <textarea name="${name}" data-draft="${name}" rows="${rows}">${escapeHtml(this.state.draft[name])}</textarea>
+        <textarea id="${id}" name="${name}" data-draft="${name}" rows="${rows}" ${this.fieldAriaAttributes(name)}>${escapeHtml(this.state.draft[name])}</textarea>
         ${this.error(name)}
       </label>
     `;
   }
 
   error(name) {
-    return this.state.errors[name] ? `<small class="field-error">${escapeHtml(this.state.errors[name])}</small>` : "";
+    return this.state.errors[name]
+      ? `<small id="${this.fieldErrorId(name)}" class="field-error" role="alert">${escapeHtml(this.state.errors[name])}</small>`
+      : "";
+  }
+
+  fieldId(name) {
+    return `field-${name}`;
+  }
+
+  fieldErrorId(name) {
+    return `${this.fieldId(name)}-error`;
+  }
+
+  fieldAriaAttributes(name) {
+    return this.state.errors[name]
+      ? `aria-invalid="true" aria-describedby="${this.fieldErrorId(name)}"`
+      : 'aria-invalid="false"';
   }
 
   renderSecurityGate(action) {
     if (!isTurnstileEnabled(this.config)) return "";
 
     return `
-      <div class="security-gate">
+      <div class="security-gate" role="group" aria-label="Varnostno preverjanje">
         <div data-turnstile-widget data-turnstile-action="${escapeAttribute(action)}"></div>
-        ${this.state.turnstileError ? `<small class="field-error">${escapeHtml(this.state.turnstileError)}</small>` : ""}
+        ${this.state.turnstileError ? `<small class="field-error" role="alert">${escapeHtml(this.state.turnstileError)}</small>` : ""}
       </div>
     `;
   }
@@ -1558,8 +1652,15 @@ class DemocracyApp {
       submit: "Oddaja nove pobude",
       analytics: "Analitika pobud",
       integrations: "Nastavitve integracij",
-      systemAnalytics: "Sistemska analitika"
+      systemAnalytics: "Sistemska analitika",
+      accessibility: "Izjava o dostopnosti"
     }[this.state.activeView];
+  }
+
+  handleGlobalKeydown(event) {
+    if (event.key !== "Escape" || !this.state.sidebarOpen || !isSmallViewport()) return;
+    this.state.sidebarOpen = false;
+    this.render();
   }
 
   async handleClick(event) {
@@ -1575,6 +1676,7 @@ class DemocracyApp {
         return;
       }
       this.setActiveView(target.dataset.view);
+      this.requestMainFocus();
       if (isSmallViewport()) {
         this.state.sidebarOpen = false;
       }
@@ -2330,6 +2432,7 @@ class DemocracyApp {
   handleRouteChange() {
     this.state.activeView = initialView(this.currentUser());
     setVercelSpeedInsightsRoute(this.speedInsightsRoute());
+    this.requestMainFocus();
     this.render();
   }
 

@@ -16,8 +16,10 @@
   --accent-soft: rgba(213, 0, 0, 0.1);
   --info: #005da8;
   --danger: #b42318;
-  --warning: #b7791f;
+  --warning: #8a5600;
   --ok: #247a48;
+  --focus: #111827;
+  --focus-on-dark: #ffffff;
   --sidebar: #06274d;
   --sidebar-2: #0b376b;
   --slovenia-white: #ffffff;
@@ -74,6 +76,52 @@ button:disabled {
 
 a {
   color: inherit;
+}
+
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+.sidebar :where(a, button, input, select, textarea, summary):focus-visible,
+.topbar :where(a, button, input, select, textarea, summary):focus-visible,
+.app-footer :where(a, button, input, select, textarea, summary):focus-visible {
+  outline-color: var(--focus-on-dark);
+  box-shadow:
+    0 0 0 2px rgba(6, 39, 77, 0.92),
+    0 0 0 5px var(--focus-on-dark);
+}
+
+.skip-link {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 100;
+  transform: translateY(-160%);
+  border: 2px solid var(--focus);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  color: var(--text);
+  padding: 10px 14px;
+  font-weight: 900;
+  text-decoration: none;
+  box-shadow: var(--shadow-soft);
+  transition: transform 160ms ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 code {
@@ -354,8 +402,19 @@ code {
 .nav-button:focus-visible,
 .button:focus-visible,
 .sidebar-edge-toggle:focus-visible {
-  outline: 3px solid rgba(0, 93, 168, 0.28);
-  outline-offset: 2px;
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.sidebar .nav-button:focus-visible,
+.topbar .button:focus-visible,
+.app-footer .button:focus-visible,
+.app-footer button:focus-visible,
+.app-shell.sidebar-open .sidebar-edge-toggle:focus-visible {
+  outline-color: var(--focus-on-dark);
+  box-shadow:
+    0 0 0 2px rgba(6, 39, 77, 0.92),
+    0 0 0 5px var(--focus-on-dark);
 }
 
 .user-panel {
@@ -680,7 +739,6 @@ h3 {
 .export-menu-list button:hover,
 .export-menu-list button:focus-visible {
   background: var(--surface-2);
-  outline: none;
 }
 
 .export-menu-list small {
@@ -729,6 +787,13 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(0, 93, 168, 0.15);
 }
 
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
 .sidebar input {
   border-color: rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.08);
@@ -738,6 +803,10 @@ textarea:focus {
 .sidebar input:focus {
   border-color: rgba(255, 255, 255, 0.38);
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+}
+
+.sidebar input:focus-visible {
+  outline-color: var(--focus-on-dark);
 }
 
 .metric-grid {
@@ -1145,6 +1214,13 @@ textarea:focus {
 }
 
 .integration-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.accessibility-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
@@ -1672,7 +1748,6 @@ textarea:focus {
   border-color: rgba(255, 255, 255, 0.42);
   background: rgba(255, 255, 255, 0.16);
   transform: translateY(-1px);
-  outline: none;
 }
 
 .footer-bottom {
@@ -1756,6 +1831,30 @@ textarea:focus {
   }
 }
 
+@media (forced-colors: active) {
+  .status-dot,
+  .metric-card::before,
+  .panel::before,
+  .brand-mark::after,
+  .footer-mark::after,
+  .sidebar::before,
+  .topbar::before,
+  .app-footer::before {
+    forced-color-adjust: none;
+  }
+
+  .button,
+  .nav-button,
+  input,
+  select,
+  textarea,
+  .panel,
+  .metric-card,
+  .initiative-card {
+    border: 1px solid CanvasText;
+  }
+}
+
 @media (max-width: 1180px) {
   :root {
     --sidebar-width: 240px;
@@ -1815,6 +1914,7 @@ textarea:focus {
   }
 
   .integration-grid,
+  .accessibility-grid,
   .analytics-grid,
   .personal-analytics-grid {
     grid-template-columns: 1fr;
