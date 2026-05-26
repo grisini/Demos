@@ -10,6 +10,7 @@ Projekt cilja na skladnost s standardom EN 301 549 v3.2.1, ki za spletni del upo
 - Obvestila aplikacije uporabljajo `role="status"` ali `role="alert"`.
 - Vizualni grafi niso edini vir informacije; stevilske vrednosti so izpisane tudi kot besedilo.
 - CSS podpira vidno tipkovnicno fokusno oznako, zmanjsano gibanje in osnovni forced-colors nacin.
+- Uporabnik lahko na strani Dostopnost prilagodi velikost besedila, kontrast, razmik, gibanje, velikost gumbov in pisavo.
 
 ## Redno preverjanje
 

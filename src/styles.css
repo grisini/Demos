@@ -31,8 +31,10 @@
   --radius-md: 6px;
   --radius-sm: 4px;
   --sidebar-width: 280px;
-  font-family:
+  --app-font:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --app-line-height: normal;
+  font-family: var(--app-font);
 }
 
 * {
@@ -40,6 +42,72 @@
 }
 
 html {
+  background: var(--bg);
+}
+
+html[data-a11y-text="large"] {
+  font-size: 112.5%;
+}
+
+html[data-a11y-text="xlarge"] {
+  font-size: 125%;
+}
+
+html[data-a11y-font="readable"] {
+  --app-font: Arial, Verdana, Tahoma, sans-serif;
+}
+
+html[data-a11y-contrast="high"] {
+  --bg: #ffffff;
+  --bg-soft: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f5f5f5;
+  --surface-3: #e5e7eb;
+  --text: #000000;
+  --muted: #1f2937;
+  --line: #111827;
+  --line-strong: #000000;
+  --primary: #003f78;
+  --primary-dark: #001f3f;
+  --primary-soft: rgba(0, 63, 120, 0.16);
+  --sidebar: #001f3f;
+  --sidebar-2: #003f78;
+  --shadow: none;
+  --shadow-soft: none;
+}
+
+html[data-a11y-contrast="dark"] {
+  color-scheme: dark;
+  --bg: #05070a;
+  --bg-soft: #0d1117;
+  --surface: #111827;
+  --surface-2: #1f2937;
+  --surface-3: #374151;
+  --text: #f9fafb;
+  --muted: #d1d5db;
+  --line: #6b7280;
+  --line-strong: #d1d5db;
+  --primary: #2f80ed;
+  --primary-dark: #75b7ff;
+  --primary-soft: rgba(117, 183, 255, 0.16);
+  --accent-soft: rgba(255, 112, 112, 0.16);
+  --info: #75b7ff;
+  --danger: #ff8a8a;
+  --warning: #ffd166;
+  --ok: #86efac;
+  --focus: #ffffff;
+  --sidebar: #05070a;
+  --sidebar-2: #111827;
+  --shadow: none;
+  --shadow-soft: none;
+}
+
+html[data-a11y-spacing="wide"] {
+  --app-line-height: 1.65;
+}
+
+html[data-a11y-contrast="high"] body,
+html[data-a11y-contrast="dark"] body {
   background: var(--bg);
 }
 
@@ -54,6 +122,7 @@ body {
     linear-gradient(315deg, rgba(213, 0, 0, 0.07), transparent 28rem),
     var(--bg);
   color: var(--text);
+  line-height: var(--app-line-height);
   overflow-x: hidden;
 }
 
@@ -608,6 +677,11 @@ h3 {
   background: #eef5ff;
 }
 
+html[data-a11y-contrast="dark"] .topbar .button.secondary,
+html[data-a11y-contrast="dark"] .topbar .button.secondary:hover:not(:disabled) {
+  color: #001f3f;
+}
+
 .button {
   min-height: 42px;
   border: 1px solid transparent;
@@ -758,7 +832,7 @@ textarea {
   max-width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  background: #ffffff;
+  background: var(--surface);
   color: var(--text);
   padding: 10px 11px;
   outline: none;
@@ -966,7 +1040,7 @@ textarea:focus-visible {
 }
 
 .initiative-card:hover {
-  background: #fbfdff;
+  background: var(--surface-2);
 }
 
 .initiative-card.active {
@@ -1007,7 +1081,7 @@ textarea:focus-visible {
   place-items: center;
   border: 1px solid rgba(0, 75, 141, 0.16);
   border-radius: var(--radius-md);
-  background: #eaf2fb;
+  background: var(--primary-soft);
   color: var(--primary-dark);
   font-weight: 900;
 }
@@ -1132,6 +1206,21 @@ textarea:focus-visible {
   line-height: 1.62;
 }
 
+html[data-a11y-spacing="wide"] .summary,
+html[data-a11y-spacing="wide"] .detail-section p,
+html[data-a11y-spacing="wide"] .check-list,
+html[data-a11y-spacing="wide"] .footer-main p,
+html[data-a11y-spacing="wide"] textarea {
+  line-height: 1.82;
+}
+
+html[data-a11y-contrast="dark"] .summary,
+html[data-a11y-contrast="dark"] .detail-section p,
+html[data-a11y-contrast="dark"] .check-list,
+html[data-a11y-contrast="dark"] .bar-row span {
+  color: var(--muted);
+}
+
 .detail-section p {
   white-space: pre-wrap;
 }
@@ -1227,6 +1316,39 @@ textarea:focus-visible {
   align-items: start;
 }
 
+.accessibility-settings {
+  display: grid;
+  gap: 16px;
+}
+
+.accessibility-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.switch-field {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  padding: 10px 12px;
+  color: var(--text);
+  font-weight: 900;
+}
+
+.switch-field input {
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  min-height: 20px;
+  accent-color: var(--primary);
+}
+
 .form-panel {
   display: grid;
   gap: 14px;
@@ -1265,8 +1387,8 @@ textarea:focus-visible {
   border-radius: 999px;
   text-align: center;
   background:
-    radial-gradient(circle at center, #ffffff 58%, transparent 59%),
-    conic-gradient(var(--primary) calc(var(--score) * 1%), #e6edf5 0);
+    radial-gradient(circle at center, var(--surface) 58%, transparent 59%),
+    conic-gradient(var(--primary) calc(var(--score) * 1%), var(--surface-3) 0);
   box-shadow: inset 0 0 0 1px rgba(0, 75, 141, 0.08);
 }
 
@@ -1564,7 +1686,7 @@ textarea:focus-visible {
   display: grid;
   place-items: center;
   border-radius: var(--radius-md);
-  background: #eaf2fb;
+  background: var(--primary-soft);
   color: var(--primary-dark);
   font-weight: 900;
 }
@@ -1810,6 +1932,38 @@ textarea:focus-visible {
   background: rgba(255, 255, 255, 0.54);
 }
 
+html[data-a11y-contrast="dark"] .empty-state {
+  background: var(--surface-2);
+}
+
+html[data-a11y-contrast="dark"] .loading-line {
+  background: linear-gradient(90deg, var(--surface-2), var(--surface-3), var(--surface-2));
+  background-size: 220% 100%;
+}
+
+html[data-a11y-target="large"] .button,
+html[data-a11y-target="large"] .env-pill,
+html[data-a11y-target="large"] .status-badge,
+html[data-a11y-target="large"] input,
+html[data-a11y-target="large"] select {
+  min-height: 50px;
+}
+
+html[data-a11y-target="large"] .nav-button {
+  min-height: 50px;
+  padding-inline: 16px;
+}
+
+html[data-a11y-target="large"] .card-button {
+  min-height: 104px;
+  padding: 18px;
+}
+
+html[data-a11y-target="large"] .button.icon-button {
+  width: 50px;
+  min-width: 50px;
+}
+
 @keyframes shimmer {
   from {
     background-position: 100% 0;
@@ -1829,6 +1983,15 @@ textarea:focus-visible {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+html[data-a11y-motion="reduce"] *,
+html[data-a11y-motion="reduce"] *::before,
+html[data-a11y-motion="reduce"] *::after {
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
 }
 
 @media (forced-colors: active) {

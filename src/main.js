@@ -61,6 +61,15 @@ const EXPORTABLE_INITIATIVE_STATUSES = ["signature_collection", "submitted"];
 const INITIATIVE_TURNSTILE_ACTION = "submit_initiative";
 const ACCESSIBILITY_STANDARD = "EN 301 549 v3.2.1 / WCAG 2.1 AA";
 const ACCESSIBILITY_REVIEW_DATE = "26. 5. 2026";
+const ACCESSIBILITY_STORAGE_KEY = "demos.accessibilityPreferences";
+const ACCESSIBILITY_DEFAULTS = {
+  textSize: "normal",
+  contrast: "default",
+  spacing: "normal",
+  motion: "system",
+  targetSize: "default",
+  readableFont: false
+};
 const LEGAL_COMPLIANCE_CERTIFICATE =
   "Certifikat skladnosti s slovensko zakonodajo: dokument je pripravljen po kontrolnem seznamu za predlog zakona po slovenski zakonodaji in Poslovniku Drzavnega zbora. Pravna skladnost pred uradno vlozitvijo ostaja odgovornost predlagatelja.";
 const INITIATIVE_EXPORT_ACTIONS = {
@@ -100,6 +109,8 @@ class DemocracyApp {
     this.clarityInsightsClient = clarityInsightsClient;
     this.config = appConfig;
     this.pendingMainFocus = false;
+    const accessibilityPreferences = readAccessibilityPreferences();
+    applyAccessibilityPreferences(accessibilityPreferences);
     this.anonymousVoterSessionId = "";
     this.searchRequestId = 0;
     this.searchDebounceTimer = null;
@@ -129,6 +140,7 @@ class DemocracyApp {
       searchLoading: false,
       searchError: "",
       sidebarOpen: defaultSidebarOpen(),
+      accessibilityPreferences,
       loading: true
     };
 
@@ -341,6 +353,7 @@ class DemocracyApp {
     const focusState = this.captureFocusState();
 
     this.root.className = `app-shell ${sidebarState}`;
+    applyAccessibilityPreferences(this.state.accessibilityPreferences);
 
     this.root.innerHTML = `
       <a class="skip-link" href="#main-content">Preskoci na glavno vsebino</a>
@@ -385,6 +398,7 @@ class DemocracyApp {
           </div>
           <div class="topbar-actions">
             <span class="env-pill">${this.config.SIPASS_ENV === "test" ? "SI-PASS test" : "SI-PASS prod"}</span>
+            <button class="button secondary" type="button" data-action="view" data-view="accessibility">Dostopnost</button>
             <button class="button secondary" type="button" data-action="refresh">Osvezi</button>
           </div>
         </header>
@@ -443,7 +457,15 @@ class DemocracyApp {
 
   captureFocusState() {
     const active = document.activeElement;
-    if (!active || active.dataset?.filter !== "query") return null;
+    if (!active) return null;
+
+    if (active.dataset?.accessibilitySetting) {
+      return {
+        accessibilitySetting: active.dataset.accessibilitySetting
+      };
+    }
+
+    if (active.dataset?.filter !== "query") return null;
 
     return {
       filter: "query",
@@ -454,6 +476,12 @@ class DemocracyApp {
 
   restoreFocusState(focusState) {
     if (!focusState) return;
+
+    if (focusState.accessibilitySetting) {
+      const control = this.root.querySelector(`[data-accessibility-setting="${focusState.accessibilitySetting}"]`);
+      if (control) control.focus({ preventScroll: true });
+      return;
+    }
 
     const input = this.root.querySelector(`[data-filter="${focusState.filter}"]`);
     if (!input) return;
@@ -995,6 +1023,7 @@ class DemocracyApp {
   renderAccessibilityView() {
     return `
       <section class="accessibility-grid">
+        ${this.renderAccessibilitySettings()}
         <div class="panel wide-panel">
           <p class="eyebrow">Dostopnost</p>
           <h2>Izjava o dostopnosti</h2>
@@ -1030,9 +1059,64 @@ class DemocracyApp {
           <p class="eyebrow">Povratne informacije</p>
           <h2>Postopek izboljsav</h2>
           <p class="summary">Dostopnost je treba preveriti ob vsaki vecji spremembi uporabniskega vmesnika, posebej pri novih obrazcih, grafih, dokumentih in integracijah.</p>
-          <p class="note">Za ugotovljene ovire uporabite projektni repozitorij ali kontakt skrbnika projekta, da se napaka evidentira in popravi v naslednji iteraciji.</p>
+          <p class="note">Za ugotovljene ovire obvestite skrbnika aplikacije, da se napaka evidentira in popravi.</p>
         </div>
       </section>
+    `;
+  }
+
+  renderAccessibilitySettings() {
+    const preferences = this.state.accessibilityPreferences;
+    return `
+      <form class="panel wide-panel accessibility-settings" data-form="accessibility-settings" aria-labelledby="accessibility-settings-title">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Prilagoditve</p>
+            <h2 id="accessibility-settings-title">Nastavitve prikaza</h2>
+          </div>
+          <button class="button secondary compact" type="button" data-action="reset-accessibility">Ponastavi</button>
+        </div>
+        <div class="accessibility-settings-grid">
+          ${this.accessibilitySelect("textSize", "Velikost besedila", [
+            ["normal", "Obicajna"],
+            ["large", "Vecja"],
+            ["xlarge", "Zelo velika"]
+          ])}
+          ${this.accessibilitySelect("contrast", "Kontrast", [
+            ["default", "Obicajen"],
+            ["high", "Visok kontrast"],
+            ["dark", "Temen kontrast"]
+          ])}
+          ${this.accessibilitySelect("spacing", "Razmik", [
+            ["normal", "Obicajen"],
+            ["wide", "Vecji razmik"]
+          ])}
+          ${this.accessibilitySelect("motion", "Gibanje", [
+            ["system", "Po nastavitvi naprave"],
+            ["reduce", "Zmanjsaj gibanje"]
+          ])}
+          ${this.accessibilitySelect("targetSize", "Gumbi in polja", [
+            ["default", "Obicajni"],
+            ["large", "Vecji"]
+          ])}
+          <label class="switch-field">
+            <input type="checkbox" data-accessibility-setting="readableFont" ${preferences.readableFont ? "checked" : ""} />
+            <span>Berljivejsa pisava</span>
+          </label>
+        </div>
+      </form>
+    `;
+  }
+
+  accessibilitySelect(name, label, options) {
+    const value = this.state.accessibilityPreferences[name];
+    return `
+      <label class="field">
+        <span>${escapeHtml(label)}</span>
+        <select data-accessibility-setting="${escapeAttribute(name)}">
+          ${options.map(([optionValue, optionLabel]) => option(optionValue, optionLabel, value)).join("")}
+        </select>
+      </label>
     `;
   }
 
@@ -1140,7 +1224,7 @@ class DemocracyApp {
             <div><dt>URL nastavljen</dt><dd>${this.config.SUPABASE_URL ? "da" : "ne"}</dd></div>
             <div><dt>Anon kljuc nastavljen</dt><dd>${this.config.SUPABASE_ANON_KEY ? "da" : "ne"}</dd></div>
           </dl>
-          <p class="note">SQL shema in razvojna navodila so pripravljena v mapi <code>supabase</code> in <code>docs</code>.</p>
+          <p class="note">Podatkovna povezava je namenjena shranjevanju pobud, glasov, podpisov, komentarjev in sistemskih dogodkov.</p>
         </div>
         <div class="panel">
           <p class="eyebrow">Identiteta</p>
@@ -1739,6 +1823,11 @@ class DemocracyApp {
       return;
     }
 
+    if (action === "reset-accessibility") {
+      this.resetAccessibilityPreferences();
+      return;
+    }
+
     if (action === "ai-preview") {
       trackClarityEvent("ai_preview_requested");
       await this.updateRemoteAiPreview();
@@ -2010,6 +2099,15 @@ class DemocracyApp {
   }
 
   async handleChange(event) {
+    const accessibilitySetting = event.target.dataset.accessibilitySetting;
+    if (accessibilitySetting) {
+      this.updateAccessibilityPreference(
+        accessibilitySetting,
+        event.target.type === "checkbox" ? event.target.checked : event.target.value
+      );
+      return;
+    }
+
     const filterField = event.target.dataset.filter;
     if (filterField && filterField !== "query") {
       this.state[filterField] = event.target.value;
@@ -2052,6 +2150,27 @@ class DemocracyApp {
         this.render();
       }
     }
+  }
+
+  updateAccessibilityPreference(setting, value) {
+    const preferences = normalizeAccessibilityPreferences({
+      ...this.state.accessibilityPreferences,
+      [setting]: value
+    });
+    this.state.accessibilityPreferences = preferences;
+    writeAccessibilityPreferences(preferences);
+    applyAccessibilityPreferences(preferences);
+    this.toast("Nastavitve prikaza so posodobljene.");
+    this.render();
+  }
+
+  resetAccessibilityPreferences() {
+    const preferences = normalizeAccessibilityPreferences();
+    this.state.accessibilityPreferences = preferences;
+    writeAccessibilityPreferences(preferences);
+    applyAccessibilityPreferences(preferences);
+    this.toast("Nastavitve prikaza so ponastavljene.");
+    this.render();
   }
 
   async withActor(callback) {
@@ -2460,6 +2579,67 @@ function emptyDraft() {
     proposerRepresentatives: "",
     affectedProvisions: ""
   };
+}
+
+function normalizeAccessibilityPreferences(value = {}) {
+  const textSize = ["normal", "large", "xlarge"].includes(value.textSize)
+    ? value.textSize
+    : ACCESSIBILITY_DEFAULTS.textSize;
+  const contrast = ["default", "high", "dark"].includes(value.contrast)
+    ? value.contrast
+    : ACCESSIBILITY_DEFAULTS.contrast;
+  const spacing = ["normal", "wide"].includes(value.spacing)
+    ? value.spacing
+    : ACCESSIBILITY_DEFAULTS.spacing;
+  const motion = ["system", "reduce"].includes(value.motion)
+    ? value.motion
+    : ACCESSIBILITY_DEFAULTS.motion;
+  const targetSize = ["default", "large"].includes(value.targetSize)
+    ? value.targetSize
+    : ACCESSIBILITY_DEFAULTS.targetSize;
+
+  return {
+    textSize,
+    contrast,
+    spacing,
+    motion,
+    targetSize,
+    readableFont: value.readableFont === true
+  };
+}
+
+function readAccessibilityPreferences() {
+  if (typeof localStorage === "undefined") return normalizeAccessibilityPreferences();
+
+  try {
+    const raw = localStorage.getItem(ACCESSIBILITY_STORAGE_KEY);
+    return normalizeAccessibilityPreferences(raw ? JSON.parse(raw) : {});
+  } catch {
+    return normalizeAccessibilityPreferences();
+  }
+}
+
+function writeAccessibilityPreferences(preferences) {
+  if (typeof localStorage === "undefined") return;
+
+  try {
+    localStorage.setItem(ACCESSIBILITY_STORAGE_KEY, JSON.stringify(normalizeAccessibilityPreferences(preferences)));
+  } catch {
+    // The active session still uses the selected preferences when storage is blocked.
+  }
+}
+
+function applyAccessibilityPreferences(preferences) {
+  if (typeof document === "undefined") return;
+
+  const normalized = normalizeAccessibilityPreferences(preferences);
+  const root = document.documentElement;
+  root.dataset.a11yText = normalized.textSize;
+  root.dataset.a11yContrast = normalized.contrast;
+  root.dataset.a11ySpacing = normalized.spacing;
+  root.dataset.a11yMotion = normalized.motion;
+  root.dataset.a11yTarget = normalized.targetSize;
+  root.dataset.a11yFont = normalized.readableFont ? "readable" : "default";
 }
 
 function defaultSidebarOpen() {
