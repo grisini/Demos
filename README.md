@@ -67,7 +67,7 @@ npm test
 - javni pregled aktualnih pobud za neprijavljene uporabnike,
 - anonimno glasovanje z omejitvijo enega glasu na pobudo na lokalni brskalniski ID,
 - glasovanje, demo podpisovanje, komentarji in statusi,
-- PDF tiskanje in prenos pobude za DZ pri statusih `signature_collection` in `submitted`,
+- PDF tiskanje, PDF prenos in DOCX/Word prenos pobude za DZ pri statusih `signature_collection` in `submitted`,
 - email obvestila za glasovalce ob spremembah pobude in novih pobudah v isti kategoriji,
 - napredna statistika glasov na pobudo, kategorije, komentarje in AI tveganja,
 - osebna analitika pobud za prijavljenega uporabnika,

@@ -28,6 +28,12 @@ import {
   trackClarityEvent
 } from "./lib/clarity.js";
 import { ClarityInsightsClient } from "./lib/clarity-insights.js";
+import {
+  buildInitiativeDocxBlob,
+  buildInitiativeOdtBlob,
+  initiativeDocxFileName,
+  initiativeOdtFileName
+} from "./lib/docx-export.js";
 import { EmailNotificationClient } from "./lib/notifications.js";
 import { createRepository } from "./lib/supabase.js";
 import { browserResourceSnapshot, estimateTextTokens, SystemTelemetry } from "./lib/telemetry.js";
@@ -45,6 +51,32 @@ const ANONYMOUS_VOTER_KEY = "demos.anonymousVoterId";
 const REMOTE_SEARCH_DEBOUNCE_MS = 800;
 const REMOTE_SEARCH_MIN_LENGTH = 2;
 const EXPORTABLE_INITIATIVE_STATUSES = ["signature_collection", "submitted"];
+const INITIATIVE_EXPORT_ACTIONS = {
+  "print-pdf": {
+    systemEvent: "initiative_pdf_print",
+    clarityEvent: "initiative_pdf_printed",
+    vercelEvent: "InitiativePdfPrinted",
+    toast: "Izvoz je pripravljen za tiskanje."
+  },
+  "download-pdf": {
+    systemEvent: "initiative_pdf_download",
+    clarityEvent: "initiative_pdf_downloaded",
+    vercelEvent: "InitiativePdfDownloaded",
+    toast: "PDF je prenesen."
+  },
+  "download-docx": {
+    systemEvent: "initiative_docx_download",
+    clarityEvent: "initiative_docx_downloaded",
+    vercelEvent: "InitiativeDocxDownloaded",
+    toast: "DOCX je prenesen."
+  },
+  "download-odt": {
+    systemEvent: "initiative_odt_download",
+    clarityEvent: "initiative_odt_downloaded",
+    vercelEvent: "InitiativeOdtDownloaded",
+    toast: "ODT je prenesen."
+  }
+};
 
 class DemocracyApp {
   constructor({ root, repository, auth, notificationClient, telemetry, clarityInsightsClient, config: appConfig }) {
@@ -982,6 +1014,16 @@ class DemocracyApp {
           <p class="note">Clarity oznacuje seje in dogodke, analitika pobud v aplikaciji pa uporablja podatke iz baze.</p>
         </div>
         <div class="panel">
+          <p class="eyebrow">Dokumenti</p>
+          <h2>Office izvoz</h2>
+          <dl class="config-list">
+            <div><dt>Formati</dt><dd>PDF tisk, PDF prenos, DOCX in ODT prenos</dd></div>
+            <div><dt>Generator</dt><dd>brskalniski OOXML/ODF paket</dd></div>
+            <div><dt>Podatki</dt><dd>pobuda, podpisi, AI predpregled</dd></div>
+          </dl>
+          <p class="note">DOCX in ODT izvoz ustvarita dokument lokalno v brskalniku, brez posiljanja vsebine zunanji storitvi.</p>
+        </div>
+        <div class="panel">
           <p class="eyebrow">Obvestila</p>
           <h2>E-posta</h2>
           <dl class="config-list">
@@ -1050,6 +1092,23 @@ class DemocracyApp {
               <button class="button secondary icon-button" data-action="download-pdf" data-id="${initiative.id}" aria-label="Prenesi PDF za DZ" title="Prenesi PDF za DZ">
                 ${downloadIcon()}
               </button>
+              <details class="export-menu">
+                <summary class="button secondary export-menu-trigger" aria-label="Prenesi dokument za DZ" title="Prenesi dokument za DZ">
+                  ${wordIcon()}
+                  <span>DOCX/ODT</span>
+                  ${chevronDownIcon()}
+                </summary>
+                <div class="export-menu-list" role="menu" aria-label="Format dokumenta">
+                  <button type="button" data-action="download-docx" data-id="${initiative.id}" role="menuitem">
+                    <span>Word</span>
+                    <small>.docx</small>
+                  </button>
+                  <button type="button" data-action="download-odt" data-id="${initiative.id}" role="menuitem">
+                    <span>ODT</span>
+                    <small>.odt</small>
+                  </button>
+                </div>
+              </details>
             `
             : ""
         }
@@ -1398,7 +1457,8 @@ class DemocracyApp {
       return;
     }
 
-    if (action === "print-pdf" || action === "download-pdf") {
+    const exportAction = INITIATIVE_EXPORT_ACTIONS[action];
+    if (exportAction) {
       const initiative = this.findInitiativeForAction(target.dataset.id);
       if (!initiative) {
         this.toast("Pobuda ne obstaja.");
@@ -1419,22 +1479,26 @@ class DemocracyApp {
           this.render();
           return;
         }
-      } else {
+      } else if (action === "download-pdf") {
         downloadInitiativePdfExport(initiative, this.currentUser());
+      } else if (action === "download-docx") {
+        downloadInitiativeDocxExport(initiative, this.currentUser());
+      } else {
+        downloadInitiativeOdtExport(initiative, this.currentUser());
       }
 
-      this.recordSystemEvent(action === "print-pdf" ? "initiative_pdf_print" : "initiative_pdf_download", {
+      this.recordSystemEvent(exportAction.systemEvent, {
         initiativeId: initiative.id,
         status: initiative.status,
         signatureCount: initiative.signatures.length,
         voteCount: initiative.votes.length
       });
-      trackClarityEvent(action === "print-pdf" ? "initiative_pdf_printed" : "initiative_pdf_downloaded");
-      trackVercelEvent(action === "print-pdf" ? "InitiativePdfPrinted" : "InitiativePdfDownloaded", {
+      trackClarityEvent(exportAction.clarityEvent);
+      trackVercelEvent(exportAction.vercelEvent, {
         status: initiative.status,
         category: initiative.category
       });
-      this.toast(action === "print-pdf" ? "Izvoz je pripravljen za tiskanje." : "PDF je prenesen.");
+      this.toast(exportAction.toast);
       this.render();
       return;
     }
@@ -2063,7 +2127,7 @@ function canExportInitiative(initiative) {
 }
 
 function exportStatusHint(initiative) {
-  return `Izvoz v PDF je omogocen pri statusih ${statusLabel("signature_collection")} in ${statusLabel("submitted")}. Trenutni status: ${statusLabel(initiative?.status)}.`;
+  return `Izvoz za DZ je omogocen pri statusih ${statusLabel("signature_collection")} in ${statusLabel("submitted")}. Trenutni status: ${statusLabel(initiative?.status)}.`;
 }
 
 function openInitiativePrintExport(initiative, user) {
@@ -2090,10 +2154,24 @@ function openInitiativePrintExport(initiative, user) {
 
 function downloadInitiativePdfExport(initiative, user) {
   const blob = buildInitiativePdfBlob(initiative, user);
+  triggerBlobDownload(blob, `${pdfFileName(initiative)}.pdf`);
+}
+
+function downloadInitiativeDocxExport(initiative, user) {
+  const blob = buildInitiativeDocxBlob(initiative, user);
+  triggerBlobDownload(blob, initiativeDocxFileName(initiative));
+}
+
+function downloadInitiativeOdtExport(initiative, user) {
+  const blob = buildInitiativeOdtBlob(initiative, user);
+  triggerBlobDownload(blob, initiativeOdtFileName(initiative));
+}
+
+function triggerBlobDownload(blob, fileName) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${pdfFileName(initiative)}.pdf`;
+  link.download = fileName;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -2744,6 +2822,25 @@ function downloadIcon() {
       <path d="M12 3v11"></path>
       <path d="m7 10 5 5 5-5"></path>
       <path d="M5 20h14"></path>
+    </svg>
+  `;
+}
+
+function wordIcon() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+      <path d="M14 2v6h6"></path>
+      <path d="M8 13l1.2 4 1.3-4 1.3 4L13 13"></path>
+      <path d="M15 17h1"></path>
+    </svg>
+  `;
+}
+
+function chevronDownIcon() {
+  return `
+    <svg class="button-icon chevron-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="m6 9 6 6 6-6"></path>
     </svg>
   `;
 }

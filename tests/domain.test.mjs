@@ -12,6 +12,16 @@ import {
   buildInitiativeChangeEmailNotifications
 } from "../src/domain/notifications.js";
 import {
+  DOCX_MIME_TYPE,
+  ODT_MIME_TYPE,
+  buildInitiativeDocxBlob,
+  buildInitiativeDocxPackage,
+  buildInitiativeOdtBlob,
+  buildInitiativeOdtPackage,
+  initiativeDocxFileName,
+  initiativeOdtFileName
+} from "../src/lib/docx-export.js";
+import {
   addComment,
   createInitiative,
   evaluateInitiative,
@@ -112,6 +122,56 @@ test("analytics izracuna osnovne kazalnike", () => {
   assert.equal(analytics.initiativeStats[0].votes, 1);
   assert.equal(analytics.voteDistribution.maxVotes, 1);
   assert.equal(analytics.categoryStats[0].votes, 1);
+});
+
+test("DOCX izvoz ustvari OpenXML paket za Word", () => {
+  const initiative = {
+    ...addComment(signInitiative(createInitiative(validInput, actor), actor), actor, "Podpiram predlog."),
+    status: "submitted"
+  };
+  const bytes = buildInitiativeDocxPackage(initiative, actor, {
+    generatedAt: "2026-05-22T10:00:00.000Z"
+  });
+  const decoded = new TextDecoder().decode(bytes);
+  const blob = buildInitiativeDocxBlob(initiative, actor, {
+    generatedAt: "2026-05-22T10:00:00.000Z"
+  });
+
+  assert.deepEqual([...bytes.slice(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
+  assert.match(decoded, /\[Content_Types\]\.xml/);
+  assert.match(decoded, /word\/document\.xml/);
+  assert.match(decoded, /Javna sledljivost zakonodajnih sprememb/);
+  assert.equal(blob.type, DOCX_MIME_TYPE);
+  assert.ok(blob.size > 4000);
+  assert.equal(
+    initiativeDocxFileName(initiative),
+    "demos-javna-sledljivost-zakonodajnih-sprememb-dz-izvoz.docx"
+  );
+});
+
+test("ODT izvoz ustvari OpenDocument paket", () => {
+  const initiative = {
+    ...addComment(signInitiative(createInitiative(validInput, actor), actor), actor, "Podpiram predlog."),
+    status: "submitted"
+  };
+  const bytes = buildInitiativeOdtPackage(initiative, actor, {
+    generatedAt: "2026-05-22T10:00:00.000Z"
+  });
+  const decoded = new TextDecoder().decode(bytes);
+  const blob = buildInitiativeOdtBlob(initiative, actor, {
+    generatedAt: "2026-05-22T10:00:00.000Z"
+  });
+
+  assert.deepEqual([...bytes.slice(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
+  assert.match(decoded, /application\/vnd\.oasis\.opendocument\.text/);
+  assert.match(decoded, /content\.xml/);
+  assert.match(decoded, /Javna sledljivost zakonodajnih sprememb/);
+  assert.equal(blob.type, ODT_MIME_TYPE);
+  assert.ok(blob.size > 4000);
+  assert.equal(
+    initiativeOdtFileName(initiative),
+    "demos-javna-sledljivost-zakonodajnih-sprememb-dz-izvoz.odt"
+  );
 });
 
 test("uporabniska analitika locuje moje pobude in aktivnost", () => {

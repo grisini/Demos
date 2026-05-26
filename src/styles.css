@@ -56,6 +56,7 @@ input,
 select,
 textarea {
   font: inherit;
+  min-width: 0;
 }
 
 button {
@@ -355,6 +356,7 @@ code {
 
 .content {
   min-width: 0;
+  max-width: 100%;
   width: min(100%, 1600px);
   padding: clamp(18px, 2.6vw, 34px);
 }
@@ -373,6 +375,10 @@ code {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+}
+
+.topbar-title > div {
+  min-width: 0;
 }
 
 h1,
@@ -495,6 +501,82 @@ h3 {
   stroke-linejoin: round;
 }
 
+.export-menu {
+  position: relative;
+  min-width: 0;
+}
+
+.export-menu summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.export-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.export-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 118px;
+  white-space: nowrap;
+}
+
+.export-menu-trigger span {
+  font-size: 0.86rem;
+}
+
+.export-menu .chevron-icon {
+  width: 16px;
+  height: 16px;
+  transition: transform 160ms ease;
+}
+
+.export-menu[open] .chevron-icon {
+  transform: rotate(180deg);
+}
+
+.export-menu-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 148px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.export-menu-list button {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 0 12px;
+  text-align: left;
+  font-weight: 900;
+}
+
+.export-menu-list button:hover,
+.export-menu-list button:focus-visible {
+  background: var(--surface-2);
+  outline: none;
+}
+
+.export-menu-list small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
 .button.full-width {
   width: 100%;
   margin-top: 14px;
@@ -504,6 +586,7 @@ input,
 select,
 textarea {
   width: 100%;
+  max-width: 100%;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: #ffffff;
@@ -516,6 +599,10 @@ textarea {
 input,
 select {
   min-height: 42px;
+}
+
+select {
+  text-overflow: ellipsis;
 }
 
 textarea {
@@ -579,7 +666,7 @@ textarea:focus {
 
 .workspace-grid {
   display: grid;
-  grid-template-columns: minmax(340px, 0.92fr) minmax(430px, 1.08fr);
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
   gap: 18px;
   align-items: start;
 }
@@ -600,14 +687,21 @@ textarea:focus {
 
 .list-panel,
 .detail-panel {
+  container-type: inline-size;
   min-width: 0;
 }
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(190px, 1.35fr) repeat(3, minmax(130px, 1fr));
+  grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 14px;
+}
+
+.filters label,
+.support-actions > *,
+.status-select {
+  min-width: 0;
 }
 
 .initiative-list {
@@ -731,7 +825,7 @@ textarea:focus {
 
 .detail-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(112px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 112px), 1fr));
   gap: 10px;
   margin-bottom: 18px;
 }
@@ -745,6 +839,41 @@ textarea:focus {
 
 .detail-panel .metric-card strong {
   font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+}
+
+@container (max-width: 720px) {
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 520px) {
+  .detail-panel .support-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .detail-panel .support-actions .button {
+    width: 100%;
+  }
+
+  .detail-panel .export-menu-list {
+    left: 0;
+    right: 0;
+    min-width: 100%;
+  }
+
+  .detail-panel .status-select {
+    grid-column: 1 / -1;
+  }
+}
+
+@container (max-width: 460px) {
+  .filters,
+  .detail-panel .support-actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 .detail-section {
