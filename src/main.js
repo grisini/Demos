@@ -519,6 +519,7 @@ class DemocracyApp {
     const initiatives = this.filteredInitiatives();
     const user = this.currentUser();
     const dashboardAnalytics = user ? analytics : calculateAnalytics(this.visibleInitiatives());
+    const mobileDetailOpen = Boolean(this.state.selectedId && selected);
     return `
       <section class="dashboard-layout">
         <section class="metric-grid dashboard-metrics" aria-label="Povzetek">
@@ -576,8 +577,25 @@ class DemocracyApp {
               }
             </div>
           </div>
-          <div class="panel detail-panel">
-            ${selected ? this.renderInitiativeDetail(selected) : `<div class="empty-state">Izberite pobudo.</div>`}
+          ${
+            mobileDetailOpen
+              ? `<button class="mobile-detail-backdrop" type="button" data-action="close-detail" aria-label="Zapri podrobnosti pobude"></button>`
+              : ""
+          }
+          <div class="panel detail-panel ${mobileDetailOpen ? "mobile-detail-open" : ""}" ${
+            mobileDetailOpen ? 'role="dialog" aria-modal="true"' : 'role="region"'
+          } aria-label="Podrobnosti pobude">
+            ${
+              selected
+                ? `
+                  <div class="mobile-detail-toolbar">
+                    <span class="mobile-detail-handle" aria-hidden="true"></span>
+                    <button class="detail-close-button" type="button" data-action="close-detail">Zapri</button>
+                  </div>
+                  ${this.renderInitiativeDetail(selected)}
+                `
+                : `<div class="empty-state">Izberite pobudo.</div>`
+            }
           </div>
         </section>
       </section>
@@ -1790,6 +1808,12 @@ class DemocracyApp {
       return;
     }
 
+    if (action === "close-detail") {
+      this.state.selectedId = null;
+      this.render();
+      return;
+    }
+
     if (action === "refresh") {
       await this.refresh();
       if (this.state.activeView === "analytics") {
@@ -2650,7 +2674,7 @@ function isSmallViewport() {
   return (
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
-    window.matchMedia("(max-width: 860px)").matches
+    window.matchMedia("(max-width: 1024px)").matches
   );
 }
 
