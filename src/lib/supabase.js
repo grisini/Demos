@@ -1,4 +1,5 @@
 import { LocalInitiativeRepository } from "./storage.js";
+import { publicParticipantName } from "../domain/validation.js";
 
 export function createRepository(appConfig) {
   if (appConfig.DATA_SOURCE === "supabase" && appConfig.SUPABASE_URL && appConfig.SUPABASE_ANON_KEY) {
@@ -81,7 +82,7 @@ export class SupabaseInitiativeRepository {
       body: JSON.stringify({
         initiative_id: id,
         voter_ref: actor.id,
-        voter_name: actor.name
+        voter_name: publicParticipantName(actor)
       })
     });
     return this.find(id);
@@ -93,7 +94,7 @@ export class SupabaseInitiativeRepository {
       body: JSON.stringify({
         initiative_id: id,
         signer_ref: actor.id,
-        signer_name: actor.name,
+        signer_name: publicParticipantName(actor),
         method
       })
     });
@@ -106,7 +107,7 @@ export class SupabaseInitiativeRepository {
       body: JSON.stringify({
         initiative_id: id,
         author_ref: actor.id,
-        author_name: actor.name,
+        author_name: publicParticipantName(actor),
         body
       })
     });

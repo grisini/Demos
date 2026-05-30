@@ -256,7 +256,7 @@ export function voteForInitiative(initiative, actor) {
       ...initiative.votes,
       {
         userId: actor.id,
-        userName: actor.name,
+        userName: publicParticipantName(actor),
         createdAt: new Date().toISOString()
       }
     ]
@@ -280,7 +280,7 @@ export function signInitiative(initiative, actor, method = "demo") {
       ...initiative.signatures,
       {
         userId: actor.id,
-        userName: actor.name,
+        userName: publicParticipantName(actor),
         method,
         createdAt: new Date().toISOString()
       }
@@ -305,7 +305,7 @@ export function addComment(initiative, actor, body) {
       {
         id: cryptoId(),
         userId: actor.id,
-        userName: actor.name,
+        userName: publicParticipantName(actor),
         body: cleanBody,
         createdAt: new Date().toISOString()
       }
@@ -364,6 +364,14 @@ export function normalizeInput(input) {
     proposerRepresentatives: String(input?.proposerRepresentatives || "").trim(),
     affectedProvisions: String(input?.affectedProvisions || "").trim()
   };
+}
+
+export function publicParticipantName(actor) {
+  if (actor?.provider === "sipass" || String(actor?.id || "").startsWith("sipass-")) {
+    return "Dr\u017eavljan";
+  }
+
+  return actor?.name || "Anonimni uporabnik";
 }
 
 function findHits(text, keywords) {
