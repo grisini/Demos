@@ -111,16 +111,16 @@ jobs:
           grep -q 'KeyDescriptor use="signing"' docs/sicas-sp-metadata.xml
           grep -q 'KeyDescriptor use="encryption"' docs/sicas-sp-metadata.xml
 
-      - name: Check frontend does not reference server-only secrets
+      - name: Check frontend does not read server-only secrets
         shell: bash
         run: |
           set -euo pipefail
 
-          if grep -RInE "(SUPABASE_SERVICE_ROLE_KEY|HF_TOKEN|CLARITY_API_TOKEN|SMTP_PASS|TURNSTILE_SECRET_KEY|SIPASS_SESSION_SECRET|SIPASS_USER_REF_SALT)" \
+          if grep -RInE "(process\.env|import\.meta\.env|window\.DEMOS_CONFIG)\.?(SUPABASE_SERVICE_ROLE_KEY|HF_TOKEN|CLARITY_API_TOKEN|SMTP_PASS|TURNSTILE_SECRET_KEY|SIPASS_SESSION_SECRET|SIPASS_USER_REF_SALT)" \
             --include="*.js" \
             --include="*.html" \
             src index.html; then
-            echo "Server-only secret name is referenced in frontend code."
+            echo "Frontend code appears to read a server-only secret."
             exit 1
           fi
 

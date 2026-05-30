@@ -11,7 +11,7 @@ Projekt trenutno ne potrebuje kompleksnega build koraka, ker je frontend statice
 - preverjanje JavaScript sintakse,
 - preverjanje osnovnih projektnih datotek,
 - preverjanje Vercel, Supabase in SI-PASS/VPS povezovalnih datotek,
-- preverjanje, da frontend ne referencira server-only skrivnosti,
+- preverjanje, da frontend ne bere server-only skrivnosti,
 - osnovno preverjanje, da skrivnosti niso bile commitane v repozitorij,
 - kratek povzetek rezultata v GitHub Actions summary.
 
@@ -33,7 +33,7 @@ Workflow je v:
 - `Check required project files` ujame nenamerno brisanje kljucnih datotek za frontend, API, Supabase in VPS bridge.
 - `Validate deployment wiring` preveri osnovne povezave za `/config.local.js`, auth endpointa, Supabase config, hybrid search in unique glasovanje.
 - `Validate SI-CAS metadata archive` preveri, da staticni SP metadata vsebuje entityID, ACS endpoint ter signing/encryption certifikata.
-- `Check frontend does not reference server-only secrets` ustavi pipeline, ce frontend zacne uporabljati server-only env imena.
+- `Check frontend does not read server-only secrets` ustavi pipeline, ce frontend koda zacne brati server-only env vrednosti prek `process.env`, `import.meta.env` ali javnega runtime configa. Navadna omemba imena spremenljivke v opozorilnem besedilu je dovoljena.
 - `Check that local secrets are not committed` ustavi pipeline, ce se v repozitoriju pojavi `.env.local`, Hugging Face token, OpenRouter token ali private key.
 
 ## Kaj pipeline namenoma ne dela
