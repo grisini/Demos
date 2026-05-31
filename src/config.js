@@ -50,6 +50,7 @@ export const config = {
   ),
   AUTH_SESSION_ENDPOINT: publicConfigValue("AUTH_SESSION_ENDPOINT", "/api/auth/session"),
   AUTH_LOGOUT_ENDPOINT: publicConfigValue("AUTH_LOGOUT_ENDPOINT", "/api/auth/logout"),
+  SIGNATURES_ENDPOINT: publicConfigValue("SIGNATURES_ENDPOINT", "/api/signatures"),
   AI_PROVIDER: optionConfigValue("AI_PROVIDER", "local"),
   AI_REVIEW_ENDPOINT: publicConfigValue("AI_REVIEW_ENDPOINT"),
   EMAIL_NOTIFICATIONS_ENDPOINT: publicConfigValue("EMAIL_NOTIFICATIONS_ENDPOINT"),

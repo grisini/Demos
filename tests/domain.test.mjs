@@ -34,6 +34,7 @@ import {
   readSipassSessionToken,
   sipassUserFromHeaders
 } from "../server/sipass-session.mjs";
+import { createSipassSignature } from "../server/signatures.mjs";
 import { verifyTurnstileToken } from "../server/turnstile.mjs";
 
 const validInput = {
@@ -387,6 +388,100 @@ test("SI-PASS session mapira atribute in obnovi sifriranega uporabnika", () => {
   assert.deepEqual(restored, user);
 });
 
+test("SI-PASS podpis backend zahteva sejo in sam zapise sipass metodo", async () => {
+  const user = {
+    id: "sipass-test-ref",
+    name: "Ana Novak",
+    firstName: "Ana",
+    lastName: "Novak",
+    emso: "",
+    taxNumber: "",
+    email: "",
+    role: "citizen",
+    provider: "sipass",
+    signedInAt: "2026-05-31T10:00:00.000Z"
+  };
+  const cookie = createSipassSessionToken(user, sipassEnv.SIPASS_SESSION_SECRET);
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    calls.push({ url, options });
+    const path = new URL(url).pathname;
+    const search = new URL(url).search;
+
+    if (path.endsWith("/initiatives") && search.includes("id=eq.")) {
+      return jsonResponse([{
+        id: "11111111-1111-4111-8111-111111111111",
+        title: validInput.title,
+        summary: validInput.summary,
+        description: validInput.description,
+        category: validInput.category,
+        status: "active",
+        author_ref: actor.id,
+        author_name: actor.name,
+        ai_score: 80,
+        ai_risk: "low",
+        ai_findings: [],
+        ai_checks: {},
+        created_at: "2026-05-31T09:00:00.000Z",
+        updated_at: "2026-05-31T09:00:00.000Z"
+      }]);
+    }
+
+    if (path.endsWith("/signatures") && options.method === "POST") {
+      return emptyResponse();
+    }
+
+    if (path.endsWith("/initiatives") && options.method === "PATCH") {
+      return emptyResponse();
+    }
+
+    if (path.endsWith("/votes")) return jsonResponse([]);
+    if (path.endsWith("/comments")) return jsonResponse([]);
+    if (path.endsWith("/signatures")) return jsonResponse([]);
+
+    throw new Error(`Unexpected Supabase mock call: ${url}`);
+  };
+
+  const initiative = await createSipassSignature(
+    { headers: { cookie: `__Secure-demos_sipass=${cookie}` } },
+    { initiativeId: "11111111-1111-4111-8111-111111111111" },
+    {
+      ...sipassEnv,
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key"
+    },
+    fetchImpl
+  );
+
+  const signatureInsert = calls.find((call) => call.url.includes("/rest/v1/signatures") && call.options.method === "POST");
+  assert.ok(signatureInsert);
+  assert.deepEqual(JSON.parse(signatureInsert.options.body), {
+    initiative_id: "11111111-1111-4111-8111-111111111111",
+    signer_ref: user.id,
+    signer_name: user.name,
+    method: "sipass"
+  });
+  assert.equal(initiative.id, "11111111-1111-4111-8111-111111111111");
+});
+
+test("SI-PASS podpis backend zavrne zahtevo brez seje", async () => {
+  await assert.rejects(
+    () => createSipassSignature(
+      { headers: {} },
+      { initiativeId: "11111111-1111-4111-8111-111111111111" },
+      {
+        ...sipassEnv,
+        SUPABASE_URL: "https://example.supabase.co",
+        SUPABASE_SERVICE_ROLE_KEY: "service-role-key"
+      },
+      async () => {
+        throw new Error("fetch ne sme biti klican");
+      }
+    ),
+    /SI-PASS podpis/
+  );
+});
+
 test("Turnstile zavrne preverjanje brez server secret kljuca", async () => {
   const result = await verifyTurnstileToken(
     { token: "token", action: "initiative_submit" },
@@ -461,3 +556,23 @@ test("Turnstile zavrne nepricakovan hostname", async () => {
   assert.equal(result.verified, false);
   assert.match(result.error, /hostname/);
 });
+
+function jsonResponse(value, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    async text() {
+      return JSON.stringify(value);
+    }
+  };
+}
+
+function emptyResponse(status = 204) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    async text() {
+      return "";
+    }
+  };
+}

@@ -1997,7 +1997,7 @@ class DemocracyApp {
         }
 
         const id = target.dataset.id;
-        const updated = await this.repository.sign(id, actor, "sipass");
+        const updated = await this.createSipassSignature(id);
         await this.sendEmailNotifications(
           buildInitiativeChangeEmailNotifications({
             initiative: updated,
@@ -2012,6 +2012,26 @@ class DemocracyApp {
         this.toast("SI-PASS podpis je evidentiran.");
       });
     }
+  }
+
+  async createSipassSignature(initiativeId) {
+    const endpoint = this.config.SIGNATURES_ENDPOINT || "/api/signatures";
+    const response = await fetch(endpoint, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ initiativeId })
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok || !payload?.initiative) {
+      throw new Error(payload?.error || "SI-PASS podpis ni uspel.");
+    }
+
+    return payload.initiative;
   }
 
   async handleSubmit(event) {
