@@ -25,7 +25,6 @@ import {
   addComment,
   createInitiative,
   evaluateInitiative,
-  publicParticipantName,
   signInitiative,
   validateInitiative,
   voteForInitiative
@@ -129,25 +128,6 @@ test("glasovanje in podpis ne podvajata istega uporabnika", () => {
 
   assert.equal(votedAgain.votes.length, 1);
   assert.equal(signedAgain.signatures.length, 1);
-});
-
-test("SI-PASS glas in komentar hranita stabilno evidenco brez javnega imena", () => {
-  const sipassActor = {
-    id: "sipass-1234567890abcdef",
-    name: "Ana Novak",
-    provider: "sipass"
-  };
-  const initiative = createInitiative(validInput, actor);
-  const voted = voteForInitiative(initiative, sipassActor);
-  const votedAgain = voteForInitiative(voted, sipassActor);
-  const commented = addComment(votedAgain, sipassActor, "Podpiram predlog.");
-
-  assert.equal(votedAgain.votes.length, 1);
-  assert.equal(votedAgain.votes[0].userId, sipassActor.id);
-  assert.equal(votedAgain.votes[0].userName, "Dr\u017eavljan");
-  assert.equal(commented.comments[0].userId, sipassActor.id);
-  assert.equal(commented.comments[0].userName, "Dr\u017eavljan");
-  assert.equal(publicParticipantName(sipassActor), "Dr\u017eavljan");
 });
 
 test("komentar zahteva prijavljenega uporabnika in veljavno besedilo", () => {

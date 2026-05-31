@@ -1514,7 +1514,7 @@ class DemocracyApp {
   renderComment(comment) {
     return `
       <article class="comment">
-        <strong>${escapeHtml(commentPublicName(comment))}</strong>
+        <strong>${escapeHtml(comment.userName)}</strong>
         <p>${escapeHtml(comment.body)}</p>
       </article>
     `;
@@ -3559,14 +3559,6 @@ function anonymousVoterId() {
     ? globalThis.crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   return `anon-${token}`;
-}
-
-function commentPublicName(comment) {
-  if (String(comment?.userId || "").startsWith("sipass-")) {
-    return "Dr\u017eavljan";
-  }
-
-  return comment?.userName || "Uporabnik";
 }
 
 function formatClarityMetric(value, unit = "") {
