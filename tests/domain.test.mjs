@@ -130,6 +130,23 @@ test("glasovanje in podpis ne podvajata istega uporabnika", () => {
   assert.equal(signedAgain.signatures.length, 1);
 });
 
+test("SI-PASS podpis uporablja isto deduplikacijo in metodo sipass", () => {
+  const sipassActor = {
+    id: "sipass-1234567890abcdef",
+    name: "Ana Novak",
+    provider: "sipass"
+  };
+  const initiative = createInitiative(validInput, actor);
+  const signed = signInitiative(initiative, sipassActor, "sipass");
+  const signedAgain = signInitiative(signed, sipassActor, "sipass");
+
+  assert.equal(signedAgain.signatures.length, 1);
+  assert.equal(signedAgain.signatures[0].userId, sipassActor.id);
+  assert.equal(signedAgain.signatures[0].userName, sipassActor.name);
+  assert.equal(signedAgain.signatures[0].method, "sipass");
+  assert.equal(signedAgain.status, "signature_collection");
+});
+
 test("komentar zahteva prijavljenega uporabnika in veljavno besedilo", () => {
   const initiative = createInitiative(validInput, actor);
   const commented = addComment(initiative, actor, "Podpiram predlog.");

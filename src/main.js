@@ -1364,6 +1364,7 @@ class DemocracyApp {
 
     const voted = user && initiative.votes.some((vote) => vote.userId === user.id);
     const signed = user && initiative.signatures.some((signature) => signature.userId === user.id);
+    const canSipassSign = isSipassUser(user);
     const review = initiative.aiReview || { score: 0, risk: "low", findings: [] };
     const exportReady = canExportInitiative(initiative);
     const admin = this.isAdminUser(user);
@@ -1381,8 +1382,8 @@ class DemocracyApp {
         <button class="button primary" type="button" data-action="vote" data-id="${initiative.id}" ${voted ? "disabled" : ""}>
           ${voted ? "Glas oddan" : "Glasuj"}
         </button>
-        <button class="button secondary" type="button" data-action="sign" data-id="${initiative.id}" ${signed ? "disabled" : ""}>
-          ${signed ? "Podpis evidentiran" : "Demo podpis"}
+        <button class="button secondary" type="button" data-action="sign" data-id="${initiative.id}" ${signed || !canSipassSign ? "disabled" : ""}>
+          ${signed ? "SI-PASS podpis evidentiran" : canSipassSign ? "SI-PASS podpis" : "Za podpis uporabite SI-PASS"}
         </button>
         ${
           exportReady
@@ -1428,7 +1429,7 @@ class DemocracyApp {
       </div>
       <div class="detail-metrics">
         ${this.metric("Glasovi", initiative.votes.length, "en uporabnik, en glas")}
-        ${this.metric("Podpisi", initiative.signatures.length, "priprava za SI-PASS")}
+        ${this.metric("Podpisi", initiative.signatures.length, "SI-PASS evidenca")}
         ${this.metric("Komentarji", initiative.comments.length, "javna razprava")}
         ${this.metric("AI ocena", `${review.score}%`, riskLabel(review.risk))}
       </div>
@@ -1514,7 +1515,7 @@ class DemocracyApp {
   renderComment(comment) {
     return `
       <article class="comment">
-        <strong>${escapeHtml(comment.userName)}</strong>
+        <strong>${escapeHtml(commentDisplayName(comment))}</strong>
         <p>${escapeHtml(comment.body)}</p>
       </article>
     `;
@@ -1989,8 +1990,14 @@ class DemocracyApp {
 
     if (action === "sign") {
       await this.withActor(async (actor) => {
+        if (!isSipassUser(actor)) {
+          this.toast("Za SI-PASS podpis se prijavite s SI-PASS identiteto.");
+          this.render();
+          return;
+        }
+
         const id = target.dataset.id;
-        const updated = await this.repository.sign(id, actor, this.config.AUTH_MODE === "sipass" ? "sipass" : "demo");
+        const updated = await this.repository.sign(id, actor, "sipass");
         await this.sendEmailNotifications(
           buildInitiativeChangeEmailNotifications({
             initiative: updated,
@@ -2002,7 +2009,7 @@ class DemocracyApp {
         );
         await this.refresh();
         trackClarityEvent("initiative_signed");
-        this.toast("Podpis je evidentiran.");
+        this.toast("SI-PASS podpis je evidentiran.");
       });
     }
   }
@@ -3559,6 +3566,22 @@ function anonymousVoterId() {
     ? globalThis.crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   return `anon-${token}`;
+}
+
+function isSipassUser(user) {
+  return user?.provider === "sipass" || String(user?.id || "").startsWith("sipass-");
+}
+
+function commentDisplayName(comment) {
+  if (String(comment?.userId || "").startsWith("sipass-")) {
+    return firstName(comment?.userName) || "Dr\u017eavljan";
+  }
+
+  return comment?.userName || "Uporabnik";
+}
+
+function firstName(value) {
+  return String(value || "").trim().split(/\s+/).filter(Boolean)[0] || "";
 }
 
 function formatClarityMetric(value, unit = "") {
