@@ -28,12 +28,6 @@ import {
   trackClarityEvent
 } from "./lib/clarity.js";
 import { ClarityInsightsClient } from "./lib/clarity-insights.js";
-import {
-  buildInitiativeDocxBlob,
-  buildInitiativeOdtBlob,
-  initiativeDocxFileName,
-  initiativeOdtFileName
-} from "./lib/docx-export.js";
 import { EmailNotificationClient } from "./lib/notifications.js";
 import { createRepository } from "./lib/supabase.js";
 import { browserResourceSnapshot, estimateTextTokens, SystemTelemetry } from "./lib/telemetry.js";
@@ -1991,9 +1985,9 @@ class DemocracyApp {
       } else if (action === "download-pdf") {
         downloadInitiativePdfExport(initiative, this.currentUser());
       } else if (action === "download-docx") {
-        downloadInitiativeDocxExport(initiative, this.currentUser());
+        await downloadInitiativeDocxExport(initiative, this.currentUser());
       } else {
-        downloadInitiativeOdtExport(initiative, this.currentUser());
+        await downloadInitiativeOdtExport(initiative, this.currentUser());
       }
 
       this.recordSystemEvent(exportAction.systemEvent, {
@@ -3082,12 +3076,14 @@ function downloadInitiativePdfExport(initiative, user) {
   triggerBlobDownload(blob, `${pdfFileName(initiative)}.pdf`);
 }
 
-function downloadInitiativeDocxExport(initiative, user) {
+async function downloadInitiativeDocxExport(initiative, user) {
+  const { buildInitiativeDocxBlob, initiativeDocxFileName } = await import("./lib/docx-export.js");
   const blob = buildInitiativeDocxBlob(initiative, user);
   triggerBlobDownload(blob, initiativeDocxFileName(initiative));
 }
 
-function downloadInitiativeOdtExport(initiative, user) {
+async function downloadInitiativeOdtExport(initiative, user) {
+  const { buildInitiativeOdtBlob, initiativeOdtFileName } = await import("./lib/docx-export.js");
   const blob = buildInitiativeOdtBlob(initiative, user);
   triggerBlobDownload(blob, initiativeOdtFileName(initiative));
 }

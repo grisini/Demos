@@ -63,6 +63,16 @@ Ce zelite, da uporabniki v aplikaciji vidijo agregirane Clarity grafe v zavihku 
 npm test
 ```
 
+Celoten ukaz zaporedno izvede domenske teste, E2E smoke test lokalnega streznika in performance budget test. Posamezne plasti lahko poganjate tudi loceno:
+
+```bash
+npm run test:domain
+npm run test:e2e
+npm run test:performance
+```
+
+E2E test zazene `scripts/dev-server.mjs`, preveri aplikacijsko lupino, runtime config, glavne statice, AI fallback endpoint, email endpoint brez obvestil, Turnstile fallback in 404 odziv. Performance test preverja velikost zacetnega HTML/JS/CSS payload-a, locene budgete za `main.js` in `styles.css` ter to, da se DOCX/ODT generator nalozi sele ob prenosu dokumenta.
+
 ## Trenutno pokrito
 
 - demo prijava brez SI-PASS,
@@ -74,7 +84,7 @@ npm test
 - anonimno glasovanje z omejitvijo enega glasu na pobudo na lokalni brskalniski ID,
 - glasovanje, demo podpisovanje, komentarji in statusi,
 - PDF tiskanje, PDF prenos in DOCX/Word prenos pobude za DZ pri statusih `signature_collection` in `submitted`,
-- email obvestila za glasovalce ob spremembah pobude in novih pobudah v isti kategoriji,
+- email obvestila ustvarjalcu pobude ob spremembi statusa in dnevni povzetek novih glasov, podpisov ter komentarjev,
 - napredna statistika glasov na pobudo, kategorije, komentarje in AI tveganja,
 - osebna analitika pobud za prijavljenega uporabnika,
 - admin sistemska analitika za oceno AI klicev, tokenov, email dogodkov in frontend virov,
@@ -83,7 +93,9 @@ npm test
 - Microsoft Clarity za vedenjsko analitiko sej, custom tags in events,
 - Cloudflare Turnstile server-side preverjanje za oddajo pobude,
 - Supabase SQL shema in konfiguracijski nastavki,
-- povzetek SI-PASS testnega okolja.
+- povzetek SI-PASS testnega okolja,
+- celostni E2E smoke test lokalnega streznika in osnovnih API tokov,
+- performance budget test za zacetni payload in lazy-loading DOCX/ODT izvoza.
 
 ## Dokumentacija
 

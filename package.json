@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "node scripts/dev-server.mjs",
     "start": "node scripts/dev-server.mjs",
-    "test": "node tests/domain.test.mjs",
+    "test": "node tests/domain.test.mjs && node tests/e2e.test.mjs && node tests/performance.test.mjs",
+    "test:domain": "node tests/domain.test.mjs",
+    "test:e2e": "node tests/e2e.test.mjs",
+    "test:performance": "node tests/performance.test.mjs",
     "check": "npm test"
   },
   "dependencies": {
