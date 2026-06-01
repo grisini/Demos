@@ -198,7 +198,7 @@ async function readActivityRows(client, table, refColumn, range) {
 
 async function readInitiatives(client, initiativeIds) {
   const params = new URLSearchParams({
-    select: "id,title,category,status,author_ref,author_name",
+    select: "id,title,category,status,author_ref,author_name,notification_email",
     id: `in.(${initiativeIds.join(",")})`,
     limit: String(maxRows)
   });
@@ -300,7 +300,8 @@ function mapInitiativeForEmail(row) {
       id: row.author_ref,
       name: row.author_name,
       email: row.author_ref
-    }
+    },
+    notificationEmail: row.notification_email || ""
   };
 }
 

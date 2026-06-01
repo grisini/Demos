@@ -130,6 +130,9 @@ class DemocracyApp {
       visibleInitiativeCount: INITIATIVE_LIST_PAGE_SIZE,
       draft: emptyDraft(),
       errors: {},
+      pendingInitiativeSubmission: null,
+      notificationEmailDraft: "",
+      notificationEmailError: "",
       toast: "",
       aiPreviewReview: null,
       aiPreviewLoading: false,
@@ -416,6 +419,7 @@ class DemocracyApp {
             : `${this.renderView(analytics, selected)}${this.renderAppFooter(dataMode)}`
         }
       </main>
+      ${this.renderNotificationEmailDialog()}
     `;
     this.restoreFocusState(focusState);
     this.focusMainHeading();
@@ -736,6 +740,41 @@ class DemocracyApp {
           ${this.renderReviewContent(review, { showRemoteAiAction: true })}
         </aside>
       </section>
+    `;
+  }
+
+  renderNotificationEmailDialog() {
+    if (!this.state.pendingInitiativeSubmission) return "";
+    const emailId = "notification-email-popup-input";
+    const titleId = "notification-email-popup-title";
+    return `
+      <div class="modal-backdrop" role="presentation">
+        <section class="modal-panel notification-email-dialog" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
+          <form data-form="notification-email">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Obvestila pobude</p>
+                <h2 id="${titleId}">E-posta za obvestila</h2>
+              </div>
+            </div>
+            <label class="field" for="${emailId}">
+              <span>E-posta</span>
+              <input id="${emailId}" name="notificationEmail" type="email" value="${escapeAttribute(this.state.notificationEmailDraft)}" placeholder="ime@primer.si" autocomplete="email" inputmode="email" required autofocus aria-invalid="${this.state.notificationEmailError ? "true" : "false"}" aria-describedby="${this.state.notificationEmailError ? "notification-email-popup-error" : ""}" />
+              ${
+                this.state.notificationEmailError
+                  ? `<small id="notification-email-popup-error" class="field-error" role="alert">${escapeHtml(this.state.notificationEmailError)}</small>`
+                  : ""
+              }
+            </label>
+            <div class="form-actions">
+              <button class="button primary" type="submit" ${this.state.turnstileVerifying ? "disabled" : ""}>${
+                this.state.turnstileVerifying ? "Preverjam ..." : "Oddaj pobudo"
+              }</button>
+              <button class="button secondary" type="button" data-action="cancel-notification-email">Preklici</button>
+            </div>
+          </form>
+        </section>
+      </div>
     `;
   }
 
@@ -1427,7 +1466,8 @@ class DemocracyApp {
     const active = initiative.id === this.state.selectedId ? "active" : "";
     const voteCount = initiative.votes.length;
     const commentCount = initiative.comments.length;
-    const description = `${initiative.title}, ${statusLabel(initiative.status)}, ${voteCount} glasov${
+    const authorName = initiativeAuthorName(initiative);
+    const description = `${initiative.title}, avtor ${authorName}, ${statusLabel(initiative.status)}, ${voteCount} glasov${
       user ? `, ${commentCount} komentarjev` : ""
     }`;
     return `
@@ -1438,6 +1478,7 @@ class DemocracyApp {
           <span class="status-dot ${initiative.status}" aria-hidden="true"></span>
           <span>
             <strong>${escapeHtml(initiative.title)}</strong>
+            <small class="initiative-author">Avtor: ${escapeHtml(authorName)}</small>
             <small>${escapeHtml(initiative.category)} - ${statusLabel(initiative.status)} - ${voteCount} glasov${user ? ` - ${commentCount} komentarjev` : ""}</small>
           </span>
           <span class="support-count" title="Glasovi" aria-hidden="true">${voteCount}</span>
@@ -1462,6 +1503,7 @@ class DemocracyApp {
         <div>
           <p class="eyebrow">${escapeHtml(initiative.category)}</p>
           <h2>${escapeHtml(initiative.title)}</h2>
+          <p class="detail-author">Avtor: ${escapeHtml(initiativeAuthorName(initiative))}</p>
         </div>
         <span class="status-badge ${initiative.status}">${statusLabel(initiative.status)}</span>
       </div>
@@ -1723,6 +1765,7 @@ class DemocracyApp {
         <div>
           <p class="eyebrow">${escapeHtml(initiative.category)}</p>
           <h2>${escapeHtml(initiative.title)}</h2>
+          <p class="detail-author">Avtor: ${escapeHtml(initiativeAuthorName(initiative))}</p>
         </div>
         <span class="status-badge ${initiative.status}">${statusLabel(initiative.status)}</span>
       </div>
@@ -1937,6 +1980,18 @@ class DemocracyApp {
       this.state.draft = emptyDraft();
       this.state.errors = {};
       this.state.aiPreviewReview = null;
+      this.state.pendingInitiativeSubmission = null;
+      this.state.notificationEmailDraft = "";
+      this.state.notificationEmailError = "";
+      this.resetSecurityGate();
+      this.render();
+      return;
+    }
+
+    if (action === "cancel-notification-email") {
+      this.state.pendingInitiativeSubmission = null;
+      this.state.notificationEmailDraft = "";
+      this.state.notificationEmailError = "";
       this.resetSecurityGate();
       this.render();
       return;
@@ -2136,7 +2191,15 @@ class DemocracyApp {
 
     if (form.dataset.form === "initiative") {
       await this.withActor(async (actor) => {
-        const validation = validateInitiative(this.state.draft);
+        const submittedDraft = {
+          ...this.state.draft,
+          ...Object.fromEntries(new FormData(form))
+        };
+        const validation = validateInitiative(submittedDraft);
+        this.state.draft = {
+          ...this.state.draft,
+          ...submittedDraft
+        };
         this.state.errors = validation.errors;
         if (!validation.valid) {
           this.resetSecurityGate();
@@ -2150,11 +2213,49 @@ class DemocracyApp {
           return;
         }
 
-        const review = await this.reviewInitiative(validation.values);
-        const initiative = createInitiative(validation.values, actor, review);
+        this.state.pendingInitiativeSubmission = {
+          values: validation.values
+        };
+        this.state.draft = {
+          ...this.state.draft,
+          ...validation.values
+        };
+        this.state.notificationEmailDraft = preferredNotificationEmail(actor);
+        this.state.notificationEmailError = "";
+        this.render();
+      });
+      return;
+    }
+
+    if (form.dataset.form === "notification-email") {
+      await this.withActor(async (actor) => {
+        const pending = this.state.pendingInitiativeSubmission;
+        if (!pending?.values) {
+          this.toast("Najprej oddajte obrazec pobude.");
+          this.render();
+          return;
+        }
+
+        const email = String(new FormData(form).get("notificationEmail") || "").trim().toLowerCase();
+        this.state.notificationEmailDraft = email;
+        if (!isValidEmail(email)) {
+          this.state.notificationEmailError = "Vnesite veljaven e-postni naslov.";
+          this.render();
+          return;
+        }
+
+        const values = {
+          ...pending.values,
+          notificationEmail: email
+        };
+        const review = await this.reviewInitiative(values);
+        const initiative = createInitiative(values, actor, review);
         const savedInitiative = await this.repository.create(initiative);
         this.state.draft = emptyDraft();
         this.state.errors = {};
+        this.state.pendingInitiativeSubmission = null;
+        this.state.notificationEmailDraft = "";
+        this.state.notificationEmailError = "";
         this.state.aiPreviewReview = null;
         this.resetSecurityGate();
         this.state.query = "";
@@ -2695,7 +2796,8 @@ function emptyDraft() {
     impactAssessment: "",
     publicParticipation: "",
     proposerRepresentatives: "",
-    affectedProvisions: ""
+    affectedProvisions: "",
+    notificationEmail: ""
   };
 }
 
@@ -3889,6 +3991,18 @@ function anonymousVoterId() {
 
 function isSipassUser(user) {
   return user?.provider === "sipass" || String(user?.id || "").startsWith("sipass-");
+}
+
+function preferredNotificationEmail(actor) {
+  const email = String(actor?.email || "").trim().toLowerCase();
+  if (isValidEmail(email)) return email;
+
+  const id = String(actor?.id || "").trim().toLowerCase();
+  return isValidEmail(id) ? id : "";
+}
+
+function initiativeAuthorName(initiative) {
+  return String(initiative?.author?.name || initiative?.authorName || initiative?.author?.id || "Neznan avtor").trim();
 }
 
 function commentDisplayName(comment) {

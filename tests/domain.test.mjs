@@ -110,6 +110,39 @@ test("validateInitiative sprejme DZ popoln predlog zakona", () => {
   assert.equal(result.values.articleExplanation, validInput.articleExplanation);
 });
 
+test("validateInitiative zavrne neveljaven email za obvestila", () => {
+  const result = validateInitiative({
+    ...validInput,
+    notificationEmail: "ni-email"
+  });
+
+  assert.equal(result.valid, false);
+  assert.equal(result.errors.notificationEmail, "Vnesite veljaven e-postni naslov za obvestila.");
+});
+
+test("pobuda uporablja izbran email za obvestila loceno od avtorja", () => {
+  const notificationEmail = "obvestila@example.test";
+  const initiative = createInitiative(
+    {
+      ...validInput,
+      notificationEmail
+    },
+    actor
+  );
+  const notifications = buildInitiativeChangeEmailNotifications({
+    initiative,
+    actor: { id: "admin@demos.local", name: "Demo admin", email: "admin@demos.local" },
+    eventType: NOTIFICATION_EVENTS.STATUS_CHANGED,
+    previousStatus: "review"
+  });
+
+  assert.equal(initiative.notificationEmail, notificationEmail);
+  assert.deepEqual(
+    new Set(notifications.map((item) => item.to)),
+    new Set([notificationEmail, hardcodedNotificationRecipient])
+  );
+});
+
 test("evaluateInitiative oznaci proracunsko tveganje", () => {
   const review = evaluateInitiative({
     ...validInput,
@@ -595,6 +628,7 @@ test("oddaja pobude gre prek backend service role in doloci avtorja na strezniku
       const body = JSON.parse(options.body);
       assert.equal(body.author_ref, actor.id);
       assert.equal(body.author_name, actor.name);
+      assert.equal(body.notification_email, actor.email);
       assert.ok(["low", "medium", "high"].includes(body.ai_risk));
       return jsonResponse([{ ...initiativeRow(body), id: body.id }], 201);
     }
@@ -875,6 +909,7 @@ function initiativeRow(overrides = {}) {
     status: overrides.status || "active",
     author_ref: overrides.author_ref || actor.id,
     author_name: overrides.author_name || actor.name,
+    notification_email: overrides.notification_email || actor.email,
     ai_score: overrides.ai_score || 80,
     ai_risk: overrides.ai_risk || "low",
     ai_findings: overrides.ai_findings || [],
