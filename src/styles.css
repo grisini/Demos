@@ -515,7 +515,7 @@ code {
 }
 
 .sidebar .login-form {
-  grid-template-columns: minmax(110px, 140px) minmax(150px, 190px) auto;
+  grid-template-columns: minmax(220px, 320px) auto;
   align-items: end;
 }
 
@@ -2316,7 +2316,7 @@ html[data-a11y-motion="reduce"] *::after {
   }
 
   .sidebar .login-form {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .integration-grid,

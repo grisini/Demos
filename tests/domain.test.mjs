@@ -734,6 +734,13 @@ test("demo prijava nastavi admin vlogo samo za email iz ADMIN_EMAILS", () => {
   assert.equal(userLogin.user.role, "citizen");
 });
 
+test("demo prijava izpelje uporabnisko ime iz emaila", () => {
+  const login = createDemoLogin({ email: "ime@demos.si" }, {});
+
+  assert.equal(login.user.name, "ime");
+  assert.equal(login.user.id, "ime@demos.si");
+});
+
 test("Turnstile zavrne preverjanje brez server secret kljuca", async () => {
   const result = await verifyTurnstileToken(
     { token: "token", action: "initiative_submit" },

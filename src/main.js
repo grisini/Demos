@@ -1703,12 +1703,8 @@ class DemocracyApp {
     return `
       <form class="login-form" data-form="login" aria-label="Demo prijava">
         <label>
-          <span>Ime</span>
-          <input name="name" type="text" value="Demo uporabnik" autocomplete="name" />
-        </label>
-        <label>
           <span>E-posta</span>
-          <input name="email" type="email" value="demo@demos.local" autocomplete="email" inputmode="email" />
+          <input name="email" type="email" value="ime@demos.si" autocomplete="email" inputmode="email" />
         </label>
         <div class="login-actions">
           <button class="button primary compact" type="submit">Demo prijava</button>
@@ -2100,6 +2096,7 @@ class DemocracyApp {
 
   async demoLogin(data) {
     const endpoint = this.config.DEMO_LOGIN_ENDPOINT || "/api/auth/demo-login";
+    const email = String(data.email || "").trim();
     const response = await fetch(endpoint, {
       method: "POST",
       credentials: "include",
@@ -2108,8 +2105,8 @@ class DemocracyApp {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        name: data.name,
-        email: data.email
+        name: demoNameFromEmail(email),
+        email
       })
     });
     const payload = await response.json().catch(() => ({}));
@@ -2968,6 +2965,11 @@ function maskEmail(value) {
   const [name, domain] = email.split("@");
   if (!name || !domain) return email || "(brez)";
   return `${name.slice(0, 2)}***@${domain}`;
+}
+
+function demoNameFromEmail(email) {
+  const localPart = String(email || "").trim().split("@")[0]?.trim();
+  return localPart || "Demo uporabnik";
 }
 
 function isDemoAdminUser(user) {

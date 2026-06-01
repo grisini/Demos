@@ -1,6 +1,6 @@
 export function createDemoLogin(payload = {}, env = process.env) {
   const email = clean(payload.email, 320).toLowerCase();
-  const name = clean(payload.name, 200) || "Demo uporabnik";
+  const name = clean(payload.name, 200) || demoNameFromEmail(email);
   const id = email || `demo-${slug(name)}`;
 
   return {
@@ -27,6 +27,11 @@ export function adminEmails(env = process.env) {
 
 function clean(value, maxLength) {
   return String(value || "").trim().slice(0, maxLength);
+}
+
+function demoNameFromEmail(email) {
+  const localPart = String(email || "").split("@")[0]?.trim();
+  return localPart || "Demo uporabnik";
 }
 
 function slug(value) {
