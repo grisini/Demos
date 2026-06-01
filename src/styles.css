@@ -640,6 +640,87 @@ h3 {
   flex-wrap: wrap;
 }
 
+.deadline-countdown {
+  flex: 1 1 430px;
+  max-width: 560px;
+  min-width: 300px;
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(220px, auto);
+  gap: 8px 14px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 10px 12px;
+  color: #ffffff;
+}
+
+.deadline-copy {
+  min-width: 0;
+}
+
+.deadline-copy span {
+  display: block;
+  margin-bottom: 2px;
+  color: #bfd0e4;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.deadline-copy strong {
+  display: block;
+  color: #ffffff;
+  font-size: 0.98rem;
+  line-height: 1.18;
+}
+
+.deadline-copy small {
+  display: block;
+  margin-top: 3px;
+  color: #dbe7f5;
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.deadline-clock {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(44px, 1fr));
+  gap: 6px;
+}
+
+.deadline-unit {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 6px 5px;
+}
+
+.deadline-unit strong {
+  color: #ffffff;
+  font-size: 1.18rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.deadline-unit span,
+.deadline-date {
+  color: #bfd0e4;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.deadline-date {
+  grid-column: 2;
+  justify-self: end;
+}
+
 .env-pill,
 .status-badge {
   min-height: 36px;
@@ -2031,7 +2112,9 @@ html[data-a11y-motion="reduce"] *::after {
   textarea,
   .panel,
   .metric-card,
-  .initiative-card {
+  .initiative-card,
+  .deadline-countdown,
+  .deadline-unit {
     border: 1px solid CanvasText;
   }
 }
@@ -2308,6 +2391,12 @@ html[data-a11y-motion="reduce"] *::after {
     justify-content: stretch;
   }
 
+  .deadline-countdown {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+
   .topbar-actions .button,
   .topbar-actions .env-pill {
     flex: 1 1 150px;
@@ -2516,6 +2605,19 @@ html[data-a11y-motion="reduce"] *::after {
 
   .topbar::before {
     height: 4px;
+  }
+
+  .deadline-countdown {
+    grid-template-columns: 1fr;
+  }
+
+  .deadline-clock {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .deadline-date {
+    grid-column: 1;
+    justify-self: start;
   }
 
   h1 {

@@ -1,8 +1,9 @@
 import { CATEGORIES, evaluateInitiative, normalizeInput } from "../../src/domain/validation.js";
+import { buildRemoteAiReviewText } from "../../src/domain/ai-review.js";
 
 const huggingFaceRouterBase = "https://router.huggingface.co/hf-inference/models";
 const defaultHuggingFaceZeroShotModel = "facebook/bart-large-mnli";
-const maxBodyBytes = 128 * 1024;
+const maxBodyBytes = 256 * 1024;
 
 export default async function handler(request, response) {
   if (request.method === "OPTIONS") {
@@ -41,16 +42,21 @@ async function readJsonBody(request) {
 
   const raw = await new Promise((resolveBody, rejectBody) => {
     let body = "";
+    let tooLarge = false;
+
     request.on("data", (chunk) => {
+      if (tooLarge) return;
       body += chunk;
-      if (body.length > maxBodyBytes) {
+      if (Buffer.byteLength(body, "utf8") > maxBodyBytes) {
+        tooLarge = true;
         const error = new Error("Request body is too large.");
         error.status = 413;
         rejectBody(error);
-        request.destroy();
       }
     });
-    request.on("end", () => resolveBody(body));
+    request.on("end", () => {
+      if (!tooLarge) resolveBody(body);
+    });
     request.on("error", rejectBody);
   });
 
@@ -60,54 +66,59 @@ async function readJsonBody(request) {
 async function reviewInitiativeWithHuggingFace(payload, env) {
   const token = env.HF_TOKEN;
   const model = env.HUGGINGFACE_ZERO_SHOT_MODEL || defaultHuggingFaceZeroShotModel;
-
-  if (!token) {
-    const error = new Error("HF_TOKEN is not configured.");
-    error.status = 503;
-    throw error;
-  }
-
   const values = normalizeInput(payload);
   const localReview = evaluateInitiative(values);
-  const text = [
-    values.title,
-    values.summary,
-    values.description,
-    values.legalReference,
-    values.expectedImpact,
-    values.legislativeText,
-    values.articleExplanation,
-    values.financialImpact,
-    values.budgetFunding,
-    values.comparativeReview,
-    values.impactAssessment,
-    values.publicParticipation,
-    values.proposerRepresentatives,
-    values.affectedProvisions
-  ].join("\n\n");
 
-  const [categoryResult, suitabilityResult] = await Promise.all([
-    queryHuggingFaceZeroShot({
-      token,
+  if (!token) {
+    return remoteAiFallbackReview(localReview, {
       model,
-      inputs: text,
-      candidateLabels: CATEGORIES,
-      hypothesisTemplate: "Ta zakonodajna pobuda spada v kategorijo {}."
-    }),
-    queryHuggingFaceZeroShot({
-      token,
-      model,
-      inputs: text,
-      candidateLabels: ["primerna za objavo", "potreben uredniski pregled", "nezadostna za oddajo"],
-      hypothesisTemplate: "Ta zakonodajna pobuda je {}."
-    })
-  ]);
+      fallbackReason: "hf_token_missing"
+    });
+  }
 
-  return normalizeHuggingFaceReview({
-    categoryResult,
-    suitabilityResult,
-    fallback: localReview,
-    model
+  const text = buildRemoteAiReviewText(values);
+  const models = uniqueValues([model, defaultHuggingFaceZeroShotModel]);
+  let lastError = null;
+
+  for (const candidateModel of models) {
+    try {
+      const [categoryResult, suitabilityResult] = await Promise.all([
+        queryHuggingFaceZeroShot({
+          token,
+          model: candidateModel,
+          inputs: text,
+          candidateLabels: CATEGORIES,
+          hypothesisTemplate: "Ta zakonodajna pobuda spada v kategorijo {}."
+        }),
+        queryHuggingFaceZeroShot({
+          token,
+          model: candidateModel,
+          inputs: text,
+          candidateLabels: ["primerna za objavo", "potreben uredniski pregled", "nezadostna za oddajo"],
+          hypothesisTemplate: "Ta zakonodajna pobuda je {}."
+        })
+      ]);
+
+      return normalizeHuggingFaceReview({
+        categoryResult,
+        suitabilityResult,
+        fallback: localReview,
+        model: candidateModel
+      });
+    } catch (error) {
+      lastError = error;
+      console.warn("[Demokracija 2.0] AI review model failed", {
+        model: candidateModel,
+        message: error.message,
+        status: error.status || "unknown",
+        details: abbreviateErrorDetails(error.details)
+      });
+    }
+  }
+
+  return remoteAiFallbackReview(localReview, {
+    model,
+    fallbackReason: lastError ? "huggingface_unavailable" : "huggingface_no_model"
   });
 }
 
@@ -125,6 +136,9 @@ async function queryHuggingFaceZeroShot({ token, model, inputs, candidateLabels,
         candidate_labels: candidateLabels,
         hypothesis_template: hypothesisTemplate,
         multi_label: false
+      },
+      options: {
+        wait_for_model: true
       }
     })
   });
@@ -138,6 +152,29 @@ async function queryHuggingFaceZeroShot({ token, model, inputs, candidateLabels,
   }
 
   return raw ? JSON.parse(raw) : {};
+}
+
+function remoteAiFallbackReview(fallback, options = {}) {
+  return {
+    ...fallback,
+    checks: {
+      ...fallback.checks,
+      provider: "local",
+      model: "local-rule-engine-v1",
+      remoteModel: options.model || defaultHuggingFaceZeroShotModel,
+      fallbackReason: options.fallbackReason || "huggingface_unavailable",
+      reviewedAt: new Date().toISOString()
+    }
+  };
+}
+
+function abbreviateErrorDetails(value) {
+  const details = String(value || "").replace(/\s+/g, " ").trim();
+  return details.length > 240 ? `${details.slice(0, 237)}...` : details;
+}
+
+function uniqueValues(values) {
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
 }
 
 function normalizeHuggingFaceReview({ categoryResult, suitabilityResult, fallback, model }) {

@@ -7,6 +7,11 @@ import {
 } from "../src/domain/analytics.js";
 import { normalizeClarityInsights } from "../src/domain/clarity-insights.js";
 import {
+  REMOTE_AI_REVIEW_MAX_CHARS,
+  buildRemoteAiReviewText,
+  compactRemoteAiReviewPayload
+} from "../src/domain/ai-review.js";
+import {
   NOTIFICATION_EVENTS,
   buildCategoryMatchEmailNotifications,
   buildInitiativeChangeEmailNotifications
@@ -117,6 +122,26 @@ test("evaluateInitiative pripravi predlog kategorije in popolnost", () => {
   assert.equal(review.checks.categorySuggestion.category, "Zdravstvo");
   assert.equal(review.checks.completeness.score, 100);
   assert.ok(review.findings.some((finding) => finding.includes("AI predlaga kategorijo Zdravstvo")));
+});
+
+test("remote AI pregled skrajsa razsirjen DZ template", () => {
+  const longSection = "Dolgo besedilo za predlog zakona z obrazlozitvijo in pravnimi posledicami. ".repeat(220);
+  const longInput = {
+    ...validInput,
+    description: longSection,
+    legislativeText: longSection,
+    articleExplanation: longSection,
+    comparativeReview: longSection,
+    impactAssessment: longSection
+  };
+  const text = buildRemoteAiReviewText(longInput);
+  const payload = compactRemoteAiReviewPayload(longInput);
+
+  assert.ok(text.length <= REMOTE_AI_REVIEW_MAX_CHARS);
+  assert.match(text, /Naslov:/);
+  assert.match(text, /Besedilo clenov:/);
+  assert.ok(payload.description.length < longInput.description.length);
+  assert.ok(JSON.stringify(payload).length < JSON.stringify(longInput).length);
 });
 
 test("glasovanje in podpis ne podvajata istega uporabnika", () => {

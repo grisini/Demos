@@ -4,6 +4,7 @@ import {
   calculateSystemAnalytics,
   calculateUserAnalytics
 } from "./domain/analytics.js";
+import { compactRemoteAiReviewPayload } from "./domain/ai-review.js";
 import {
   NOTIFICATION_EVENTS,
   buildCategoryMatchEmailNotifications,
@@ -59,6 +60,15 @@ const REMOTE_SEARCH_DEBOUNCE_MS = 800;
 const REMOTE_SEARCH_MIN_LENGTH = 2;
 const EXPORTABLE_INITIATIVE_STATUSES = ["signature_collection", "submitted"];
 const INITIATIVE_TURNSTILE_ACTION = "submit_initiative";
+// Month is zero-based because it feeds the Date constructor.
+const ANNUAL_PACKAGE_DEADLINE = {
+  month: 11,
+  day: 31,
+  hour: 23,
+  minute: 59,
+  second: 59
+};
+const COUNTDOWN_INTERVAL_MS = 1000;
 const ACCESSIBILITY_STANDARD = "EN 301 549 v3.2.1 / WCAG 2.1 AA";
 const ACCESSIBILITY_REVIEW_DATE = "26. 5. 2026";
 const ACCESSIBILITY_STORAGE_KEY = "demos.accessibilityPreferences";
@@ -114,6 +124,7 @@ class DemocracyApp {
     this.anonymousVoterSessionId = "";
     this.searchRequestId = 0;
     this.searchDebounceTimer = null;
+    this.countdownTimer = null;
     this.state = {
       initiatives: [],
       searchResults: null,
@@ -153,6 +164,7 @@ class DemocracyApp {
   }
 
   async init() {
+    this.startCountdownTimer();
     await this.auth.refreshSipassSession?.(this.config.AUTH_SESSION_ENDPOINT);
     this.syncViewUrl({ replace: true });
     initializeVercelAnalytics();
@@ -396,6 +408,7 @@ class DemocracyApp {
               <h1 id="page-title" tabindex="-1">${this.pageTitle()}</h1>
             </div>
           </div>
+          ${this.state.activeView === "dashboard" ? this.renderAnnualDeadlineCountdown() : ""}
           <div class="topbar-actions">
             <span class="env-pill">${this.config.SIPASS_ENV === "test" ? "SI-PASS test" : "SI-PASS prod"}</span>
             <button class="button secondary" type="button" data-action="view" data-view="accessibility">Dostopnost</button>
@@ -414,6 +427,66 @@ class DemocracyApp {
     this.focusMainHeading();
     this.syncExternalAnalytics();
     this.syncSecurityWidgets();
+    this.syncAnnualDeadlineCountdown();
+  }
+
+  startCountdownTimer() {
+    if (this.countdownTimer || typeof window === "undefined") return;
+    this.countdownTimer = window.setInterval(() => this.syncAnnualDeadlineCountdown(), COUNTDOWN_INTERVAL_MS);
+  }
+
+  renderAnnualDeadlineCountdown() {
+    const countdown = annualDeadlineCountdown();
+    return `
+      <section class="deadline-countdown" data-annual-deadline-countdown aria-label="Letni rok za zaprtje pobud">
+        <div class="deadline-copy">
+          <span>Letni paket za DZ</span>
+          <strong>Zaprtje pobud</strong>
+          <small>Po roku se pobude zapakirajo za posiljanje v Drzavni zbor.</small>
+        </div>
+        <div class="deadline-clock" aria-hidden="true">
+          ${this.countdownUnit("days", countdown.days, "dni")}
+          ${this.countdownUnit("hours", countdown.hours, "ur")}
+          ${this.countdownUnit("minutes", countdown.minutes, "min")}
+          ${this.countdownUnit("seconds", countdown.seconds, "sek")}
+        </div>
+        <time class="deadline-date" data-countdown-deadline datetime="${escapeAttribute(countdown.deadline.toISOString())}">
+          ${escapeHtml(`Rok: ${formatAnnualDeadlineDate(countdown.deadline)}`)}
+        </time>
+        <span class="sr-only" data-countdown-accessible>${escapeHtml(annualDeadlineAccessibleLabel(countdown))}</span>
+      </section>
+    `;
+  }
+
+  countdownUnit(unit, value, label) {
+    return `
+      <span class="deadline-unit">
+        <strong data-countdown-unit="${escapeAttribute(unit)}">${escapeHtml(padCountdownValue(value))}</strong>
+        <span>${escapeHtml(label)}</span>
+      </span>
+    `;
+  }
+
+  syncAnnualDeadlineCountdown() {
+    const countdownRoot = this.root.querySelector("[data-annual-deadline-countdown]");
+    if (!countdownRoot) return;
+
+    const countdown = annualDeadlineCountdown();
+    countdownRoot.querySelectorAll("[data-countdown-unit]").forEach((element) => {
+      const value = countdown[element.dataset.countdownUnit];
+      element.textContent = padCountdownValue(value);
+    });
+
+    const deadline = countdownRoot.querySelector("[data-countdown-deadline]");
+    if (deadline) {
+      deadline.dateTime = countdown.deadline.toISOString();
+      deadline.textContent = `Rok: ${formatAnnualDeadlineDate(countdown.deadline)}`;
+    }
+
+    const accessibleLabel = countdownRoot.querySelector("[data-countdown-accessible]");
+    if (accessibleLabel) {
+      accessibleLabel.textContent = annualDeadlineAccessibleLabel(countdown);
+    }
   }
 
   renderAppFooter(dataMode) {
@@ -1258,7 +1331,7 @@ class DemocracyApp {
           <p class="eyebrow">AI presoja</p>
           <h2>Napredna AI presoja</h2>
           <dl class="config-list">
-            <div><dt>Nacin</dt><dd>${this.config.AI_PROVIDER === "huggingface" ? "napredno AI preverjanje" : "lokalni fallback"}</dd></div>
+            <div><dt>Nacin</dt><dd>${this.config.AI_REVIEW_ENDPOINT ? "napredno AI preverjanje" : "lokalni fallback"}</dd></div>
             <div><dt>Review endpoint</dt><dd>${this.config.AI_REVIEW_ENDPOINT ? "nastavljen" : "lokalni fallback"}</dd></div>
             <div><dt>Zero-shot model</dt><dd>${escapeHtml(this.config.HUGGINGFACE_ZERO_SHOT_MODEL)}</dd></div>
             <div><dt>Embedding model</dt><dd>${escapeHtml(this.config.HUGGINGFACE_EMBEDDING_MODEL)}</dd></div>
@@ -1546,7 +1619,13 @@ class DemocracyApp {
     const providerLabel = provider === "huggingface" ? "Napredno AI preverjanje" : "Lokalni predpregled";
     const model = review.checks?.model || review.model || "local-rule-engine-v1";
     const modelLabel = provider === "huggingface" ? `Hugging Face / ${model}` : "lokalna pravila";
-    const canCallRemoteAi = options.showRemoteAiAction && this.config.AI_REVIEW_ENDPOINT;
+    const showAiReviewAction = Boolean(options.showRemoteAiAction);
+    const hasRemoteAiReview = Boolean(this.config.AI_REVIEW_ENDPOINT);
+    const aiReviewButtonLabel = this.state.aiPreviewLoading
+      ? "AI preverja ..."
+      : hasRemoteAiReview
+        ? "Preglej bolj podrobno z AI"
+        : "Zazeni AI analizo";
     return `
       <p class="eyebrow">AI predpregled</p>
       <div class="score-ring" style="--score: ${review.score}" role="img" aria-label="AI ocena ${review.score} odstotkov, tveganje ${escapeAttribute(riskLabel(review.risk))}">
@@ -1558,16 +1637,14 @@ class DemocracyApp {
         <div><dt>Nacin pregleda</dt><dd>${escapeHtml(providerLabel)}</dd></div>
         <div><dt>Vir ocene</dt><dd>${escapeHtml(modelLabel)}</dd></div>
       </dl>
+      ${
+        showAiReviewAction
+          ? `<button class="button secondary full-width" type="button" data-action="ai-preview" ${this.state.aiPreviewLoading ? "disabled" : ""}>${aiReviewButtonLabel}</button>`
+          : ""
+      }
       <ul class="check-list">
         ${review.findings.map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")}
       </ul>
-      ${
-        canCallRemoteAi
-          ? `<button class="button secondary full-width" type="button" data-action="ai-preview" ${this.state.aiPreviewLoading ? "disabled" : ""}>${
-              this.state.aiPreviewLoading ? "AI preverja ..." : "Preglej bolj podrobno z AI"
-            }</button>`
-          : ""
-      }
     `;
   }
 
@@ -2322,12 +2399,15 @@ class DemocracyApp {
     this.state.aiPreviewLoading = true;
     this.render();
     try {
+      const remoteAiConfigured = Boolean(this.config.AI_REVIEW_ENDPOINT);
       this.state.aiPreviewReview = await this.reviewInitiative(this.state.draft);
       const provider = this.state.aiPreviewReview.checks?.provider || this.state.aiPreviewReview.provider || "local";
       this.toast(
         provider === "huggingface"
           ? "Napredni AI pregled je pripravljen."
-          : "Napredni AI pregled ni uspel; uporabljen je lokalni fallback."
+          : remoteAiConfigured
+            ? "Napredni AI pregled ni uspel; uporabljena je lokalna AI analiza."
+            : "Lokalna AI analiza je posodobljena."
       );
     } catch (error) {
       this.reportError("Napaka pri naprednem AI predpregledu", error);
@@ -2357,7 +2437,7 @@ class DemocracyApp {
       values?.proposerRepresentatives,
       values?.affectedProvisions
     ].join(" "));
-    if (!this.config.AI_REVIEW_ENDPOINT || this.config.AI_PROVIDER !== "huggingface") {
+    if (!this.config.AI_REVIEW_ENDPOINT) {
       this.recordSystemEvent("ai_review", {
         provider: "local",
         estimatedTokens,
@@ -2373,7 +2453,7 @@ class DemocracyApp {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(values)
+        body: JSON.stringify(compactRemoteAiReviewPayload(values))
       });
 
       if (!response.ok) {
@@ -2738,6 +2818,58 @@ function formatDate(value) {
     hour: "2-digit",
     minute: "2-digit"
   });
+}
+
+function annualDeadlineCountdown(now = new Date()) {
+  const deadline = nextAnnualPackageDeadline(now);
+  const remainingMs = Math.max(0, deadline.getTime() - now.getTime());
+  const days = Math.floor(remainingMs / 86400000);
+  const hours = Math.floor((remainingMs % 86400000) / 3600000);
+  const minutes = Math.floor((remainingMs % 3600000) / 60000);
+  const seconds = Math.floor((remainingMs % 60000) / 1000);
+
+  return {
+    deadline,
+    days,
+    hours,
+    minutes,
+    seconds
+  };
+}
+
+function nextAnnualPackageDeadline(now = new Date()) {
+  const deadline = new Date(
+    now.getFullYear(),
+    ANNUAL_PACKAGE_DEADLINE.month,
+    ANNUAL_PACKAGE_DEADLINE.day,
+    ANNUAL_PACKAGE_DEADLINE.hour,
+    ANNUAL_PACKAGE_DEADLINE.minute,
+    ANNUAL_PACKAGE_DEADLINE.second
+  );
+
+  if (now.getTime() > deadline.getTime()) {
+    deadline.setFullYear(deadline.getFullYear() + 1);
+  }
+
+  return deadline;
+}
+
+function formatAnnualDeadlineDate(value) {
+  return value.toLocaleDateString("sl-SI", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function annualDeadlineAccessibleLabel(countdown) {
+  return `Do letnega zaprtja pobud je se ${countdown.days} dni, ${countdown.hours} ur, ${countdown.minutes} minut in ${countdown.seconds} sekund. Rok je ${formatAnnualDeadlineDate(countdown.deadline)}.`;
+}
+
+function padCountdownValue(value) {
+  return String(Number(value) || 0).padStart(2, "0");
 }
 
 function canExportInitiative(initiative) {
