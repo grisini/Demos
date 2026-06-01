@@ -179,7 +179,7 @@ Lokalno endpoint zagotovi `scripts/dev-server.mjs`, na Vercelu pa `api/notificat
 EMAIL_NOTIFICATIONS_ENDPOINT=/api/notifications/email
 PUBLIC_SITE_URL=https://demokracija-20.si
 DAILY_DIGEST_TIME_ZONE=Europe/Ljubljana
-CRON_SECRET=7177457b-d0e3-45a0-9f1a-5a6ca1fda7ca0d637e51-d495-443b-85b7-28206c07547e
+CRON_SECRET= ....
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_STARTTLS=true
