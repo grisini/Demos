@@ -1,8 +1,10 @@
 import { emptyClarityInsights, normalizeClarityInsights } from "../src/domain/clarity-insights.js";
+import { checkRateLimit, rateLimitHeaders } from "./rate-limit.mjs";
 
 const clarityEndpoint = "https://www.clarity.ms/export-data/api/v1/project-live-insights";
 const cacheTtlMs = 6 * 60 * 60 * 1000;
 const cache = new Map();
+const rateLimit = { name: "clarity-analytics", limit: 60, windowMs: 60 * 1000 };
 
 export default async function handler(request, response) {
   if (request.method === "OPTIONS") {
@@ -13,6 +15,12 @@ export default async function handler(request, response) {
 
   if (request.method !== "GET") {
     sendJson(response, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  const limit = checkRateLimit(request, rateLimit);
+  if (limit.limited) {
+    sendJson(response, 429, { error: "Too many Clarity analytics requests." }, rateLimitHeaders(limit));
     return;
   }
 
@@ -69,9 +77,12 @@ export default async function handler(request, response) {
   }
 }
 
-function sendJson(response, status, value) {
+function sendJson(response, status, value, headers = {}) {
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.setHeader("Cache-Control", "no-store");
+  for (const [name, headerValue] of Object.entries(headers)) {
+    response.setHeader(name, headerValue);
+  }
   response.statusCode = status;
   response.end(JSON.stringify(value));
 }

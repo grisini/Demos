@@ -56,5 +56,8 @@ Za produkcijo je treba:
 - vezati uporabnika na SI-PASS preverjeno identiteto,
 - prepreciti spremembo statusov navadnim uporabnikom,
 - hraniti samo minimalne osebne podatke oziroma anonimizirane identifikatorje,
-- dodati rate limiting in revizijsko sled.
-- razvojni Hugging Face endpoint premakniti v backend ali Supabase Edge Function in token hraniti izkljucno tam, ne v brskalniku.
+- ohraniti aplikacijski rate limiting in ga dopolniti s Cloudflare Rate Limiting,
+- dodati revizijsko sled,
+- razvojni Hugging Face endpoint poganjati izkljucno na backendu ali Supabase Edge Function, ne iz brskalnika.
+
+Opomba: projekt ze vsebuje in-memory rate limiter za obstojece backend endpoint-e. Direktni Supabase anon dostop za `initiatives`, `votes` in `comments` pa zato se vedno ostaja prototipna omejitev, dokler se te pisalne akcije ne premaknejo na backend.

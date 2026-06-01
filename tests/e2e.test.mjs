@@ -18,6 +18,8 @@ test("E2E: aplikacijska lupina in javni asseti se nalozijo", async () => {
   const htmlResponse = await request("/");
   assert.equal(htmlResponse.status, 200);
   assert.match(htmlResponse.headers.get("content-type") || "", /text\/html/);
+  assert.equal(htmlResponse.headers.get("x-content-type-options"), "nosniff");
+  assert.match(htmlResponse.headers.get("content-security-policy") || "", /frame-ancestors 'none'/);
 
   const html = await htmlResponse.text();
   assert.match(html, /<div id="app"/);

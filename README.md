@@ -47,6 +47,8 @@ Po spremembi env varov na hostingu je potreben nov deploy oziroma redeploy. `SUP
 
 Za zascito oddaje pobud pred avtomatiziranimi oddajami nastavite Cloudflare Turnstile. Public `TURNSTILE_SITE_KEY` gre v runtime config, server-only `TURNSTILE_SECRET_KEY` pa ostane samo v Vercel oziroma strezniskem okolju. Dodatno lahko omejite dovoljene hoste z `TURNSTILE_ALLOWED_HOSTNAMES`.
 
+Obstojeci backend endpointi imajo aplikacijski in-memory rate limiting in vracajo `429`, ko isti odjemalec preseze dovoljeno stevilo zahtevkov. V produkciji to dopolnite se s Cloudflare Rate Limiting pravili, ker serverless instance nimajo globalnega trajnega stevca.
+
 Ce zelite, da admin sistemska analitika na Vercelu bere skupne dogodke vseh uporabnikov, dodajte tudi server-only `SUPABASE_SERVICE_ROLE_KEY` in v Supabase izvedite zadnjo verzijo `supabase/schema.sql`, ki vsebuje tabelo `system_analytics_events`.
 
 SI-PASS podpis pobude uporablja backend endpoint `/api/signatures`, zato za produkcijski podpis dodajte server-only `SUPABASE_SERVICE_ROLE_KEY` in v Supabase izvedite `supabase/signatures-security.sql`, ki zapre direktno vstavljanje podpisov prek javnega anon kljuca.
@@ -92,6 +94,8 @@ E2E test zazene `scripts/dev-server.mjs`, preveri aplikacijsko lupino, runtime c
 - Vercel Speed Insights za Core Web Vitals in performance metrike,
 - Microsoft Clarity za vedenjsko analitiko sej, custom tags in events,
 - Cloudflare Turnstile server-side preverjanje za oddajo pobude,
+- aplikacijski rate limiting za obstojece backend endpoint-e,
+- varnostni HTTP headerji in CSP za Vercel ter lokalni razvojni streznik,
 - Supabase SQL shema in konfiguracijski nastavki,
 - povzetek SI-PASS testnega okolja,
 - celostni E2E smoke test lokalnega streznika in osnovnih API tokov,

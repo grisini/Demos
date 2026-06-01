@@ -1,9 +1,11 @@
 import { buildInitiativeDailyDigestEmailNotifications } from "../src/domain/notifications.js";
 import { deliverEmailNotifications } from "./email.mjs";
+import { checkRateLimit, rateLimitHeaders } from "./rate-limit.mjs";
 
 const defaultTimeZone = "Europe/Ljubljana";
 const digestSentEventType = "daily_creator_digest_sent";
 const maxRows = 10000;
+const rateLimit = { name: "daily-digest", limit: 10, windowMs: 60 * 1000 };
 
 export default async function handler(request, response) {
   if (request.method === "OPTIONS") {
@@ -14,6 +16,12 @@ export default async function handler(request, response) {
 
   if (!["GET", "POST"].includes(request.method)) {
     sendJson(response, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  const limit = checkRateLimit(request, rateLimit);
+  if (limit.limited) {
+    sendJson(response, 429, { error: "Too many daily digest requests." }, rateLimitHeaders(limit));
     return;
   }
 
@@ -414,9 +422,12 @@ function isAuthorizedRequest(request, env = {}) {
   return authorization === `Bearer ${secret}` || headerSecret === secret;
 }
 
-function sendJson(response, status, value) {
+function sendJson(response, status, value, headers = {}) {
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.setHeader("Cache-Control", "no-store");
+  for (const [name, headerValue] of Object.entries(headers)) {
+    response.setHeader(name, headerValue);
+  }
   response.statusCode = status;
   response.end(JSON.stringify(value));
 }
