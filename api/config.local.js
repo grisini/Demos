@@ -37,6 +37,16 @@ function publicRuntimeConfig(env) {
       env.VITE_AUTH_LOGOUT_ENDPOINT,
       "/api/auth/logout"
     ),
+    DEMO_LOGIN_ENDPOINT: firstValue(
+      env.DEMO_LOGIN_ENDPOINT,
+      env.VITE_DEMO_LOGIN_ENDPOINT,
+      "/api/auth/demo-login"
+    ),
+    INITIATIVES_ENDPOINT: firstValue(
+      env.INITIATIVES_ENDPOINT,
+      env.VITE_INITIATIVES_ENDPOINT,
+      "/api/initiatives"
+    ),
     SIGNATURES_ENDPOINT: firstValue(
       env.SIGNATURES_ENDPOINT,
       env.VITE_SIGNATURES_ENDPOINT,

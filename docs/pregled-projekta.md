@@ -174,7 +174,7 @@ Ta pristop je viden v git zgodovini: projekt se je razvijal od osnovnega prototi
 - Email modul ima zacasno demo logiko prejemnikov in potrebuje konfigurabilen produkcijski model.
 - AI endpoint je razvojni in mora v produkciji teci na backendu ali Edge Function.
 - Manjkajo brskalniski E2E testi za celoten tok oddaja-podpora-komentar.
-- Ni posebne uporabniske tabele ali polne vloge moderatorja.
+- Ni posebne uporabniske tabele ali polnega upravljanja administratorskih racunov v aplikaciji.
 
 ## Kako profesor preveri projekt
 

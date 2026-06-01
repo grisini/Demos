@@ -45,7 +45,6 @@ import {
   vercelSpeedInsightsStatus
 } from "./lib/vercel-speed-insights.js";
 
-const DEMO_ADMIN_EMAIL = "admin@demos.local";
 const APP_VIEWS = ["dashboard", "submit", "analytics", "integrations", "systemAnalytics", "accessibility"];
 const PUBLIC_INITIATIVE_STATUSES = ["active", "signature_collection"];
 const ANONYMOUS_VOTER_KEY = "demos.anonymousVoterId";
@@ -1714,7 +1713,6 @@ class DemocracyApp {
         <div class="login-actions">
           <button class="button primary compact" type="submit">Demo prijava</button>
           <button class="button secondary compact" type="button" data-action="sipass-login">SI-PASS prijava</button>
-          <button class="button secondary compact" type="button" data-action="demo-admin-login">Demo admin</button>
         </div>
       </form>
     `;
@@ -1754,7 +1752,6 @@ class DemocracyApp {
       <div class="signed-user" aria-label="Prijavljen uporabnik">
         <span>${escapeHtml(user.name)}</span>
         <small>${escapeHtml(admin ? "Demo admin" : user.provider === "demo" ? "Demo identiteta" : user.provider || "Uporabnik")}</small>
-        ${admin ? "" : `<button class="button secondary compact" type="button" data-action="demo-admin-login">Demo admin</button>`}
         <button class="button secondary compact" type="button" data-action="logout">Odjava</button>
       </div>
     `;
@@ -2027,20 +2024,6 @@ class DemocracyApp {
       return;
     }
 
-    if (action === "demo-admin-login") {
-      const user = this.auth.signIn({
-        name: "Demo admin",
-        email: DEMO_ADMIN_EMAIL,
-        role: "admin"
-      });
-      identifyClarityUser(user, this.state.activeView);
-      setClarityTag("user_role", "admin");
-      trackClarityEvent("demo_admin_login");
-      this.toast("Prijavljeni ste kot demo admin.");
-      this.scheduleRemoteSearch();
-      return;
-    }
-
     if (action === "sipass-login") {
       window.location.assign(this.sipassLoginUrl());
       return;
@@ -2115,6 +2098,29 @@ class DemocracyApp {
     return payload.initiative;
   }
 
+  async demoLogin(data) {
+    const endpoint = this.config.DEMO_LOGIN_ENDPOINT || "/api/auth/demo-login";
+    const response = await fetch(endpoint, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name: data.name,
+        email: data.email
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok || !payload?.user?.id) {
+      throw new Error(payload?.error || "Demo prijava ni uspela.");
+    }
+
+    return this.auth.signIn(payload.user);
+  }
+
   async handleSubmit(event) {
     const form = event.target.closest("[data-form]");
     if (!form) return;
@@ -2122,10 +2128,7 @@ class DemocracyApp {
 
     if (form.dataset.form === "login") {
       const data = Object.fromEntries(new FormData(form));
-      const user = this.auth.signIn({
-        ...data,
-        role: isDemoAdminEmail(data.email) ? "admin" : "citizen"
-      });
+      const user = await this.demoLogin(data);
       identifyClarityUser(user, this.state.activeView);
       setClarityTag("user_role", user.role);
       trackClarityEvent("demo_login");
@@ -2245,7 +2248,7 @@ class DemocracyApp {
 
       try {
         const previous = this.state.initiatives.find((initiative) => initiative.id === statusId);
-        const updated = await this.repository.updateStatus(statusId, event.target.value);
+        const updated = await this.repository.updateStatus(statusId, event.target.value, this.currentUser());
         await this.sendEmailNotifications(
           buildInitiativeChangeEmailNotifications({
             initiative: updated,
@@ -2969,11 +2972,7 @@ function maskEmail(value) {
 
 function isDemoAdminUser(user) {
   if (!user) return false;
-  return isDemoAdminEmail(user.email) || isDemoAdminEmail(user.id);
-}
-
-function isDemoAdminEmail(value) {
-  return String(value || "").trim().toLowerCase() === DEMO_ADMIN_EMAIL;
+  return String(user.role || "").toLowerCase() === "admin";
 }
 
 function formatDate(value) {

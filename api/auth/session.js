@@ -1,4 +1,4 @@
-import { sessionUserFromRequest } from "../../server/sipass-session.mjs";
+import { sessionUserWithAdminRole } from "../../server/initiatives.mjs";
 
 export default function handler(request, response) {
   if (request.method !== "GET") {
@@ -6,7 +6,7 @@ export default function handler(request, response) {
     return;
   }
 
-  const user = sessionUserFromRequest(request, process.env);
+  const user = sessionUserWithAdminRole(request, process.env);
   sendJson(response, 200, {
     authenticated: Boolean(user),
     user

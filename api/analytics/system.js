@@ -1,7 +1,8 @@
+import { adminEmails } from "../../server/demo-login.mjs";
+
 const maxBodyBytes = 128 * 1024;
 const maxEventsPerRequest = 20;
 const maxRecentEvents = 200;
-const demoAdminEmail = "admin@demos.local";
 
 export default async function handler(request, response) {
   if (request.method === "OPTIONS") {
@@ -207,7 +208,7 @@ function mapEventRow(row) {
 
 function isAdminRequest(request, env) {
   const admin = String(request.headers["x-demos-admin"] || "").trim().toLowerCase();
-  return admin === demoAdminEmail;
+  return adminEmails(env).has(admin);
 }
 
 function primitiveProperties(value) {

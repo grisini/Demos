@@ -165,12 +165,12 @@ Projekt uporablja tri locene analiticne plasti:
 
 - **Vercel Web Analytics**: promet, strani in SEO pogled v Vercel dashboardu; vidi ga lastnik hostinga.
 - **Vercel Speed Insights**: Core Web Vitals in hitrost strani v Vercel dashboardu; vidi ga lastnik hostinga.
-- **Sistemska analitika**: pogled samo za demo admina `admin@demos.local`; namenjen je oceni obremenitev, AI klicev, tokenov, email dogodkov, uporabniskih sledi in javne vidnosti pobud.
+- **Sistemska analitika**: pogled samo za admin email, nastavljen v `ADMIN_EMAILS`; namenjen je oceni obremenitev, AI klicev, tokenov, email dogodkov, uporabniskih sledi in javne vidnosti pobud.
 - **Analitika pobud**: aplikacijski pogled za splosne metrike pobud, osebno statistiko prijavljenega uporabnika in agregirane Clarity grafe prek server-side Data Export API. Microsoft Clarity dodatno belezi seje, custom tags in dogodke.
 
 Brez prijave je vidna samo zacetna stran z aktualnimi pobudami. Neprijavljen uporabnik lahko odda en anonimen glas na pobudo, ne vidi pa oddaje pobude, podpisovanja, komentarjev, osebne analitike, integracij ali sistemske analitike.
 
-Za interni pogled uporabite gumb `Demo admin` v prijavnem obrazcu ali se prijavite z emailom `admin@demos.local`.
+Za interni pogled v `.env` ali Vercel nastavite `ADMIN_EMAILS`, nato se z istim emailom prijavite prek gumba `Demo prijava`.
 
 Za Clarity nastavite:
 

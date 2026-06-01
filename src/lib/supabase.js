@@ -12,6 +12,7 @@ export class SupabaseInitiativeRepository {
   constructor(appConfig) {
     this.url = appConfig.SUPABASE_URL.replace(/\/$/, "");
     this.anonKey = appConfig.SUPABASE_ANON_KEY;
+    this.initiativesEndpoint = String(appConfig.INITIATIVES_ENDPOINT || "/api/initiatives").replace(/\/$/, "");
   }
 
   async list() {
@@ -67,12 +68,14 @@ export class SupabaseInitiativeRepository {
   }
 
   async create(initiative) {
-    const [row] = await this.request("/rest/v1/initiatives?select=*", {
+    const payload = await this.backendRequest(this.initiativesEndpoint, {
       method: "POST",
-      headers: { Prefer: "return=representation" },
-      body: JSON.stringify(toInitiativeRow(initiative))
+      body: JSON.stringify({
+        initiative,
+        actor: initiative.author
+      })
     });
-    return mapInitiative(row, [], [], []);
+    return payload.initiative;
   }
 
   async vote(id, actor) {
@@ -101,27 +104,27 @@ export class SupabaseInitiativeRepository {
   }
 
   async comment(id, actor, body) {
-    await this.request("/rest/v1/comments", {
+    const payload = await this.backendRequest(`${this.initiativesEndpoint}/${encodeURIComponent(id)}/comments`, {
       method: "POST",
       body: JSON.stringify({
-        initiative_id: id,
-        author_ref: actor.id,
-        author_name: actor.name,
+        initiativeId: id,
+        actor,
         body
       })
     });
-    return this.find(id);
+    return payload.initiative;
   }
 
-  async updateStatus(id, status) {
-    await this.request(`/rest/v1/initiatives?id=eq.${id}`, {
+  async updateStatus(id, status, actor = null) {
+    const payload = await this.backendRequest(`${this.initiativesEndpoint}/${encodeURIComponent(id)}/status`, {
       method: "PATCH",
       body: JSON.stringify({
-        status,
-        updated_at: new Date().toISOString()
+        initiativeId: id,
+        actor,
+        status
       })
     });
-    return this.find(id);
+    return payload.initiative;
   }
 
   async find(id) {
@@ -164,6 +167,26 @@ export class SupabaseInitiativeRepository {
 
     const text = await response.text();
     return text ? JSON.parse(text) : null;
+  }
+
+  async backendRequest(endpoint, options = {}) {
+    const response = await fetch(endpoint, {
+      ...options,
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      }
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(payload?.error || `Backend request failed (${response.status})`);
+      error.status = response.status;
+      error.details = payload;
+      throw error;
+    }
+    return payload;
   }
 }
 
@@ -257,4 +280,5 @@ function filterValue(value) {
   const text = String(value || "").trim();
   return !text || text === "all" ? null : text;
 }
+
 

@@ -63,18 +63,25 @@ jobs:
           test -f src/lib/supabase.js
           test -f api/config.local.js
           test -f api/ai/review-initiative.js
+          test -f api/initiatives.js
+          test -f api/initiatives/[id]/comments.js
+          test -f api/initiatives/[id]/status.js
           test -f api/signatures.js
+          test -f api/auth/demo-login.js
           test -f api/auth/session.js
           test -f api/auth/logout.js
           test -f api/notifications/email.js
           test -f api/security/turnstile.js
           test -f server/sipass-session.mjs
+          test -f server/demo-login.mjs
+          test -f server/initiatives.mjs
           test -f server/signatures.mjs
           test -f server/turnstile.mjs
           test -f supabase/schema.sql
           test -f supabase/analytics.sql
           test -f supabase/search.sql
           test -f supabase/seed.sql
+          test -f supabase/backend-write-security.sql
           test -f supabase/signatures-security.sql
           test -f docs/pregled-projekta.md
           test -f docs/funkcionalnosti.md
@@ -96,6 +103,8 @@ jobs:
           grep -q '"/api/config.local"' vercel.json
           grep -q "AUTH_SESSION_ENDPOINT" api/config.local.js
           grep -q "AUTH_LOGOUT_ENDPOINT" api/config.local.js
+          grep -q "DEMO_LOGIN_ENDPOINT" api/config.local.js
+          grep -q "INITIATIVES_ENDPOINT" api/config.local.js
           grep -q "SIGNATURES_ENDPOINT" api/config.local.js
           grep -q "SIPASS_LOGIN_URL" api/config.local.js
           grep -q "SUPABASE_URL" api/config.local.js
@@ -103,6 +112,7 @@ jobs:
           grep -q "create table if not exists votes" supabase/schema.sql
           grep -q "unique (initiative_id, voter_ref)" supabase/schema.sql
           grep -q "create table if not exists comments" supabase/schema.sql
+          grep -q 'drop policy if exists "prototype insert comments"' supabase/backend-write-security.sql
           grep -q "search_initiatives" supabase/search.sql
           grep -q 'drop policy if exists "prototype insert signatures"' supabase/signatures-security.sql
 

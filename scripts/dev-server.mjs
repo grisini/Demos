@@ -10,6 +10,13 @@ import {
   sessionUserFromRequest,
   sipassUserFromHeaders
 } from "../server/sipass-session.mjs";
+import {
+  createServerComment,
+  createServerInitiative,
+  sessionUserWithAdminRole,
+  updateServerInitiativeStatus
+} from "../server/initiatives.mjs";
+import { adminEmails, createDemoLogin } from "../server/demo-login.mjs";
 import { createSipassSignature } from "../server/signatures.mjs";
 import { publicTurnstileConfig, verifyTurnstileToken } from "../server/turnstile.mjs";
 import { buildRemoteAiReviewText } from "../src/domain/ai-review.js";
@@ -21,7 +28,6 @@ const root = resolve(process.cwd());
 const defaultPort = Number(process.env.PORT || 5173);
 const huggingFaceRouterBase = "https://router.huggingface.co/hf-inference/models";
 const defaultHuggingFaceZeroShotModel = "facebook/bart-large-mnli";
-const demoAdminEmail = "admin@demos.local";
 const systemTelemetryEvents = [];
 
 const contentTypes = {
@@ -79,6 +85,8 @@ function runtimeConfig() {
       "https://auth.demokracija-20.si/auth/sipass/login",
     AUTH_SESSION_ENDPOINT: env.AUTH_SESSION_ENDPOINT || env.VITE_AUTH_SESSION_ENDPOINT || "/api/auth/session",
     AUTH_LOGOUT_ENDPOINT: env.AUTH_LOGOUT_ENDPOINT || env.VITE_AUTH_LOGOUT_ENDPOINT || "/api/auth/logout",
+    DEMO_LOGIN_ENDPOINT: env.DEMO_LOGIN_ENDPOINT || env.VITE_DEMO_LOGIN_ENDPOINT || "/api/auth/demo-login",
+    INITIATIVES_ENDPOINT: env.INITIATIVES_ENDPOINT || env.VITE_INITIATIVES_ENDPOINT || "/api/initiatives",
     SIGNATURES_ENDPOINT: env.SIGNATURES_ENDPOINT || env.VITE_SIGNATURES_ENDPOINT || "/api/signatures",
     AI_PROVIDER: env.AI_PROVIDER || env.VITE_AI_PROVIDER || (env.HF_TOKEN ? "huggingface" : "local"),
     AI_REVIEW_ENDPOINT:
@@ -881,7 +889,7 @@ function cryptoRandomId() {
 }
 
 function isDemoAdminRequest(req) {
-  return String(req.headers["x-demos-admin"] || "").trim().toLowerCase() === demoAdminEmail;
+  return adminEmails(serverEnv()).has(String(req.headers["x-demos-admin"] || "").trim().toLowerCase());
 }
 
 function createAppServer() {
@@ -916,7 +924,7 @@ function createAppServer() {
 
       let user = null;
       try {
-        user = sessionUserFromRequest(req, serverEnv());
+        user = sessionUserWithAdminRole(req, serverEnv());
       } catch (error) {
         console.error("[Demokracija 2.0] SI-PASS session read failed", error);
       }
@@ -932,6 +940,24 @@ function createAppServer() {
 
       res.setHeader("Set-Cookie", clearSipassCookie(serverEnv()));
       json(res, 200, { signedOut: true });
+      return;
+    }
+
+    if (pathname === "/api/auth/demo-login") {
+      if (req.method !== "POST") {
+        json(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      try {
+        const payload = await readJsonBody(req, 16 * 1024);
+        json(res, 200, createDemoLogin(payload, serverEnv()));
+      } catch (error) {
+        json(res, error.status || 400, {
+          authenticated: false,
+          error: error.message || "Demo prijava ni uspela."
+        });
+      }
       return;
     }
 
@@ -953,6 +979,86 @@ function createAppServer() {
         json(res, error.status || 500, {
           signed: false,
           error: error.message || "SI-PASS signature failed"
+        });
+      }
+      return;
+    }
+
+    if (pathname === "/api/initiatives") {
+      if (req.method !== "POST") {
+        json(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      try {
+        const payload = await readJsonBody(req, 256 * 1024);
+        const initiative = await createServerInitiative(req, payload, serverEnv());
+        json(res, 201, {
+          created: true,
+          initiative
+        });
+      } catch (error) {
+        console.error("[Demokracija 2.0] Initiative create failed", error);
+        json(res, error.status || 500, {
+          created: false,
+          error: error.message || "Initiative create failed",
+          errors: error.errors || undefined
+        });
+      }
+      return;
+    }
+
+    const commentRoute = pathname.match(/^\/api\/initiatives\/([^/]+)\/comments$/);
+    if (commentRoute) {
+      if (req.method !== "POST") {
+        json(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      try {
+        const payload = await readJsonBody(req, 16 * 1024);
+        const initiative = await createServerComment(
+          req,
+          { ...payload, initiativeId: decodeURIComponent(commentRoute[1]) },
+          serverEnv()
+        );
+        json(res, 201, {
+          created: true,
+          initiative
+        });
+      } catch (error) {
+        console.error("[Demokracija 2.0] Comment create failed", error);
+        json(res, error.status || 500, {
+          created: false,
+          error: error.message || "Comment create failed"
+        });
+      }
+      return;
+    }
+
+    const statusRoute = pathname.match(/^\/api\/initiatives\/([^/]+)\/status$/);
+    if (statusRoute) {
+      if (!["PATCH", "POST"].includes(req.method || "")) {
+        json(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      try {
+        const payload = await readJsonBody(req, 16 * 1024);
+        const initiative = await updateServerInitiativeStatus(
+          req,
+          { ...payload, initiativeId: decodeURIComponent(statusRoute[1]) },
+          serverEnv()
+        );
+        json(res, 200, {
+          updated: true,
+          initiative
+        });
+      } catch (error) {
+        console.error("[Demokracija 2.0] Initiative status update failed", error);
+        json(res, error.status || 500, {
+          updated: false,
+          error: error.message || "Initiative status update failed"
         });
       }
       return;

@@ -7,7 +7,7 @@ Diagrami pokrivajo samo obseg pobud, glasovanja, komentarjev, analitike in AI pr
 ```mermaid
 flowchart LR
   Citizen[Drzavljan]
-  Moderator[Urednik ali moderator]
+  Admin[Administrator]
   AI[AI presoja]
   Platform[Demokracija 2.0]
   Database[(Supabase / localStorage)]
@@ -19,8 +19,8 @@ flowchart LR
   Platform -->|shrani pobudo, glas, komentar| Database
   Platform -->|zahteva predpregled| AI
   AI -->|score, risk, kategorija, ugotovitve| Platform
-  Moderator -->|spreminja status| Platform
-  Moderator -->|pregleda analitiko| Platform
+  Admin -->|spreminja status| Platform
+  Admin -->|pregleda analitiko| Platform
 ```
 
 ## Tok oddaje pobude

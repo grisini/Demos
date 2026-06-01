@@ -16,7 +16,7 @@ Trenutno stanje projekta: aplikacija ima demo prijavo in SI-PASS gumb. SI-CAS re
 | SI-PASS konfiguracija | Javni login/session endpointi in VPS auth bridge | `src/config.js`, `api/auth`, `scripts/dev-server.mjs`, `server/sipass-session.mjs` |
 | Podpis | SI-PASS evidencni podpis prek backend endpointa | `src/main.js`, `api/signatures.js`, `server/signatures.mjs`, `supabase/signatures-security.sql` |
 | Podatkovni model | `signatures.method` podpira nacin podpisa | `supabase/schema.sql` |
-| Dokumentacija | Testno okolje, podpisi in VPS checklist | `docs/si-pass-testno-okolje.md`, `docs/sipass-podpisi.md`, `docs/sicas-sices-vps-checklist.md` |
+| Dokumentacija | Testno okolje, podpisi, VPS zapisnik in zdruzena navodila | `docs/si-pass-testno-okolje.md`, `docs/sipass-podpisi.md`, `docs/sicas-vps-vzpostavitev.md`, `docs/uporabniska-dokumentacija.md` |
 
 ## Ciljna produkcijska arhitektura
 
@@ -211,7 +211,7 @@ Zasebni kljuc in certifikati ne smejo biti v gitu, frontendu ali javnem buildu.
 - Po prvi pravi SI-PASS prijavi preveriti dejanske atribute v Shibboleth sessionu in Apache `X-SIPASS-*` mapping.
 - Uvesti trajnejso uporabnisko tabelo ali backend zapis, ce bo treba hraniti email in profile zunaj sifrirane seje.
 - V Supabase uvesti stroge RLS politike ali pisanje izkljucno prek backenda.
-- Omejiti spreminjanje statusov na moderatorje.
+- Omejiti spreminjanje statusov na administratorje.
 - Dodati revizijsko sled za podpise in statusne spremembe.
 - Dodati rate limiting za oddajo pobud, glasove, komentarje in AI pregled.
 - Odstraniti vsak zacasni hardkodan demo prejemnik email obvestil.
@@ -228,6 +228,7 @@ Zasebni kljuc in certifikati ne smejo biti v gitu, frontendu ali javnem buildu.
 ## Povezani dokumenti
 
 - `docs/si-pass-testno-okolje.md`
-- `docs/sicas-sices-vps-checklist.md`
+- `docs/sicas-vps-vzpostavitev.md`
+- `docs/uporabniska-dokumentacija.md`
 - `docs/supabase.md`
 - `docs/baza-porocilo.md`

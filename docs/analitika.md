@@ -44,7 +44,7 @@ Vir: https://vercel.com/docs/speed-insights/quickstart
 - ce service key ni nastavljen, funkcija dogodke samo sprejme in zabelezi v Vercel logs,
 - `src/domain/analytics.js` racuna `calculateSystemAnalytics()`,
 - `src/main.js` prikaze admin-only zavihek `Sistemska analitika`,
-- dostop ima samo demo admin `admin@demos.local`.
+- dostop ima samo admin email, nastavljen v `ADMIN_EMAILS`.
 
 **Kaj zavihek prikaze tudi brez Supabase povezave:**
 
@@ -67,7 +67,7 @@ SYSTEM_ANALYTICS_ENDPOINT=/api/analytics/system
 npm run dev
 ```
 
-Nato uporabite gumb `Demo admin` v stranskem prijavnem obrazcu ali se rocno prijavite z emailom `admin@demos.local`. V stranskem meniju se prikaze `Sistemska analitika`.
+Nato se v stranskem prijavnem obrazcu prijavite z emailom, ki je naveden v `ADMIN_EMAILS`. V stranskem meniju se prikaze `Sistemska analitika`.
 
 **Navodila za Vercel/Supabase skupni admin pogled:**
 
@@ -95,7 +95,7 @@ Trenutna pravila dostopa v aplikaciji:
 - aktualne so pobude s statusom `active` ali `signature_collection`,
 - neprijavljen uporabnik lahko odda en anonimen glas na pobudo,
 - za oddajo pobude, podpis, komentar, celoten detail in analitiko pobud je potrebna prijava,
-- integracije in sistemska analitika dodatno zahtevajo demo admina `admin@demos.local`.
+- integracije in sistemska analitika dodatno zahtevajo admin email iz `ADMIN_EMAILS`.
 
 **Kaj prikazuje aplikacija iz baze:**
 

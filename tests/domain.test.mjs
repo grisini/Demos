@@ -36,6 +36,12 @@ import {
   voteForInitiative
 } from "../src/domain/validation.js";
 import {
+  createServerComment,
+  createServerInitiative,
+  updateServerInitiativeStatus
+} from "../server/initiatives.mjs";
+import { createDemoLogin } from "../server/demo-login.mjs";
+import {
   createSipassSessionToken,
   readSipassSessionToken,
   sipassUserFromHeaders
@@ -579,6 +585,154 @@ test("SI-PASS podpis backend zavrne zahtevo brez seje", async () => {
   );
 });
 
+test("oddaja pobude gre prek backend service role in doloci avtorja na strezniku", async () => {
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    calls.push({ url, options });
+    const path = new URL(url).pathname;
+    if (path.endsWith("/initiatives") && options.method === "POST") {
+      const body = JSON.parse(options.body);
+      assert.equal(body.author_ref, actor.id);
+      assert.equal(body.author_name, actor.name);
+      assert.ok(["low", "medium", "high"].includes(body.ai_risk));
+      return jsonResponse([{ ...initiativeRow(body), id: body.id }], 201);
+    }
+    throw new Error(`Unexpected Supabase mock call: ${url}`);
+  };
+
+  const initiative = await createServerInitiative(
+    { headers: {} },
+    { values: validInput, actor: { ...actor, provider: "demo" } },
+    {
+      AUTH_MODE: "demo",
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key"
+    },
+    fetchImpl
+  );
+
+  assert.equal(initiative.author.id, actor.id);
+  assert.equal(initiative.title, validInput.title);
+  assert.ok(calls[0].options.headers.Authorization.includes("service-role-key"));
+});
+
+test("komentar gre prek backend endpointa in vrne osvezen detail pobude", async () => {
+  const initiativeId = "11111111-1111-4111-8111-111111111111";
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    calls.push({ url, options });
+    const path = new URL(url).pathname;
+    const search = new URL(url).search;
+
+    if (path.endsWith("/initiatives") && search.includes("id=eq.")) {
+      return jsonResponse([initiativeRow({ id: initiativeId })]);
+    }
+    if (path.endsWith("/comments") && options.method === "POST") {
+      const body = JSON.parse(options.body);
+      assert.equal(body.author_ref, actor.id);
+      assert.equal(body.body, "Podpiram predlog.");
+      return emptyResponse();
+    }
+    if (path.endsWith("/votes")) return jsonResponse([]);
+    if (path.endsWith("/signatures")) return jsonResponse([]);
+    if (path.endsWith("/comments")) {
+      return jsonResponse([{
+        id: "comment-1",
+        initiative_id: initiativeId,
+        author_ref: actor.id,
+        author_name: actor.name,
+        body: "Podpiram predlog.",
+        created_at: "2026-06-01T10:00:00.000Z"
+      }]);
+    }
+    throw new Error(`Unexpected Supabase mock call: ${url}`);
+  };
+
+  const initiative = await createServerComment(
+    { headers: {} },
+    { initiativeId, body: "Podpiram predlog.", actor: { ...actor, provider: "demo" } },
+    {
+      AUTH_MODE: "demo",
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key"
+    },
+    fetchImpl
+  );
+
+  assert.equal(initiative.comments.length, 1);
+  assert.equal(initiative.comments[0].userName, actor.name);
+  assert.ok(calls.some((call) => call.options.method === "POST"));
+});
+
+test("backend zavrne admin spremembo statusa za navadnega uporabnika", async () => {
+  await assert.rejects(
+    () => updateServerInitiativeStatus(
+      { headers: {} },
+      {
+        initiativeId: "11111111-1111-4111-8111-111111111111",
+        status: "submitted",
+        actor: { ...actor, provider: "demo" }
+      },
+      {
+        AUTH_MODE: "demo",
+        SUPABASE_URL: "https://example.supabase.co",
+        SUPABASE_SERVICE_ROLE_KEY: "service-role-key"
+      },
+      async () => {
+        throw new Error("fetch ne sme biti klican");
+      }
+    ),
+    /administrator/
+  );
+});
+
+test("backend dovoli adminu spremembo statusa pobude", async () => {
+  const initiativeId = "11111111-1111-4111-8111-111111111111";
+  const adminActor = { ...actor, id: "admin@demos.local", email: "admin@demos.local", name: "Demo admin", provider: "demo" };
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    calls.push({ url, options });
+    const path = new URL(url).pathname;
+    const search = new URL(url).search;
+
+    if (path.endsWith("/initiatives") && search.includes("id=eq.") && !options.method) {
+      return jsonResponse([initiativeRow({ id: initiativeId, status: "review" })]);
+    }
+    if (path.endsWith("/initiatives") && options.method === "PATCH") {
+      assert.equal(JSON.parse(options.body).status, "active");
+      return emptyResponse();
+    }
+    if (path.endsWith("/votes")) return jsonResponse([]);
+    if (path.endsWith("/signatures")) return jsonResponse([]);
+    if (path.endsWith("/comments")) return jsonResponse([]);
+    throw new Error(`Unexpected Supabase mock call: ${url}`);
+  };
+
+  const initiative = await updateServerInitiativeStatus(
+    { headers: {} },
+    { initiativeId, status: "active", actor: adminActor },
+    {
+      AUTH_MODE: "demo",
+      ADMIN_EMAILS: "admin@demos.local",
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key"
+    },
+    fetchImpl
+  );
+
+  assert.equal(initiative.id, initiativeId);
+  assert.ok(calls.some((call) => call.options.method === "PATCH"));
+});
+
+test("demo prijava nastavi admin vlogo samo za email iz ADMIN_EMAILS", () => {
+  const env = { ADMIN_EMAILS: "admin@example.test" };
+  const adminLogin = createDemoLogin({ name: "Admin", email: "admin@example.test" }, env);
+  const userLogin = createDemoLogin({ name: "Uporabnik", email: "user@example.test" }, env);
+
+  assert.equal(adminLogin.user.role, "admin");
+  assert.equal(userLogin.user.role, "citizen");
+});
+
 test("Turnstile zavrne preverjanje brez server secret kljuca", async () => {
   const result = await verifyTurnstileToken(
     { token: "token", action: "initiative_submit" },
@@ -671,5 +825,35 @@ function emptyResponse(status = 204) {
     async text() {
       return "";
     }
+  };
+}
+
+function initiativeRow(overrides = {}) {
+  return {
+    id: overrides.id || "11111111-1111-4111-8111-111111111111",
+    title: overrides.title || validInput.title,
+    summary: overrides.summary || validInput.summary,
+    description: overrides.description || validInput.description,
+    category: overrides.category || validInput.category,
+    legal_reference: overrides.legal_reference || validInput.legalReference,
+    expected_impact: overrides.expected_impact || validInput.expectedImpact,
+    legislative_text: overrides.legislative_text || validInput.legislativeText,
+    article_explanation: overrides.article_explanation || validInput.articleExplanation,
+    financial_impact: overrides.financial_impact || validInput.financialImpact,
+    budget_funding: overrides.budget_funding || validInput.budgetFunding,
+    comparative_review: overrides.comparative_review || validInput.comparativeReview,
+    impact_assessment: overrides.impact_assessment || validInput.impactAssessment,
+    public_participation: overrides.public_participation || validInput.publicParticipation,
+    proposer_representatives: overrides.proposer_representatives || validInput.proposerRepresentatives,
+    affected_provisions: overrides.affected_provisions || validInput.affectedProvisions,
+    status: overrides.status || "active",
+    author_ref: overrides.author_ref || actor.id,
+    author_name: overrides.author_name || actor.name,
+    ai_score: overrides.ai_score || 80,
+    ai_risk: overrides.ai_risk || "low",
+    ai_findings: overrides.ai_findings || [],
+    ai_checks: overrides.ai_checks || {},
+    created_at: overrides.created_at || "2026-06-01T09:00:00.000Z",
+    updated_at: overrides.updated_at || "2026-06-01T09:00:00.000Z"
   };
 }

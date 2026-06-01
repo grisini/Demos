@@ -291,7 +291,7 @@ Za produkcijsko uporabo bi bilo treba:
 
 - pisanje premakniti na backend ali Supabase Edge Function,
 - uporabljati preverjeno identiteto uporabnika,
-- omejiti spreminjanje statusov samo na moderatorje,
+- omejiti spreminjanje statusov samo na administratorje,
 - skriti oziroma minimizirati osebne podatke,
 - dodati revizijsko sled in rate limiting.
 
@@ -358,7 +358,7 @@ Mozne izboljsave:
 - uvedba posebne tabele `users` ali povezava na `auth.users`,
 - prehod na strozje dostopne politike,
 - uporaba `initiative_detail` pogleda v frontend repozitoriju,
-- uvedba moderatorjev in vlog,
+- uvedba administratorskih vlog,
 - locevanje javnih in zasebnih podatkov o uporabnikih,
 - dodaten audit log za spremembe statusa.
 

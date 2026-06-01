@@ -19,7 +19,7 @@ Izvedeno:
 - Dodana normalizacija Clarity metrik v `src/domain/clarity-insights.js` in frontend odjemalec `src/lib/clarity-insights.js`.
 - Zavihek `Analitika pobud` prikaze Clarity grafe za prijavljene uporabnike, ce je nastavljen `CLARITY_API_TOKEN`.
 - Dodana runtime nastavitev `MICROSOFT_CLARITY_PROJECT_ID`.
-- Dostop do interne sistemske analitike je omejen na demo admina `admin@demos.local`.
+- Dostop do interne sistemske analitike je omejen na admin email iz `ADMIN_EMAILS`.
 - Dodana lokalna sistemska telemetrija v `src/lib/telemetry.js`.
 - Dodana Vercel serverless funkcija `api/analytics/system.js` za sistemske dogodke.
 - Dodana Supabase tabela `system_analytics_events` za skupni admin pregled na Vercelu.
