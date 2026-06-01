@@ -1,7 +1,11 @@
+import { checkRateLimit, rateLimitHeaders } from "../../server/rate-limit.mjs";
+
 const maxBodyBytes = 128 * 1024;
 const maxEventsPerRequest = 20;
 const maxRecentEvents = 200;
 const demoAdminEmail = "admin@demos.local";
+const writeRateLimit = { name: "system-analytics-write", limit: 60, windowMs: 60 * 1000 };
+const readRateLimit = { name: "system-analytics-read", limit: 30, windowMs: 60 * 1000 };
 
 export default async function handler(request, response) {
   if (request.method === "OPTIONS") {
