@@ -204,10 +204,10 @@ Prijavljen uporabnik lahko doda komentar k pobudi. Komentar mora imeti vsaj tri 
 V Supabase nacinu se komentar zapise prek backend endpointa:
 
 ```text
-POST /api/initiatives/:id/comments
+POST /api/initiatives
 ```
 
-Backend prebere prijavljenega uporabnika, preveri pobudo in komentar zapise v Supabase s server-side service role kljucem. Pri SI-PASS uporabniku se v uporabniskem vmesniku prikaze samo prvo ime.
+Zahteva vsebuje `action: "comment"` in `initiativeId`. Backend prebere prijavljenega uporabnika, preveri pobudo in komentar zapise v Supabase s server-side service role kljucem. Pri SI-PASS uporabniku se v uporabniskem vmesniku prikaze samo prvo ime.
 
 ### SI-PASS podpis pobude
 
@@ -533,7 +533,7 @@ Osnovni `schema.sql` pripravi tabele, tipe, indekse, poglede in RLS politike. Do
 - `supabase/backend-write-security.sql`.
 
 `signatures-security.sql` usmeri SI-PASS podpise prek backend endpointa `/api/signatures`.
-`backend-write-security.sql` usmeri oddajo pobud in komentarje prek backend endpointov `/api/initiatives` in `/api/initiatives/:id/comments`.
+`backend-write-security.sql` usmeri oddajo pobud in komentarje prek backend endpointa `/api/initiatives`.
 
 ## SI-PASS, SI-CAS in VPS
 

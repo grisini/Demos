@@ -1000,80 +1000,59 @@ function createAppServer() {
     }
 
     if (pathname === "/api/initiatives") {
-      if (req.method !== "POST") {
-        json(res, 405, { error: "Method not allowed" });
-        return;
-      }
-
       try {
         const payload = await readJsonBody(req, 256 * 1024);
-        const initiative = await createServerInitiative(req, payload, serverEnv());
-        json(res, 201, {
-          created: true,
-          initiative
-        });
+        const action = String(payload.action || "").toLowerCase();
+
+        if (!action || action === "create") {
+          if (req.method !== "POST") {
+            json(res, 405, { error: "Method not allowed" });
+            return;
+          }
+
+          const initiative = await createServerInitiative(req, payload, serverEnv());
+          json(res, 201, {
+            created: true,
+            initiative
+          });
+          return;
+        }
+
+        if (action === "comment") {
+          if (req.method !== "POST") {
+            json(res, 405, { error: "Method not allowed" });
+            return;
+          }
+
+          const initiative = await createServerComment(req, payload, serverEnv());
+          json(res, 201, {
+            created: true,
+            initiative
+          });
+          return;
+        }
+
+        if (action === "status") {
+          if (!["PATCH", "POST"].includes(req.method || "")) {
+            json(res, 405, { error: "Method not allowed" });
+            return;
+          }
+
+          const initiative = await updateServerInitiativeStatus(req, payload, serverEnv());
+          json(res, 200, {
+            updated: true,
+            initiative
+          });
+          return;
+        }
+
+        json(res, 404, { error: "Not found" });
       } catch (error) {
-        console.error("[Demokracija 2.0] Initiative create failed", error);
+        console.error("[Demokracija 2.0] Initiative endpoint failed", error);
         json(res, error.status || 500, {
-          created: false,
-          error: error.message || "Initiative create failed",
+          ok: false,
+          error: error.message || "Initiative endpoint failed",
           errors: error.errors || undefined
-        });
-      }
-      return;
-    }
-
-    const commentRoute = pathname.match(/^\/api\/initiatives\/([^/]+)\/comments$/);
-    if (commentRoute) {
-      if (req.method !== "POST") {
-        json(res, 405, { error: "Method not allowed" });
-        return;
-      }
-
-      try {
-        const payload = await readJsonBody(req, 16 * 1024);
-        const initiative = await createServerComment(
-          req,
-          { ...payload, initiativeId: decodeURIComponent(commentRoute[1]) },
-          serverEnv()
-        );
-        json(res, 201, {
-          created: true,
-          initiative
-        });
-      } catch (error) {
-        console.error("[Demokracija 2.0] Comment create failed", error);
-        json(res, error.status || 500, {
-          created: false,
-          error: error.message || "Comment create failed"
-        });
-      }
-      return;
-    }
-
-    const statusRoute = pathname.match(/^\/api\/initiatives\/([^/]+)\/status$/);
-    if (statusRoute) {
-      if (!["PATCH", "POST"].includes(req.method || "")) {
-        json(res, 405, { error: "Method not allowed" });
-        return;
-      }
-
-      try {
-        const payload = await readJsonBody(req, 16 * 1024);
-        const initiative = await updateServerInitiativeStatus(
-          req,
-          { ...payload, initiativeId: decodeURIComponent(statusRoute[1]) },
-          serverEnv()
-        );
-        json(res, 200, {
-          updated: true,
-          initiative
-        });
-      } catch (error) {
-        console.error("[Demokracija 2.0] Initiative status update failed", error);
-        json(res, error.status || 500, {
-          updated: false,
-          error: error.message || "Initiative status update failed"
         });
       }
       return;
