@@ -48,6 +48,7 @@ import {
 } from "../server/sipass-session.mjs";
 import { createSipassSignature } from "../server/signatures.mjs";
 import { verifyTurnstileToken } from "../server/turnstile.mjs";
+import { checkRateLimit, rateLimitHeaders } from "../server/rate-limit.mjs";
 import { sendDailyCreatorDigest } from "../api/notifications/daily-digest.js";
 
 const validInput = {
@@ -806,6 +807,24 @@ test("Turnstile zavrne nepricakovan hostname", async () => {
   assert.equal(result.configured, true);
   assert.equal(result.verified, false);
   assert.match(result.error, /hostname/);
+});
+
+test("rate limiter zavrne presezek zahtevkov istega odjemalca", () => {
+  const request = {
+    headers: { "cf-connecting-ip": "198.51.100.10" },
+    url: "/api/security/turnstile"
+  };
+  const options = { name: `test-rate-limit-${Date.now()}`, limit: 2, windowMs: 1000 };
+
+  assert.equal(checkRateLimit(request, options).limited, false);
+  assert.equal(checkRateLimit(request, options).limited, false);
+  const blocked = checkRateLimit(request, options);
+  const headers = rateLimitHeaders(blocked);
+
+  assert.equal(blocked.limited, true);
+  assert.equal(headers["X-RateLimit-Limit"], "2");
+  assert.equal(headers["X-RateLimit-Remaining"], "0");
+  assert.ok(Number(headers["Retry-After"]) >= 1);
 });
 
 function jsonResponse(value, status = 200) {

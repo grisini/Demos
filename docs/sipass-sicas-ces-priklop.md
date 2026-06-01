@@ -213,7 +213,7 @@ Zasebni kljuc in certifikati ne smejo biti v gitu, frontendu ali javnem buildu.
 - V Supabase uvesti stroge RLS politike ali pisanje izkljucno prek backenda.
 - Omejiti spreminjanje statusov na administratorje.
 - Dodati revizijsko sled za podpise in statusne spremembe.
-- Dodati rate limiting za oddajo pobud, glasove, komentarje in AI pregled.
+- Aplikacijski rate limiting razsiriti tudi na prihodnje backend poti za oddajo pobud, glasove in komentarje; AI pregled in SI-PASS podpis sta ze omejena na trenutnih API endpointih.
 - Odstraniti vsak zacasni hardkodan demo prejemnik email obvestil.
 
 ## Varnostni minimum

@@ -19,6 +19,8 @@ import {
 import { adminEmails, createDemoLogin } from "../server/demo-login.mjs";
 import { createSipassSignature } from "../server/signatures.mjs";
 import { publicTurnstileConfig, verifyTurnstileToken } from "../server/turnstile.mjs";
+import { checkRateLimit, rateLimitHeaders } from "../server/rate-limit.mjs";
+import { securityHeaders } from "../server/security-headers.mjs";
 import { buildRemoteAiReviewText } from "../src/domain/ai-review.js";
 import { emptyClarityInsights, normalizeClarityInsights } from "../src/domain/clarity-insights.js";
 import { CATEGORIES, evaluateInitiative, normalizeInput } from "../src/domain/validation.js";
@@ -117,10 +119,12 @@ function serverEnv() {
   };
 }
 
-function send(res, status, body, type = "text/plain; charset=utf-8") {
+function send(res, status, body, type = "text/plain; charset=utf-8", headers = {}) {
   res.writeHead(status, {
+    ...securityHeaders,
     "Content-Type": type,
-    "Cache-Control": "no-store"
+    "Cache-Control": "no-store",
+    ...headers
   });
   res.end(body);
 }
@@ -152,17 +156,26 @@ function readJsonBody(req, maxBytes = 128 * 1024) {
   });
 }
 
-function json(res, status, value) {
-  send(res, status, JSON.stringify(value), "application/json; charset=utf-8");
+function json(res, status, value, headers = {}) {
+  send(res, status, JSON.stringify(value), "application/json; charset=utf-8", headers);
 }
 
 function redirect(res, location, headers = {}) {
   res.writeHead(302, {
+    ...securityHeaders,
     Location: location,
     "Cache-Control": "no-store",
     ...headers
   });
   res.end();
+}
+
+function enforceRateLimit(req, res, options) {
+  const result = checkRateLimit(req, options);
+  if (!result.limited) return true;
+
+  json(res, 429, { error: "Too many requests." }, rateLimitHeaders(result));
+  return false;
 }
 
 async function reviewInitiativeWithHuggingFace(payload) {
@@ -902,6 +915,7 @@ function createAppServer() {
         json(res, 405, { error: "Method not allowed" });
         return;
       }
+      if (!enforceRateLimit(req, res, { name: "dev-ai-review", limit: 20, windowMs: 60 * 1000 })) return;
 
       try {
         const payload = await readJsonBody(req, 256 * 1024);
@@ -966,6 +980,7 @@ function createAppServer() {
         json(res, 405, { error: "Method not allowed" });
         return;
       }
+      if (!enforceRateLimit(req, res, { name: "dev-signatures", limit: 12, windowMs: 5 * 60 * 1000 })) return;
 
       try {
         const payload = await readJsonBody(req, 16 * 1024);
@@ -1104,6 +1119,7 @@ function createAppServer() {
 
     if (pathname === "/api/analytics/system") {
       if (req.method === "GET") {
+        if (!enforceRateLimit(req, res, { name: "dev-system-analytics-read", limit: 30, windowMs: 60 * 1000 })) return;
         if (!isDemoAdminRequest(req)) {
           json(res, 403, { error: "Forbidden" });
           return;
@@ -1121,6 +1137,7 @@ function createAppServer() {
         json(res, 405, { error: "Method not allowed" });
         return;
       }
+      if (!enforceRateLimit(req, res, { name: "dev-system-analytics-write", limit: 60, windowMs: 60 * 1000 })) return;
 
       try {
         const payload = await readJsonBody(req, 128 * 1024);
@@ -1140,6 +1157,7 @@ function createAppServer() {
         json(res, 405, { error: "Method not allowed" });
         return;
       }
+      if (!enforceRateLimit(req, res, { name: "dev-clarity-analytics", limit: 60, windowMs: 60 * 1000 })) return;
 
       json(res, 200, await readClarityInsights(serverEnv(), requestedUrl.searchParams));
       return;
@@ -1150,6 +1168,7 @@ function createAppServer() {
         json(res, 405, { error: "Method not allowed" });
         return;
       }
+      if (!enforceRateLimit(req, res, { name: "dev-turnstile", limit: 30, windowMs: 60 * 1000 })) return;
 
       try {
         const payload = await readJsonBody(req, 32 * 1024);
@@ -1175,6 +1194,7 @@ function createAppServer() {
         json(res, 405, { error: "Method not allowed" });
         return;
       }
+      if (!enforceRateLimit(req, res, { name: "dev-email-notifications", limit: 20, windowMs: 60 * 1000 })) return;
 
       try {
         const payload = await readJsonBody(req, 128 * 1024);
@@ -1194,6 +1214,7 @@ function createAppServer() {
         json(res, 405, { error: "Method not allowed" });
         return;
       }
+      if (!enforceRateLimit(req, res, { name: "dev-daily-digest", limit: 10, windowMs: 60 * 1000 })) return;
 
       try {
         const env = serverEnv();
@@ -1235,7 +1256,7 @@ function createAppServer() {
     }
 
     const type = contentTypes[extname(filePath)] || "application/octet-stream";
-    res.writeHead(200, { "Content-Type": type });
+    res.writeHead(200, { ...securityHeaders, "Content-Type": type, "Cache-Control": "no-store" });
     createReadStream(filePath).pipe(res);
   });
 }

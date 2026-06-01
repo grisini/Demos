@@ -1,9 +1,11 @@
 import { CATEGORIES, evaluateInitiative, normalizeInput } from "../../src/domain/validation.js";
 import { buildRemoteAiReviewText } from "../../src/domain/ai-review.js";
+import { checkRateLimit, rateLimitHeaders } from "../../server/rate-limit.mjs";
 
 const huggingFaceRouterBase = "https://router.huggingface.co/hf-inference/models";
 const defaultHuggingFaceZeroShotModel = "facebook/bart-large-mnli";
 const maxBodyBytes = 256 * 1024;
+const rateLimit = { name: "ai-review", limit: 20, windowMs: 60 * 1000 };
 
 export default async function handler(request, response) {
   if (request.method === "OPTIONS") {
@@ -14,6 +16,12 @@ export default async function handler(request, response) {
 
   if (request.method !== "POST") {
     sendJson(response, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  const limit = checkRateLimit(request, rateLimit);
+  if (limit.limited) {
+    sendJson(response, 429, { error: "Too many AI review requests." }, rateLimitHeaders(limit));
     return;
   }
 
@@ -29,9 +37,12 @@ export default async function handler(request, response) {
   }
 }
 
-function sendJson(response, status, value) {
+function sendJson(response, status, value, headers = {}) {
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.setHeader("Cache-Control", "no-store");
+  for (const [name, headerValue] of Object.entries(headers)) {
+    response.setHeader(name, headerValue);
+  }
   response.statusCode = status;
   response.end(JSON.stringify(value));
 }

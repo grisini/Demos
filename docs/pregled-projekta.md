@@ -73,6 +73,8 @@ S tem aplikacija ohrani isti UI in domensko logiko, ne glede na to, ali tece lok
 - generira `config.local.js` iz `.env`, `.env.local` in okolja,
 - izpostavi `POST /api/ai/review-initiative`,
 - izpostavi `POST /api/notifications/email`,
+- izpostavi Turnstile, SI-PASS session in podpisne poti za lokalni smoke test,
+- uporablja aplikacijski rate limiting in varnostne HTTP headerje,
 - v odsotnosti SMTP zapisuje email sporocila v outbox log.
 
 To je dovolj za razvojni demo. Za produkcijo morajo AI, email in zapisovanje v bazo v namenski backend ali Supabase Edge Functions.
@@ -162,6 +164,8 @@ Ta pristop je viden v git zgodovini: projekt se je razvijal od osnovnega prototi
 - Aplikacija ima lokalni nacin, zato je demonstracija mozna brez placljivih ali zaprtih storitev.
 - Supabase model je normaliziran in vsebuje omejitve za integriteto podatkov.
 - AI token ni poslan v brskalnik, ampak se bere na razvojni streznik.
+- Obstojece backend poti imajo rate limiting, body size omejitve in `no-store` odzive.
+- Vercel in lokalni streznik vracata osnovne varnostne HTTP headerje in CSP.
 - Zunanje integracije imajo fallback ali jasno dokumentiran status.
 - Testi pokrivajo glavna domenska pravila.
 - Git zgodovina prikaze postopno nadgradnjo, ne enkratnega nepreglednega preskoka.

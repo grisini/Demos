@@ -2,6 +2,31 @@
 
 Ta dnevnik je namenjen sprotnemu vodenju sprememb. Vkljucuje povzetek dosedanjih commitov na veji `main` in zadnji nezakljuceni razvojni cikel.
 
+## Cikel: varnostna utrditev
+
+Datum: 2026-06-01
+
+Cilj:
+
+- Dodati dodatno aplikacijsko zascito pred zlorabami in posodobiti varnostno dokumentacijo po priklopu Cloudflare sloja.
+
+Izvedeno:
+
+- Dodan skupni in-memory rate limiter za backend endpoint-e.
+- Rate limiting je priklopljen na Turnstile, AI pregled, SI-PASS podpise, email obvestila, dnevni digest in analiticne API-je.
+- Dodani varnostni HTTP headerji in CSP za Vercel ter lokalni razvojni streznik.
+- Dopolnjena varnostna dokumentacija z dejanskim stanjem projekta, Cloudflare checklistom, omejitvami anonimnega glasovanja in integracijskimi testi.
+- Register funkcionalnosti, Supabase opombe, SI-PASS priklop in pregled projekta so usklajeni z novim stanjem.
+
+Preverjanje:
+
+- `npm test`
+
+Opombe:
+
+- Aplikacijski limiter je primeren kot dodatni sloj, ne kot zamenjava za Cloudflare Rate Limiting.
+- Direktni Supabase anon dostop za pobude, glasove in komentarje ostaja prototipna omejitev, dokler se te pisalne poti ne premaknejo na backend.
+
 ## Nezakljucen cikel: analitike
 
 Datum: 2026-05-19

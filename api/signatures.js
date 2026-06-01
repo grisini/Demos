@@ -1,6 +1,8 @@
 import { createSipassSignature } from "../server/signatures.mjs";
+import { checkRateLimit, rateLimitHeaders } from "../server/rate-limit.mjs";
 
 const maxBodyBytes = 16 * 1024;
+const rateLimit = { name: "signatures", limit: 12, windowMs: 5 * 60 * 1000 };
 
 export default async function handler(request, response) {
   if (request.method === "OPTIONS") {
@@ -11,6 +13,12 @@ export default async function handler(request, response) {
 
   if (request.method !== "POST") {
     sendJson(response, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  const limit = checkRateLimit(request, rateLimit);
+  if (limit.limited) {
+    sendJson(response, 429, { signed: false, error: "Too many signature requests." }, rateLimitHeaders(limit));
     return;
   }
 
@@ -30,9 +38,12 @@ export default async function handler(request, response) {
   }
 }
 
-function sendJson(response, status, value) {
+function sendJson(response, status, value, headers = {}) {
   response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.setHeader("Cache-Control", "no-store");
+  for (const [name, headerValue] of Object.entries(headers)) {
+    response.setHeader(name, headerValue);
+  }
   response.statusCode = status;
   response.end(JSON.stringify(value));
 }
