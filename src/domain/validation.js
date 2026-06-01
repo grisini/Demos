@@ -231,7 +231,8 @@ export function createInitiative(input, actor, review = evaluateInitiative(input
     updatedAt: now,
     author: {
       id: actor?.id || "anonymous",
-      name: actor?.name || "Anonimni uporabnik"
+      name: actor?.name || "Anonimni uporabnik",
+      email: actor?.email || ""
     },
     aiReview: review,
     votes: [],

@@ -171,12 +171,15 @@ Podrobna navodila so v `docs/analitika.md`.
 
 ## Email obvestila
 
-Frontend poklice `POST /api/notifications/email`, kadar se spremeni pobuda, za katero je uporabnik glasoval, ali kadar nastane nova pobuda v kategoriji, kjer je uporabnik ze glasoval.
+Statusna sprememba pobude takoj pošlje email ustvarjalcu pobude. Glasovi, SI-PASS podpisi in komentarji se ne pošiljajo sproti; Vercel cron enkrat dnevno pokliče `GET /api/notifications/daily-digest` in ustvarjalcu pošlje en dnevni povzetek po pobudi, npr. `Število novih glasov: +2134`.
 
 Lokalno endpoint zagotovi `scripts/dev-server.mjs`, na Vercelu pa `api/notifications/email.js`. Brez SMTP nastavitev se obvestila samo zabelezijo v log; za dejansko posiljanje nastavite SMTP podatke v `.env.local` ali v deployment env:
 
 ```bash
 EMAIL_NOTIFICATIONS_ENDPOINT=/api/notifications/email
+PUBLIC_SITE_URL=https://demokracija-20.si
+DAILY_DIGEST_TIME_ZONE=Europe/Ljubljana
+CRON_SECRET=7177457b-d0e3-45a0-9f1a-5a6ca1fda7ca0d637e51-d495-443b-85b7-28206c07547e
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_STARTTLS=true

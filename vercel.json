@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path": "/api/notifications/daily-digest",
+      "schedule": "10 23 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/config.local.js",

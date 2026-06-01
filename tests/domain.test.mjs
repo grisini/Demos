@@ -14,6 +14,7 @@ import {
 import {
   NOTIFICATION_EVENTS,
   buildCategoryMatchEmailNotifications,
+  buildInitiativeDailyDigestEmailNotifications,
   buildInitiativeChangeEmailNotifications
 } from "../src/domain/notifications.js";
 import {
@@ -41,6 +42,7 @@ import {
 } from "../server/sipass-session.mjs";
 import { createSipassSignature } from "../server/signatures.mjs";
 import { verifyTurnstileToken } from "../server/turnstile.mjs";
+import { sendDailyCreatorDigest } from "../api/notifications/daily-digest.js";
 
 const validInput = {
   title: "Javna sledljivost zakonodajnih sprememb",
@@ -72,7 +74,8 @@ const validInput = {
 
 const actor = {
   id: "demo@demos.local",
-  name: "Demo uporabnik"
+  name: "Demo uporabnik",
+  email: "demo@demos.local"
 };
 const hardcodedNotificationRecipient = "janezpederka@gmail.com";
 const sipassEnv = {
@@ -337,36 +340,43 @@ test("clarity insights normalizirajo grafe iz export API odziva", () => {
   assert.equal(insights.charts[0].rows[0].label, "/?view=dashboard");
 });
 
-test("obvestila o spremembi pobude ciljajo glasovalce brez akterja", () => {
-  const otherActor = { id: "ana@example.test", name: "Ana" };
-  const initiative = voteForInitiative(voteForInitiative(createInitiative(validInput, actor), actor), otherActor);
-  const notifications = buildInitiativeChangeEmailNotifications({
-    initiative,
-    actor,
-    eventType: NOTIFICATION_EVENTS.COMMENT_ADDED,
-    commentBody: "Dodana je nova razlaga predloga."
-  });
-
-  assert.equal(notifications.length, 1);
-  assert.equal(notifications[0].to, hardcodedNotificationRecipient);
-  assert.match(notifications[0].subject, /Nov komentar/);
-  assert.match(notifications[0].text, /Javna sledljivost/);
-});
-
-test("hardcodan prejemnik dobi spremembo tudi brez glasov", () => {
+test("statusna sprememba pobude obvesti ustvarjalca", () => {
   const initiative = createInitiative(validInput, actor);
   const notifications = buildInitiativeChangeEmailNotifications({
     initiative,
-    actor,
+    actor: { id: "admin@demos.local", name: "Demo admin", email: "admin@demos.local" },
     eventType: NOTIFICATION_EVENTS.STATUS_CHANGED,
     previousStatus: "review"
   });
 
-  assert.equal(notifications.length, 1);
-  assert.equal(notifications[0].to, hardcodedNotificationRecipient);
+  assert.equal(notifications.length, 2);
+  assert.deepEqual(new Set(notifications.map((item) => item.to)), new Set([actor.email, hardcodedNotificationRecipient]));
+  assert.ok(notifications.every((item) => item.subject.match(/Sprememba statusa pobude/)));
+  assert.ok(notifications.every((item) => item.text.match(/Status vaše pobude/)));
 });
 
-test("nova pobuda obvesti glasovalce pobud iste kategorije", () => {
+test("glasovi podpisi in komentarji se zdruzijo v dnevni povzetek ustvarjalcu", () => {
+  const initiative = createInitiative(validInput, actor);
+  const notifications = buildInitiativeDailyDigestEmailNotifications({
+    initiative,
+    dateKey: "2026-06-01",
+    counts: {
+      votes: 2134,
+      signatures: 2,
+      comments: 3
+    },
+    siteUrl: "https://example.test"
+  });
+
+  assert.equal(notifications.length, 2);
+  assert.deepEqual(new Set(notifications.map((item) => item.to)), new Set([actor.email, hardcodedNotificationRecipient]));
+  assert.ok(notifications.every((item) => item.type === NOTIFICATION_EVENTS.DAILY_CREATOR_DIGEST));
+  assert.ok(notifications.every((item) => item.text.match(/Število novih glasov: \+2134/)));
+  assert.ok(notifications.every((item) => item.text.match(/Število novih podpisov: \+2/)));
+  assert.ok(notifications.every((item) => item.text.match(/Število novih komentarjev: \+3/)));
+});
+
+test("nova pobuda ne posilja vec obvestil glasovalcem iste kategorije", () => {
   const firstVoter = { id: "ana@example.test", name: "Ana" };
   const secondVoter = { id: "bor@example.test", name: "Bor" };
   const related = voteForInitiative(voteForInitiative(createInitiative(validInput, actor), firstVoter), secondVoter);
@@ -381,10 +391,72 @@ test("nova pobuda obvesti glasovalce pobud iste kategorije", () => {
     actor: firstVoter
   });
 
-  assert.equal(notifications.length, 1);
-  assert.equal(notifications[0].to, hardcodedNotificationRecipient);
-  assert.equal(notifications[0].metadata.category, validInput.category);
-  assert.match(notifications[0].subject, /Nova pobuda/);
+  assert.equal(notifications.length, 0);
+});
+
+test("dnevni cron zdruzi glasove podpise in komentarje po pobudi", async () => {
+  const originalFetch = globalThis.fetch;
+  const initiativeId = "11111111-1111-4111-8111-111111111111";
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+
+    if (path.endsWith("/votes")) {
+      return jsonResponse([
+        { initiative_id: initiativeId, voter_ref: "ana@example.test", created_at: "2026-06-01T10:00:00Z" },
+        { initiative_id: initiativeId, voter_ref: actor.email, created_at: "2026-06-01T11:00:00Z" }
+      ]);
+    }
+
+    if (path.endsWith("/signatures")) {
+      return jsonResponse([
+        { initiative_id: initiativeId, signer_ref: "bor@example.test", created_at: "2026-06-01T12:00:00Z" }
+      ]);
+    }
+
+    if (path.endsWith("/comments")) {
+      return jsonResponse([
+        { initiative_id: initiativeId, author_ref: "cita@example.test", created_at: "2026-06-01T13:00:00Z" },
+        { initiative_id: initiativeId, author_ref: "dani@example.test", created_at: "2026-06-01T14:00:00Z" },
+        { initiative_id: initiativeId, author_ref: actor.email, created_at: "2026-06-01T15:00:00Z" }
+      ]);
+    }
+
+    if (path.endsWith("/initiatives")) {
+      return jsonResponse([{
+        id: initiativeId,
+        title: validInput.title,
+        category: validInput.category,
+        status: "active",
+        author_ref: actor.email,
+        author_name: actor.name
+      }]);
+    }
+
+    if (path.endsWith("/system_analytics_events")) {
+      return jsonResponse([]);
+    }
+
+    throw new Error(`Unexpected Supabase daily digest mock call: ${url}`);
+  };
+
+  try {
+    const result = await sendDailyCreatorDigest({
+      env: {
+        SUPABASE_URL: "https://example.supabase.co",
+        SUPABASE_SERVICE_ROLE_KEY: "service-role-key"
+      },
+      dateKey: "2026-06-01",
+      timeZone: "Europe/Ljubljana",
+      dryRun: true,
+      siteUrl: "https://example.test"
+    });
+
+    assert.equal(result.notifications, 2);
+    assert.deepEqual(result.activity, { votes: 2, signatures: 1, comments: 3 });
+    assert.deepEqual(result.digests[0].counts, { votes: 1, signatures: 1, comments: 2 });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("SI-PASS session mapira atribute in obnovi sifriranega uporabnika", () => {

@@ -7,7 +7,6 @@ import {
 import { compactRemoteAiReviewPayload } from "./domain/ai-review.js";
 import {
   NOTIFICATION_EVENTS,
-  buildCategoryMatchEmailNotifications,
   buildInitiativeChangeEmailNotifications,
   isValidEmail
 } from "./domain/notifications.js";
@@ -58,6 +57,7 @@ const PUBLIC_INITIATIVE_STATUSES = ["active", "signature_collection"];
 const ANONYMOUS_VOTER_KEY = "demos.anonymousVoterId";
 const REMOTE_SEARCH_DEBOUNCE_MS = 800;
 const REMOTE_SEARCH_MIN_LENGTH = 2;
+const INITIATIVE_LIST_PAGE_SIZE = 3;
 const EXPORTABLE_INITIATIVE_STATUSES = ["signature_collection", "submitted"];
 const INITIATIVE_TURNSTILE_ACTION = "submit_initiative";
 // Month is zero-based because it feeds the Date constructor.
@@ -134,6 +134,7 @@ class DemocracyApp {
       category: "all",
       status: "all",
       sort: "popular",
+      visibleInitiativeCount: INITIATIVE_LIST_PAGE_SIZE,
       draft: emptyDraft(),
       errors: {},
       toast: "",
@@ -595,6 +596,9 @@ class DemocracyApp {
 
   renderDashboardView(analytics, selected) {
     const initiatives = this.filteredInitiatives();
+    const visibleCount = Math.min(this.state.visibleInitiativeCount, initiatives.length);
+    const visibleInitiatives = initiatives.slice(0, visibleCount);
+    const hasMoreInitiatives = visibleCount < initiatives.length;
     const user = this.currentUser();
     const dashboardAnalytics = user ? analytics : calculateAnalytics(this.visibleInitiatives());
     const mobileDetailOpen = Boolean(this.state.selectedId && selected?.id === this.state.selectedId);
@@ -651,10 +655,22 @@ class DemocracyApp {
                 this.state.searchLoading
                   ? ""
                   : initiatives.length
-                  ? initiatives.map((initiative) => this.renderInitiativeCard(initiative)).join("")
+                  ? visibleInitiatives.map((initiative) => this.renderInitiativeCard(initiative)).join("")
                   : `<div class="empty-state">${user ? "Ni pobud za izbrane filtre." : "Trenutno ni javno odprtih pobud."}</div>`
               }
             </div>
+            ${
+              !this.state.searchLoading && hasMoreInitiatives
+                ? `
+                  <div class="initiative-list-more">
+                    <button class="button secondary full-width" type="button" data-action="show-more-initiatives">
+                      Poglej več pobud
+                    </button>
+                    <span>Prikazanih ${visibleCount} od ${initiatives.length}</span>
+                  </div>
+                `
+                : ""
+            }
           </div>
           ${
             mobileDetailOpen
@@ -669,7 +685,7 @@ class DemocracyApp {
                 ? `
                   <div class="mobile-detail-toolbar">
                     <span class="mobile-detail-handle" aria-hidden="true"></span>
-                    <button class="detail-close-button" type="button" data-action="close-detail">Zapri</button>
+                    <button class="detail-close-button" type="button" data-action="close-detail" aria-label="Zapri podrobnosti pobude">X</button>
                   </div>
                   ${this.renderInitiativeDetail(selected)}
                 `
@@ -1467,29 +1483,31 @@ class DemocracyApp {
         ${
           exportReady
             ? `
-              <button class="button secondary icon-button" type="button" data-action="print-pdf" data-id="${initiative.id}" aria-label="Natisni izvoz za DZ" title="Natisni izvoz za DZ">
-                ${printIcon()}
-              </button>
-              <button class="button secondary icon-button" type="button" data-action="download-pdf" data-id="${initiative.id}" aria-label="Prenesi PDF za DZ" title="Prenesi PDF za DZ">
-                ${downloadIcon()}
-              </button>
-              <details class="export-menu">
-                <summary class="button secondary export-menu-trigger" aria-haspopup="menu" aria-label="Prenesi dokument za DZ" title="Prenesi dokument za DZ">
-                  ${wordIcon()}
-                  <span>DOCX/ODT</span>
-                  ${chevronDownIcon()}
-                </summary>
-                <div class="export-menu-list" role="menu" aria-label="Format dokumenta">
-                  <button type="button" data-action="download-docx" data-id="${initiative.id}" role="menuitem">
-                    <span>Word</span>
-                    <small>.docx</small>
-                  </button>
-                  <button type="button" data-action="download-odt" data-id="${initiative.id}" role="menuitem">
-                    <span>ODT</span>
-                    <small>.odt</small>
-                  </button>
-                </div>
-              </details>
+              <div class="export-actions" aria-label="Izvoz pobude za DZ">
+                <button class="button secondary icon-button" type="button" data-action="print-pdf" data-id="${initiative.id}" aria-label="Natisni izvoz za DZ" title="Natisni izvoz za DZ">
+                  ${printIcon()}
+                </button>
+                <button class="button secondary icon-button" type="button" data-action="download-pdf" data-id="${initiative.id}" aria-label="Prenesi PDF za DZ" title="Prenesi PDF za DZ">
+                  ${downloadIcon()}
+                </button>
+                <details class="export-menu">
+                  <summary class="button secondary export-menu-trigger" aria-haspopup="menu" aria-label="Prenesi dokument za DZ" title="Prenesi dokument za DZ">
+                    ${wordIcon()}
+                    <span>DOCX/ODT</span>
+                    ${chevronDownIcon()}
+                  </summary>
+                  <div class="export-menu-list" role="menu" aria-label="Format dokumenta">
+                    <button type="button" data-action="download-docx" data-id="${initiative.id}" role="menuitem">
+                      <span>Word</span>
+                      <small>.docx</small>
+                    </button>
+                    <button type="button" data-action="download-odt" data-id="${initiative.id}" role="menuitem">
+                      <span>ODT</span>
+                      <small>.odt</small>
+                    </button>
+                  </div>
+                </details>
+              </div>
             `
             : ""
         }
@@ -1906,6 +1924,12 @@ class DemocracyApp {
       return;
     }
 
+    if (action === "show-more-initiatives") {
+      this.state.visibleInitiativeCount += INITIATIVE_LIST_PAGE_SIZE;
+      this.render();
+      return;
+    }
+
     if (action === "refresh-clarity-insights") {
       await this.loadClarityInsights({ force: true });
       return;
@@ -2044,18 +2068,7 @@ class DemocracyApp {
           return;
         }
 
-        const updated = await this.repository.vote(id, actor);
-        if (this.currentUser()) {
-          await this.sendEmailNotifications(
-            buildInitiativeChangeEmailNotifications({
-              initiative: updated,
-              actor,
-              eventType: NOTIFICATION_EVENTS.VOTE_ADDED,
-              siteUrl: this.appUrl(),
-              includeActor: this.config.EMAIL_NOTIFY_ACTOR
-            })
-          );
-        }
+        await this.repository.vote(id, actor);
         await this.refresh();
         trackClarityEvent(this.currentUser() ? "initiative_voted" : "initiative_voted_anonymous");
         this.recordSystemEvent("vote", {
@@ -2080,16 +2093,7 @@ class DemocracyApp {
         }
 
         const id = target.dataset.id;
-        const updated = await this.createSipassSignature(id);
-        await this.sendEmailNotifications(
-          buildInitiativeChangeEmailNotifications({
-            initiative: updated,
-            actor,
-            eventType: NOTIFICATION_EVENTS.SIGNATURE_ADDED,
-            siteUrl: this.appUrl(),
-            includeActor: this.config.EMAIL_NOTIFY_ACTOR
-          })
-        );
+        await this.createSipassSignature(id);
         await this.refresh();
         trackClarityEvent("initiative_signed");
         this.toast("SI-PASS podpis je evidentiran.");
@@ -2154,17 +2158,7 @@ class DemocracyApp {
 
         const review = await this.reviewInitiative(validation.values);
         const initiative = createInitiative(validation.values, actor, review);
-        const existingInitiatives = this.state.initiatives;
         const savedInitiative = await this.repository.create(initiative);
-        await this.sendEmailNotifications(
-          buildCategoryMatchEmailNotifications({
-            newInitiative: initiative,
-            initiatives: existingInitiatives,
-            actor,
-            siteUrl: this.appUrl(),
-            includeActor: this.config.EMAIL_NOTIFY_ACTOR
-          })
-        );
         this.state.draft = emptyDraft();
         this.state.errors = {};
         this.state.aiPreviewReview = null;
@@ -2190,17 +2184,7 @@ class DemocracyApp {
     if (form.dataset.form === "comment") {
       await this.withActor(async (actor) => {
         const body = new FormData(form).get("body");
-        const updated = await this.repository.comment(form.dataset.id, actor, body);
-        await this.sendEmailNotifications(
-          buildInitiativeChangeEmailNotifications({
-            initiative: updated,
-            actor,
-            eventType: NOTIFICATION_EVENTS.COMMENT_ADDED,
-            commentBody: body,
-            siteUrl: this.appUrl(),
-            includeActor: this.config.EMAIL_NOTIFY_ACTOR
-          })
-        );
+        await this.repository.comment(form.dataset.id, actor, body);
         await this.refresh();
         trackClarityEvent("comment_created");
         this.toast("Komentar je objavljen.");
@@ -2228,6 +2212,7 @@ class DemocracyApp {
 
     if (filterField === "query") {
       this.state.query = event.target.value;
+      this.state.visibleInitiativeCount = INITIATIVE_LIST_PAGE_SIZE;
       this.scheduleRemoteSearch();
     }
   }
@@ -2245,6 +2230,7 @@ class DemocracyApp {
     const filterField = event.target.dataset.filter;
     if (filterField && filterField !== "query") {
       this.state[filterField] = event.target.value;
+      this.state.visibleInitiativeCount = INITIATIVE_LIST_PAGE_SIZE;
       this.scheduleRemoteSearch();
       return;
     }
