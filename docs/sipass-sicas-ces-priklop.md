@@ -14,9 +14,9 @@ Trenutno stanje projekta: aplikacija ima demo prijavo in SI-PASS gumb. SI-CAS re
 | --- | --- | --- |
 | Prijava | Demo uporabnik in SI-PASS session adapter | `src/lib/auth.js`, `src/main.js` |
 | SI-PASS konfiguracija | Javni login/session endpointi in VPS auth bridge | `src/config.js`, `api/auth`, `scripts/dev-server.mjs`, `server/sipass-session.mjs` |
-| Podpis | Demo evidencni podpis | `src/domain/validation.js`, `src/main.js` |
+| Podpis | SI-PASS evidencni podpis prek backend endpointa | `src/main.js`, `api/signatures.js`, `server/signatures.mjs`, `supabase/signatures-security.sql` |
 | Podatkovni model | `signatures.method` podpira nacin podpisa | `supabase/schema.sql` |
-| Dokumentacija | Testno okolje in VPS checklist | `docs/si-pass-testno-okolje.md`, `docs/sicas-sices-vps-checklist.md` |
+| Dokumentacija | Testno okolje, podpisi in VPS checklist | `docs/si-pass-testno-okolje.md`, `docs/sipass-podpisi.md`, `docs/sicas-sices-vps-checklist.md` |
 
 ## Ciljna produkcijska arhitektura
 
@@ -180,7 +180,15 @@ SIPASS_COOKIE_DOMAIN=.demokracija-20.si
 SIPASS_LOGIN_URL=https://auth.demokracija-20.si/auth/sipass/login
 AUTH_SESSION_ENDPOINT=/api/auth/session
 AUTH_LOGOUT_ENDPOINT=/api/auth/logout
+SIGNATURES_ENDPOINT=/api/signatures
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
+
+## Trenutni SI-PASS podpisni tok
+
+Podpis pobude trenutno tece prek backend endpointa `POST /api/signatures`. Frontend poslje samo `initiativeId`; backend prebere SI-PASS `HttpOnly` cookie, preveri `sipass-*` uporabnika, sam zapise `signer_ref`, `signer_name` in `method = 'sipass'` ter po potrebi prestavi pobudo v `signature_collection`.
+
+Za utrditev Supabase izvedite `supabase/signatures-security.sql`, ki odstrani direktni `insert` v tabelo `signatures` za javni anon kljuc. Podrobnosti so v `docs/sipass-podpisi.md`.
 
 ## SI-CES podpisni tok
 

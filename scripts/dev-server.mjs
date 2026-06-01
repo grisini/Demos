@@ -10,6 +10,7 @@ import {
   sessionUserFromRequest,
   sipassUserFromHeaders
 } from "../server/sipass-session.mjs";
+import { createSipassSignature } from "../server/signatures.mjs";
 import { publicTurnstileConfig, verifyTurnstileToken } from "../server/turnstile.mjs";
 import { buildRemoteAiReviewText } from "../src/domain/ai-review.js";
 import { emptyClarityInsights, normalizeClarityInsights } from "../src/domain/clarity-insights.js";
@@ -77,6 +78,7 @@ function runtimeConfig() {
       "https://auth.demokracija-20.si/auth/sipass/login",
     AUTH_SESSION_ENDPOINT: env.AUTH_SESSION_ENDPOINT || env.VITE_AUTH_SESSION_ENDPOINT || "/api/auth/session",
     AUTH_LOGOUT_ENDPOINT: env.AUTH_LOGOUT_ENDPOINT || env.VITE_AUTH_LOGOUT_ENDPOINT || "/api/auth/logout",
+    SIGNATURES_ENDPOINT: env.SIGNATURES_ENDPOINT || env.VITE_SIGNATURES_ENDPOINT || "/api/signatures",
     AI_PROVIDER: env.AI_PROVIDER || env.VITE_AI_PROVIDER || (env.HF_TOKEN ? "huggingface" : "local"),
     AI_REVIEW_ENDPOINT:
       env.AI_REVIEW_ENDPOINT || env.VITE_AI_REVIEW_ENDPOINT || (env.HF_TOKEN ? "/api/ai/review-initiative" : ""),
@@ -929,6 +931,29 @@ function createAppServer() {
 
       res.setHeader("Set-Cookie", clearSipassCookie(serverEnv()));
       json(res, 200, { signedOut: true });
+      return;
+    }
+
+    if (pathname === "/api/signatures") {
+      if (req.method !== "POST") {
+        json(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      try {
+        const payload = await readJsonBody(req, 16 * 1024);
+        const initiative = await createSipassSignature(req, payload, serverEnv());
+        json(res, 200, {
+          signed: true,
+          initiative
+        });
+      } catch (error) {
+        console.error("[Demokracija 2.0] SI-PASS signature failed", error);
+        json(res, error.status || 500, {
+          signed: false,
+          error: error.message || "SI-PASS signature failed"
+        });
+      }
       return;
     }
 

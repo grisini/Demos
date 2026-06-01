@@ -37,6 +37,11 @@ function publicRuntimeConfig(env) {
       env.VITE_AUTH_LOGOUT_ENDPOINT,
       "/api/auth/logout"
     ),
+    SIGNATURES_ENDPOINT: firstValue(
+      env.SIGNATURES_ENDPOINT,
+      env.VITE_SIGNATURES_ENDPOINT,
+      "/api/signatures"
+    ),
     AI_PROVIDER: firstValue(env.AI_PROVIDER, env.VITE_AI_PROVIDER, env.HF_TOKEN ? "huggingface" : "local"),
     AI_REVIEW_ENDPOINT: firstValue(
       env.AI_REVIEW_ENDPOINT,

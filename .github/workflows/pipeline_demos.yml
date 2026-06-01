@@ -11,9 +11,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: demos-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
-    name: Test project
+    name: Test and validate project
     runs-on: ubuntu-latest
 
     steps:
@@ -32,24 +36,99 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Check required project files
+      - name: Check JavaScript syntax
+        shell: bash
         run: |
+          set -euo pipefail
+          find src api server scripts tests \
+            -type f \( -name "*.js" -o -name "*.mjs" \) \
+            -print0 | xargs -0 -n 1 node --check
+
+      - name: Check required project files
+        shell: bash
+        run: |
+          set -euo pipefail
+
           test -f index.html
           test -f package.json
           test -f package-lock.json
+          test -f vercel.json
           test -f src/main.js
           test -f src/config.js
           test -f src/domain/validation.js
           test -f src/domain/analytics.js
           test -f src/domain/notifications.js
+          test -f src/lib/auth.js
+          test -f src/lib/storage.js
+          test -f src/lib/supabase.js
+          test -f api/config.local.js
+          test -f api/ai/review-initiative.js
+          test -f api/signatures.js
+          test -f api/auth/session.js
+          test -f api/auth/logout.js
+          test -f api/notifications/email.js
+          test -f api/security/turnstile.js
+          test -f server/sipass-session.mjs
+          test -f server/signatures.mjs
+          test -f server/turnstile.mjs
+          test -f supabase/schema.sql
+          test -f supabase/analytics.sql
+          test -f supabase/search.sql
+          test -f supabase/seed.sql
+          test -f supabase/signatures-security.sql
           test -f docs/pregled-projekta.md
           test -f docs/funkcionalnosti.md
           test -f docs/git-zgodovina.md
           test -f docs/devwork-loop.md
           test -f docs/roadmap.md
           test -f docs/iteracija-3-analitika-ai.md
+          test -f docs/supabase.md
           test -f docs/sipass-sicas-ces-priklop.md
-        
+          test -f docs/sicas-vps-vzpostavitev.md
+          test -f docs/sicas-sp-metadata.xml
+
+      - name: Validate deployment wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          grep -q '"/config.local.js"' vercel.json
+          grep -q '"/api/config.local"' vercel.json
+          grep -q "AUTH_SESSION_ENDPOINT" api/config.local.js
+          grep -q "AUTH_LOGOUT_ENDPOINT" api/config.local.js
+          grep -q "SIGNATURES_ENDPOINT" api/config.local.js
+          grep -q "SIPASS_LOGIN_URL" api/config.local.js
+          grep -q "SUPABASE_URL" api/config.local.js
+          grep -q "SUPABASE_ANON_KEY" api/config.local.js
+          grep -q "create table if not exists votes" supabase/schema.sql
+          grep -q "unique (initiative_id, voter_ref)" supabase/schema.sql
+          grep -q "create table if not exists comments" supabase/schema.sql
+          grep -q "search_initiatives" supabase/search.sql
+          grep -q 'drop policy if exists "prototype insert signatures"' supabase/signatures-security.sql
+
+      - name: Validate SI-CAS metadata archive
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          grep -q 'entityID="https://auth.demokracija-20.si/shibboleth"' docs/sicas-sp-metadata.xml
+          grep -q 'https://auth.demokracija-20.si/Shibboleth.sso/SAML2/POST' docs/sicas-sp-metadata.xml
+          grep -q 'KeyDescriptor use="signing"' docs/sicas-sp-metadata.xml
+          grep -q 'KeyDescriptor use="encryption"' docs/sicas-sp-metadata.xml
+
+      - name: Check frontend does not read server-only secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if grep -RInE "(process\.env|import\.meta\.env|window\.DEMOS_CONFIG)\.?(SUPABASE_SERVICE_ROLE_KEY|HF_TOKEN|CLARITY_API_TOKEN|SMTP_PASS|TURNSTILE_SECRET_KEY|SIPASS_SESSION_SECRET|SIPASS_USER_REF_SALT)" \
+            --include="*.js" \
+            --include="*.html" \
+            src index.html; then
+            echo "Frontend code appears to read a server-only secret."
+            exit 1
+          fi
+
       - name: Check that local secrets are not committed
         shell: bash
         run: |
@@ -69,3 +148,15 @@ jobs:
             echo "Potential secret found in repository files."
             exit 1
           fi
+
+      - name: Summarize pipeline result
+        shell: bash
+        run: |
+          {
+            echo "## Demos CI/CD"
+            echo ""
+            echo "- Node tests passed."
+            echo "- JavaScript syntax is valid."
+            echo "- Vercel, Supabase and SI-PASS/VPS wiring files are present."
+            echo "- Frontend secret exposure checks passed."
+          } >> "$GITHUB_STEP_SUMMARY"
