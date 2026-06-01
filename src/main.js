@@ -128,6 +128,7 @@ class DemocracyApp {
       status: "all",
       sort: "popular",
       visibleInitiativeCount: INITIATIVE_LIST_PAGE_SIZE,
+      loginEmail: "ime@demos.si",
       draft: emptyDraft(),
       errors: {},
       pendingInitiativeSubmission: null,
@@ -1746,7 +1747,7 @@ class DemocracyApp {
       <form class="login-form" data-form="login" aria-label="Demo prijava">
         <label>
           <span>E-posta</span>
-          <input name="email" type="email" value="ime@demos.si" autocomplete="email" inputmode="email" />
+          <input name="email" type="email" value="${escapeAttribute(this.state.loginEmail)}" autocomplete="email" inputmode="email" data-login-field="email" />
         </label>
         <div class="login-actions">
           <button class="button primary compact" type="submit">Demo prijava</button>
@@ -2180,6 +2181,7 @@ class DemocracyApp {
 
     if (form.dataset.form === "login") {
       const data = Object.fromEntries(new FormData(form));
+      this.state.loginEmail = String(data.email || "").trim();
       const user = await this.demoLogin(data);
       identifyClarityUser(user, this.state.activeView);
       setClarityTag("user_role", user.role);
@@ -2279,10 +2281,11 @@ class DemocracyApp {
     if (form.dataset.form === "comment") {
       await this.withActor(async (actor) => {
         const body = new FormData(form).get("body");
-        await this.repository.comment(form.dataset.id, actor, body);
-        await this.refresh();
+        const updated = await this.repository.comment(form.dataset.id, actor, body);
+        this.replaceInitiative(updated);
         trackClarityEvent("comment_created");
         this.toast("Komentar je objavljen.");
+        this.renderPreservingScroll();
       });
     }
   }
@@ -2298,6 +2301,11 @@ class DemocracyApp {
   handleInput(event) {
     const draftField = event.target.dataset.draft;
     const filterField = event.target.dataset.filter;
+    const loginField = event.target.dataset.loginField;
+
+    if (loginField === "email") {
+      this.state.loginEmail = event.target.value;
+    }
 
     if (draftField) {
       this.state.draft[draftField] = event.target.value;
@@ -2501,6 +2509,26 @@ class DemocracyApp {
       this.state.toast = "";
       this.render();
     }, 3600);
+  }
+
+  replaceInitiative(updated) {
+    if (!updated?.id) return;
+    this.state.initiatives = this.state.initiatives.map((initiative) =>
+      initiative.id === updated.id ? updated : initiative
+    );
+    if (this.state.searchResults) {
+      this.state.searchResults = this.state.searchResults.map((initiative) =>
+        initiative.id === updated.id ? updated : initiative
+      );
+    }
+    this.state.selectedId = updated.id;
+  }
+
+  renderPreservingScroll() {
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    this.render();
+    window.scrollTo(scrollX, scrollY);
   }
 
   updateReviewPreview() {

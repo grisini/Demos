@@ -104,9 +104,10 @@ export class SupabaseInitiativeRepository {
   }
 
   async comment(id, actor, body) {
-    const payload = await this.backendRequest(`${this.initiativesEndpoint}/${encodeURIComponent(id)}/comments`, {
+    const payload = await this.backendRequest(this.initiativesEndpoint, {
       method: "POST",
       body: JSON.stringify({
+        action: "comment",
         initiativeId: id,
         actor,
         body
@@ -116,9 +117,10 @@ export class SupabaseInitiativeRepository {
   }
 
   async updateStatus(id, status, actor = null) {
-    const payload = await this.backendRequest(`${this.initiativesEndpoint}/${encodeURIComponent(id)}/status`, {
+    const payload = await this.backendRequest(this.initiativesEndpoint, {
       method: "PATCH",
       body: JSON.stringify({
+        action: "status",
         initiativeId: id,
         actor,
         status
