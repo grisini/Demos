@@ -97,10 +97,10 @@ Komentarji SI-PASS uporabnika se v uporabniskem vmesniku prikazejo samo s prvim 
 
 ### Demo admin
 
-Demo admin je uporabnik, ki se v demo obrazec prijavi z emailom, navedenim v server-only spremenljivki:
+Demo admin je uporabnik:
 
 ```text
-ADMIN_EMAILS
+rene@demos.si,miha@demos.si,filip@demos.si 
 ```
 
 Demo admin lahko:
@@ -109,7 +109,7 @@ Demo admin lahko:
 - vidi sistemsko analitiko,
 - spreminja statuse pobud v aplikaciji.
 
-Ta admin vloga je primerna za demo in ocenjevanje. Za produkcijo mora biti administratorski dostop preverjen na backendu z dejansko avtorizacijo.
+Ta admin vloga je primerna za demo in ocenjevanje. Za produkcijo mora biti admin/moderatorski dostop prestavljen na backend z dejansko avtorizacijo.
 
 ## Osnovna uporaba aplikacije
 
@@ -676,7 +676,7 @@ V trenutnem prototipu obstaja demo/hardcoded logika prejemnika, ki jo je treba p
 - oddaja pobud se se vedno zapisuje prek frontend/Supabase adapterja,
 - osnovne Supabase RLS politike so se vedno razvojno odprte,
 - ni polnega rate limitinga na vseh pisalnih akcijah,
-- ni produkcijskega UI-ja za upravljanje administratorskih racunov.
+- ni produkcijskega moderatorskega modela.
 
 ### Priporoceni naslednji varnostni koraki
 
@@ -684,7 +684,7 @@ V trenutnem prototipu obstaja demo/hardcoded logika prejemnika, ki jo je treba p
 2. Premakniti komentarje na backend endpoint.
 3. Premakniti oddajo pobud na backend endpoint.
 4. Zapreti `insert` pravice za `votes`, `comments` in po potrebi `initiatives`.
-5. Utrditi administratorske vloge na backendu.
+5. Uvesti moderatorske vloge na backendu.
 6. Dodati rate limiting.
 7. Odstraniti hardcoded demo email prejemnika.
 8. Dodati audit log za statusne spremembe.
@@ -776,13 +776,13 @@ Preverite:
 - Projekt je prototip, ne zakljucen produkcijski drzavni sistem.
 - SI-CES podpis dokumenta se ni implementiran.
 - Demo prijava ni nadomestilo za SI-PASS.
-- Demo admin je odvisen od server-side preverjanja `ADMIN_EMAILS`; za produkcijo mora biti vezan na polno SI-PASS/backend avtorizacijo.
+- Demo admin ni produkcijski model avtorizacije.
 - Nekateri zapisi se vedno nastajajo neposredno iz frontenda.
 - RLS je delno prototipno odprt.
 - Email prejemniki potrebujejo produkcijski model.
 - Ni E2E testov za celoten brskalniski tok.
 
-## Priporocen vrstni red preverjanja za ocenjevanje
+## Priporocen vrstni red preverjanja
 
 1. Preberite ta dokument.
 2. Zazenite:
