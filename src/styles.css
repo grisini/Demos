@@ -641,21 +641,100 @@ h3 {
 }
 
 .deadline-countdown {
-  flex: 1 1 430px;
-  max-width: 560px;
-  min-width: 300px;
-  display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(220px, auto);
-  gap: 8px 14px;
-  align-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.1);
-  padding: 10px 12px;
+  position: relative;
+  isolation: isolate;
+  z-index: 20;
+  width: 100%;
+  min-height: 118px;
+  display: block;
+  overflow: visible;
+  border: 1px solid rgba(0, 75, 141, 0.2);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.09), transparent 38%),
+    linear-gradient(135deg, var(--sidebar), var(--sidebar-2));
+  box-shadow: var(--shadow);
+  margin-bottom: 14px;
+  padding: 12px 46px 12px 14px;
   color: #ffffff;
 }
 
+.deadline-info {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+}
+
+.deadline-info-button {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  padding: 0;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.deadline-info-button:hover,
+.deadline-info-button:focus-visible {
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.deadline-tooltip {
+  position: absolute;
+  z-index: 40;
+  top: 36px;
+  right: 0;
+  width: min(340px, calc(100vw - 48px));
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-4px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.45;
+  text-transform: none;
+  pointer-events: none;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    visibility 140ms ease;
+}
+
+.deadline-tooltip::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 10px;
+  width: 10px;
+  height: 10px;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  transform: rotate(45deg);
+}
+
+.deadline-info:hover .deadline-tooltip,
+.deadline-info:focus-within .deadline-tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .deadline-copy {
+  width: min(42%, 430px);
   min-width: 0;
 }
 
@@ -663,7 +742,7 @@ h3 {
   display: block;
   margin-bottom: 2px;
   color: #bfd0e4;
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -671,23 +750,28 @@ h3 {
 .deadline-copy strong {
   display: block;
   color: #ffffff;
-  font-size: 0.98rem;
+  font-size: 0.9rem;
   line-height: 1.18;
 }
 
 .deadline-copy small {
   display: block;
-  margin-top: 3px;
+  margin-top: 2px;
   color: #dbe7f5;
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   font-weight: 700;
   line-height: 1.35;
 }
 
 .deadline-clock {
+  position: absolute;
+  left: 50%;
+  top: 20px;
+  transform: translateX(-50%);
+  width: min(100%, 360px);
   display: grid;
-  grid-template-columns: repeat(4, minmax(44px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(4, minmax(38px, 1fr));
+  gap: 5px;
 }
 
 .deadline-unit {
@@ -698,12 +782,12 @@ h3 {
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.1);
-  padding: 6px 5px;
+  padding: 5px 4px;
 }
 
 .deadline-unit strong {
   color: #ffffff;
-  font-size: 1.18rem;
+  font-size: 1.02rem;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -711,14 +795,15 @@ h3 {
 .deadline-unit span,
 .deadline-date {
   color: #bfd0e4;
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 900;
   text-transform: uppercase;
 }
 
 .deadline-date {
-  grid-column: 2;
-  justify-self: end;
+  position: absolute;
+  right: 34px;
+  bottom: 14px;
 }
 
 .env-pill,
@@ -2114,7 +2199,9 @@ html[data-a11y-motion="reduce"] *::after {
   .metric-card,
   .initiative-card,
   .deadline-countdown,
-  .deadline-unit {
+  .deadline-unit,
+  .deadline-info-button,
+  .deadline-tooltip {
     border: 1px solid CanvasText;
   }
 }
@@ -2608,15 +2695,30 @@ html[data-a11y-motion="reduce"] *::after {
   }
 
   .deadline-countdown {
+    min-height: 0;
+    display: grid;
     grid-template-columns: 1fr;
+    padding: 12px 42px 12px 12px;
+  }
+
+  .deadline-copy {
+    width: 100%;
   }
 
   .deadline-clock {
+    position: static;
+    transform: none;
+    width: 100%;
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  .deadline-tooltip {
+    right: -2px;
+    width: min(320px, calc(100vw - 42px));
+  }
+
   .deadline-date {
-    grid-column: 1;
+    position: static;
     justify-self: start;
   }
 

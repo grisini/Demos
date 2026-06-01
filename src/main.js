@@ -195,7 +195,6 @@ class DemocracyApp {
         durationMs: Math.round(performance.now() - startedAt),
         dataSource: this.config.DATA_SOURCE
       });
-      this.state.selectedId ||= this.state.initiatives[0]?.id || null;
       this.state.loading = false;
       this.render();
     } catch (error) {
@@ -384,7 +383,6 @@ class DemocracyApp {
             <span class="brand-mark" aria-hidden="true">D2</span>
             <span>
               <strong>Demokracija 2.0</strong>
-              <small>${dataMode}</small>
             </span>
           </a>
         </div>
@@ -408,11 +406,13 @@ class DemocracyApp {
               <h1 id="page-title" tabindex="-1">${this.pageTitle()}</h1>
             </div>
           </div>
-          ${this.state.activeView === "dashboard" ? this.renderAnnualDeadlineCountdown() : ""}
           <div class="topbar-actions">
-            <span class="env-pill">${this.config.SIPASS_ENV === "test" ? "SI-PASS test" : "SI-PASS prod"}</span>
-            <button class="button secondary" type="button" data-action="view" data-view="accessibility">Dostopnost</button>
-            <button class="button secondary" type="button" data-action="refresh">Osvezi</button>
+            <button class="button secondary icon-button" type="button" data-action="view" data-view="accessibility" aria-label="Dostopnost" title="Dostopnost">
+              ${accessibilityIcon()}
+            </button>
+            <button class="button secondary icon-button" type="button" data-action="refresh" aria-label="Osveži podatke" title="Osveži podatke">
+              ${refreshIcon()}
+            </button>
           </div>
         </header>
         ${this.state.toast ? `<div class="toast" role="status" aria-live="polite" aria-atomic="true">${escapeHtml(this.state.toast)}</div>` : ""}
@@ -428,6 +428,7 @@ class DemocracyApp {
     this.syncExternalAnalytics();
     this.syncSecurityWidgets();
     this.syncAnnualDeadlineCountdown();
+    localizeSlovenianUiText(this.root);
   }
 
   startCountdownTimer() {
@@ -439,6 +440,12 @@ class DemocracyApp {
     const countdown = annualDeadlineCountdown();
     return `
       <section class="deadline-countdown" data-annual-deadline-countdown aria-label="Letni rok za zaprtje pobud">
+        <div class="deadline-info">
+          <button class="deadline-info-button" type="button" aria-label="Pojasnilo letnega paketa pobud" aria-describedby="deadline-countdown-tooltip">i</button>
+          <div id="deadline-countdown-tooltip" class="deadline-tooltip" role="tooltip">
+            Pobude se zbirajo do letnega roka. Po zaprtju se pripravi paket izbranih pobud in spremnih gradiv za posiljanje v Drzavni zbor.
+          </div>
+        </div>
         <div class="deadline-copy">
           <span>Letni paket za DZ</span>
           <strong>Zaprtje pobud</strong>
@@ -509,16 +516,14 @@ class DemocracyApp {
         <div class="footer-badges" aria-label="Stanje sistema">
           <span>Kontrolni seznam DZ</span>
           <span>${escapeHtml(ACCESSIBILITY_STANDARD)}</span>
-          <span>${escapeHtml(dataMode)}</span>
-          <span>${escapeHtml(sipassMode)}</span>
-          <span>${escapeHtml(securityMode)}</span>
+  
         </div>
         <nav class="footer-links" aria-label="Povezave v nogi">
           <button type="button" data-action="view" data-view="dashboard">Pregled pobud</button>
           ${this.currentUser() ? `<button type="button" data-action="view" data-view="submit">Nova pobuda</button>` : ""}
           ${this.currentUser() ? `<button type="button" data-action="view" data-view="analytics">Analitika</button>` : ""}
           <button type="button" data-action="view" data-view="accessibility">Dostopnost</button>
-          <button type="button" data-action="refresh">Osvezi podatke</button>
+          <button type="button" data-action="refresh">${refreshIcon()}</button>
         </nav>
         <div class="footer-bottom">
           <span>(c) ${year} Demos</span>
@@ -592,8 +597,9 @@ class DemocracyApp {
     const initiatives = this.filteredInitiatives();
     const user = this.currentUser();
     const dashboardAnalytics = user ? analytics : calculateAnalytics(this.visibleInitiatives());
-    const mobileDetailOpen = Boolean(this.state.selectedId && selected);
+    const mobileDetailOpen = Boolean(this.state.selectedId && selected?.id === this.state.selectedId);
     return `
+      ${this.renderAnnualDeadlineCountdown()}
       <section class="dashboard-layout">
         <section class="metric-grid dashboard-metrics" aria-label="Povzetek">
           ${this.metric(user ? "Pobude" : "Aktualne pobude", dashboardAnalytics.initiativeCount, user ? "Vse oddane pobude" : "Javno odprte pobude")}
@@ -2420,6 +2426,7 @@ class DemocracyApp {
     const panel = this.root.querySelector(".review-panel");
     if (!panel) return;
     panel.innerHTML = this.renderReviewContent(evaluateInitiative(this.state.draft), { showRemoteAiAction: true });
+    localizeSlovenianUiText(panel);
   }
 
   async updateRemoteAiPreview() {
@@ -2818,6 +2825,161 @@ function escapeAttribute(value) {
   return escapeHtml(value).replace(/`/g, "&#096;");
 }
 
+const SLOVENIAN_UI_REPLACEMENTS = [
+  [/Drzavnega zbora/g, "Državnega zbora"],
+  [/Drzavni zbor/g, "Državni zbor"],
+  [/Drzavni/g, "Državni"],
+  [/Drzavno/g, "Državno"],
+  [/drzavnega/g, "državnega"],
+  [/drzavni/g, "državni"],
+  [/drzavna/g, "državna"],
+  [/drzavo/g, "državo"],
+  [/drzave/g, "države"],
+  [/drzava/g, "država"],
+  [/Digitalna drzava/g, "Digitalna država"],
+  [/zasciteno/g, "zaščiteno"],
+  [/zasciten/g, "zaščiten"],
+  [/zascita/g, "zaščita"],
+  [/Zascitena/g, "Zaščitena"],
+  [/zascitena/g, "zaščitena"],
+  [/strezniskem/g, "strežniškem"],
+  [/strezniku/g, "strežniku"],
+  [/streznik/g, "strežnik"],
+  [/brskalniski/g, "brskalniški"],
+  [/brskalnik/g, "brskalnik"],
+  [/posiljanje/g, "pošiljanje"],
+  [/posiljanja/g, "pošiljanja"],
+  [/posiljanje/g, "pošiljanje"],
+  [/posiljanja/g, "pošiljanja"],
+  [/posilj/g, "pošilj"],
+  [/poslje/g, "pošlje"],
+  [/poslana/g, "poslana"],
+  [/zabelezijo/g, "zabeležijo"],
+  [/zabelezen/g, "zabeležen"],
+  [/zabelezena/g, "zabeležena"],
+  [/zabelezilo/g, "zabeležilo"],
+  [/nalozijo/g, "naložijo"],
+  [/naloziti/g, "naložiti"],
+  [/nalozen/g, "naložen"],
+  [/nalozena/g, "naložena"],
+  [/nalozi/g, "naloži"],
+  [/Osvezi/g, "Osveži"],
+  [/osvezi/g, "osveži"],
+  [/Pocisti/g, "Počisti"],
+  [/pocisti/g, "počisti"],
+  [/clenov/g, "členov"],
+  [/clenom/g, "členom"],
+  [/clenu/g, "členu"],
+  [/cleni/g, "členi"],
+  [/clen/g, "člen"],
+  [/Clen/g, "Člen"],
+  [/Cilji, nacela in poglavitne resitve/g, "Cilji, načela in poglavitne rešitve"],
+  [/nacrtovanje/g, "načrtovanje"],
+  [/nacela/g, "načela"],
+  [/resitve/g, "rešitve"],
+  [/Resitve/g, "Rešitve"],
+  [/dolocb/g, "določb"],
+  [/dolocbe/g, "določbe"],
+  [/doloca/g, "določa"],
+  [/dolocen/g, "določen"],
+  [/dolocitev/g, "določitev"],
+  [/obrazlozitve/g, "obrazložitve"],
+  [/Obrazlozitev/g, "Obrazložitev"],
+  [/obrazlozitev/g, "obrazložitev"],
+  [/proracunsko/g, "proračunsko"],
+  [/proracunskih/g, "proračunskih"],
+  [/proracunske/g, "proračunske"],
+  [/proracunska/g, "proračunska"],
+  [/proracun/g, "proračun"],
+  [/Financne/g, "Finančne"],
+  [/financne/g, "finančne"],
+  [/obcutljive/g, "občutljive"],
+  [/ocitnih/g, "očitnih"],
+  [/tocke/g, "točke"],
+  [/Tocke/g, "Točke"],
+  [/splosnih/g, "splošnih"],
+  [/splosne/g, "splošne"],
+  [/boljse/g, "boljše"],
+  [/cakalnih/g, "čakalnih"],
+  [/cakalna/g, "čakalna"],
+  [/cakalne/g, "čakalne"],
+  [/bolnisnica/g, "bolnišnica"],
+  [/sodisce/g, "sodišče"],
+  [/tozilstvo/g, "tožilstvo"],
+  [/sola/g, "šola"],
+  [/student/g, "študent"],
+  [/ucitelj/g, "učitelj"],
+  [/ucni/g, "učni"],
+  [/placa/g, "plača"],
+  [/mogoce/g, "mogoče"],
+  [/omogocen/g, "omogočen"],
+  [/omogocena/g, "omogočena"],
+  [/dosegljiv/g, "dosegljiv"],
+  [/pricakovan/g, "pričakovan"],
+  [/sifriran/g, "šifriran"],
+  [/uspesen/g, "uspešen"],
+  [/uspesno/g, "uspešno"],
+  [/uspelo/g, "uspelo"],
+  [/vkljuceno/g, "vključeno"],
+  [/vkljucen/g, "vključen"],
+  [/kljuca/g, "ključa"],
+  [/kljuc/g, "ključ"],
+  [/Najvec/g, "Največ"],
+  [/najvec/g, "največ"],
+  [/Povprecje/g, "Povprečje"],
+  [/povprecje/g, "povprečje"],
+  [/racun/g, "račun"],
+  [/nacin/g, "način"],
+  [/Nacin/g, "Način"],
+  [/režim/g, "režim"],
+  [/rezim/g, "režim"],
+  [/\bCe\b/g, "Če"],
+  [/\bce\b/g, "če"],
+  [/\bze\b/g, "že"],
+  [/\bse nalo/g, "se nalo"],
+  [/\bse ni\b/g, "še ni"],
+  [/\bse nima\b/g, "še nima"]
+];
+
+const SLOVENIAN_UI_LOCALIZED_ATTRIBUTES = ["placeholder", "aria-label", "title"];
+const SLOVENIAN_UI_LOCALIZATION_SKIP_TAGS = new Set(["SCRIPT", "STYLE", "TEXTAREA", "INPUT", "CODE", "PRE"]);
+
+function localizeSlovenianUiText(root) {
+  if (!root || typeof document === "undefined" || typeof NodeFilter === "undefined") return;
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      return shouldLocalizeSlovenianTextNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+    }
+  });
+
+  const textNodes = [];
+  while (walker.nextNode()) textNodes.push(walker.currentNode);
+  textNodes.forEach((node) => {
+    node.nodeValue = localizeSlovenianText(node.nodeValue);
+  });
+
+  root.querySelectorAll(SLOVENIAN_UI_LOCALIZED_ATTRIBUTES.map((attribute) => `[${attribute}]`).join(",")).forEach((element) => {
+    SLOVENIAN_UI_LOCALIZED_ATTRIBUTES.forEach((attribute) => {
+      if (!element.hasAttribute(attribute)) return;
+      element.setAttribute(attribute, localizeSlovenianText(element.getAttribute(attribute)));
+    });
+  });
+}
+
+function shouldLocalizeSlovenianTextNode(node) {
+  let element = node.parentElement;
+  while (element) {
+    if (SLOVENIAN_UI_LOCALIZATION_SKIP_TAGS.has(element.tagName)) return false;
+    element = element.parentElement;
+  }
+  return Boolean(node.nodeValue?.trim());
+}
+
+function localizeSlovenianText(value) {
+  return SLOVENIAN_UI_REPLACEMENTS.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), String(value ?? ""));
+}
+
 function maskEmail(value) {
   const email = String(value || "");
   const [name, domain] = email.split("@");
@@ -2892,7 +3054,7 @@ function formatAnnualDeadlineDate(value) {
 }
 
 function annualDeadlineAccessibleLabel(countdown) {
-  return `Do letnega zaprtja pobud je se ${countdown.days} dni, ${countdown.hours} ur, ${countdown.minutes} minut in ${countdown.seconds} sekund. Rok je ${formatAnnualDeadlineDate(countdown.deadline)}.`;
+  return `Do letnega zaprtja pobud je še ${countdown.days} dni, ${countdown.hours} ur, ${countdown.minutes} minut in ${countdown.seconds} sekund. Rok je ${formatAnnualDeadlineDate(countdown.deadline)}.`;
 }
 
 function padCountdownValue(value) {
@@ -3643,6 +3805,28 @@ function downloadIcon() {
       <path d="M12 3v11"></path>
       <path d="m7 10 5 5 5-5"></path>
       <path d="M5 20h14"></path>
+    </svg>
+  `;
+}
+
+function refreshIcon() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M21 12a9 9 0 0 0-15.6-6.1L3 8"></path>
+      <path d="M3 3v5h5"></path>
+      <path d="M3 12a9 9 0 0 0 15.6 6.1L21 16"></path>
+      <path d="M16 16h5v5"></path>
+    </svg>
+  `;
+}
+
+function accessibilityIcon() {
+  return `
+    <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="4" r="2"></circle>
+      <path d="M4 10h16"></path>
+      <path d="M12 10v10"></path>
+      <path d="m8 20 4-10 4 10"></path>
     </svg>
   `;
 }
