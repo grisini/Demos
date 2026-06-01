@@ -8,10 +8,9 @@ Ta dokument zdruzuje uporabniska, administratorska in operativna navodila za pro
 - kako se uporablja,
 - katere vloge obstajajo,
 - kako delujejo pobude, glasovi, komentarji in SI-PASS podpisi,
-- kako so priklopljeni Supabase, VPS, SI-PASS, analitika, varnost in deployment,
-- kaj je trenutno produkcijsko pripravljeno in kaj ostaja prototipna omejitev.
+- kako so priklopljeni Supabase, VPS, SI-PASS, analitika, varnost in deployment.
 
-Projekt je delujoc prototip spletne platforme za oddajo, pregled, podporo in analitiko zakonodajnih pobud. Ni predstavljen kot zakljucen drzavni informacijski sistem, ampak kot dokaz koncepta z dokumentirano arhitekturo, podatkovnim modelom in integracijskimi nastavki.
+Projekt je spletna platforma za oddajo, pregled, podporo in analitiko zakonodajnih pobud.
 
 ## Hiter povzetek
 
@@ -59,7 +58,7 @@ Neprijavljen uporabnik ne more:
 - videti osebne analitike,
 - uporabljati integracijskega ali sistemskega admin pogleda.
 
-Anonimno glasovanje je prototipno omejeno na lokalni brskalniski ID. To ni produkcijsko mocna identifikacija.
+Anonimno glasovanje je vezano na lokalni brskalniski ID.
 
 ### Demo uporabnik
 
@@ -97,10 +96,10 @@ Komentarji SI-PASS uporabnika se v uporabniskem vmesniku prikazejo samo s prvim 
 
 ### Demo admin
 
-Demo admin je uporabnik:
+Demo admin je uporabnik, ki se v demo obrazec prijavi z emailom, navedenim v server-only spremenljivki:
 
 ```text
-rene@demos.si,miha@demos.si,filip@demos.si 
+ADMIN_EMAILS
 ```
 
 Demo admin lahko:
@@ -109,7 +108,7 @@ Demo admin lahko:
 - vidi sistemsko analitiko,
 - spreminja statuse pobud v aplikaciji.
 
-Ta admin vloga je primerna za demo in ocenjevanje. Za produkcijo mora biti admin/moderatorski dostop prestavljen na backend z dejansko avtorizacijo.
+Admin vloga se doloci na backendu. Frontend poslje email na `/api/auth/demo-login`, backend pa preveri, ali je email naveden v `ADMIN_EMAILS`.
 
 ## Osnovna uporaba aplikacije
 
@@ -180,7 +179,7 @@ AI predpregled vrne:
 - predlagano kategorijo,
 - oceno ustreznosti.
 
-AI predpregled ni pravna presoja. Namenjen je prvemu vsebinskemu pregledu in opozorilom.
+AI predpregled je informativni vsebinski pregled z opozorili in oceno pripravljenosti pobude.
 
 ### Glasovanje
 
@@ -190,7 +189,7 @@ Uporabnik lahko glasuje za pobudo. Pravilo je:
 en uporabnik, en glas na pobudo
 ```
 
-V lokalnem nacinu to zagotavlja domenska logika. V Supabase shemi to dodatno zagotavlja unikatna omejitev:
+V lokalnem nacinu to zagotavlja domenska logika. V Supabase shemi to dodatno zagotavlja unikatno podatkovno pravilo:
 
 ```sql
 unique (initiative_id, voter_ref)
@@ -202,7 +201,13 @@ Neprijavljen uporabnik lahko glasuje anonimno samo za javno aktualne pobude. Ano
 
 Prijavljen uporabnik lahko doda komentar k pobudi. Komentar mora imeti vsaj tri znake.
 
-Pri SI-PASS uporabniku se v uporabniskem vmesniku prikaze samo prvo ime. To je prikazna anonimizacija. Ce je cilj mocnejsa zasebnost, je treba komentarje premakniti na backend endpoint in omejiti neposredno pisanje v Supabase.
+V Supabase nacinu se komentar zapise prek backend endpointa:
+
+```text
+POST /api/initiatives/:id/comments
+```
+
+Backend prebere prijavljenega uporabnika, preveri pobudo in komentar zapise v Supabase s server-side service role kljucem. Pri SI-PASS uporabniku se v uporabniskem vmesniku prikaze samo prvo ime.
 
 ### SI-PASS podpis pobude
 
@@ -226,7 +231,7 @@ Frontend pri podpisu ne posilja:
 
 To je pomembno, ker uporabnik ne more vec prek brskalnika ponarediti identitete podpisnika.
 
-Za produkcijski SI-PASS podpis morajo biti na strezniku nastavljeni:
+Za SI-PASS podpis so na strezniku nastavljeni:
 
 ```env
 SUPABASE_URL=https://PROJECT_REF.supabase.co
@@ -234,9 +239,11 @@ SUPABASE_SERVICE_ROLE_KEY=...
 SIPASS_SESSION_SECRET=...
 SIPASS_USER_REF_SALT=...
 SIGNATURES_ENDPOINT=/api/signatures
+DEMO_LOGIN_ENDPOINT=/api/auth/demo-login
+INITIATIVES_ENDPOINT=/api/initiatives
 ```
 
-V Supabase je treba po osnovni shemi izvesti tudi:
+V Supabase po osnovni shemi izvedite tudi:
 
 ```sql
 supabase/signatures-security.sql
@@ -259,7 +266,7 @@ SI-CES podpis bi pomenil kriptografski podpis dokumenta ali podpisnega zahtevka 
 - klient certifikat in zasebni kljuc na strezniku,
 - shranjen rezultat podpisa, hash dokumenta, status in cas podpisa.
 
-SI-CES del v tem projektu se ni implementiran.
+V tej aplikaciji se za pobude uporablja SI-PASS evidencni podpis.
 
 ### Izvoz pobude
 
@@ -371,11 +378,11 @@ Aplikacija podpira:
 - zmanjsano gibanje,
 - prilagoditve velikosti besedila, kontrasta, razmika, gibanja, velikosti gumbov in pisave.
 
-Znane omejitve:
+Opombe za izvoz in zunanje gradnike:
 
 - Turnstile je zunanji gradnik,
-- brskalniski PDF izvoz ni popolnoma dostopen PDF,
-- DOCX/ODT izvoz potrebuje rocni pregled pred uradno objavo.
+- brskalniski PDF izvoz je namenjen tiskanju,
+- DOCX/ODT izvoz je namenjen nadaljnjemu urejanju in pregledu.
 
 ## Tehnicna arhitektura
 
@@ -484,18 +491,21 @@ Po potrebi izvedite:
 supabase/search.sql
 supabase/analytics.sql
 supabase/signatures-security.sql
+supabase/backend-write-security.sql
 supabase/seed.sql
 ```
 
-Priporocen vrstni red:
+Vrstni red izvedbe:
 
 1. `supabase/schema.sql`,
 2. `supabase/search.sql`,
 3. `supabase/analytics.sql`,
 4. `supabase/signatures-security.sql`,
-5. `supabase/seed.sql`, ce zelite demo podatke.
+5. `supabase/backend-write-security.sql`,
+6. `supabase/seed.sql`, ce zelite demo podatke.
 
 `signatures-security.sql` izvedite v okoljih, kjer mora podpis nastajati samo prek backend endpointa.
+`backend-write-security.sql` izvedite v okoljih, kjer oddaja pobud in komentiranje potekata prek backend endpointov.
 
 ### Podatkovni model
 
@@ -506,7 +516,7 @@ Glavna tabela je `initiatives`. Nanjo so vezane:
 - `comments`,
 - `initiative_ai_reviews`.
 
-Glavne omejitve:
+Glavna podatkovna pravila:
 
 ```sql
 unique (initiative_id, voter_ref)
@@ -517,14 +527,13 @@ To zagotavlja en glas in en podpis istega uporabnika na posamezno pobudo.
 
 ### RLS in varnost
 
-Osnovni `schema.sql` vsebuje prototipno odprte RLS politike, da lahko frontend neposredno bere in pise z anon kljucem. To je uporabno za razvoj, ni pa polna produkcijska varnost.
+Osnovni `schema.sql` pripravi tabele, tipe, indekse, poglede in RLS politike. Dodatni skripti:
 
-Trenutno je podpisni tok ze utrjen z backend endpointom in `signatures-security.sql`. Za produkcijo je treba podobno utrditi se:
+- `supabase/signatures-security.sql`,
+- `supabase/backend-write-security.sql`.
 
-- glasove,
-- komentarje,
-- oddajo pobud,
-- spremembe statusov.
+`signatures-security.sql` usmeri SI-PASS podpise prek backend endpointa `/api/signatures`.
+`backend-write-security.sql` usmeri oddajo pobud in komentarje prek backend endpointov `/api/initiatives` in `/api/initiatives/:id/comments`.
 
 ## SI-PASS, SI-CAS in VPS
 
@@ -612,6 +621,7 @@ Server-only nastavitve:
 
 ```env
 SUPABASE_SERVICE_ROLE_KEY=...
+ADMIN_EMAILS=admin@example.com
 HF_TOKEN=...
 CLARITY_API_TOKEN=...
 TURNSTILE_SECRET_KEY=...
@@ -654,11 +664,11 @@ SMTP_PASS=...
 SMTP_FROM="Demokracija 2.0 <no-reply@example.com>"
 ```
 
-V trenutnem prototipu obstaja demo/hardcoded logika prejemnika, ki jo je treba pred produkcijo odstraniti ali nadomestiti s pravim modelom uporabniskih email nastavitev.
+Email endpoint sprejme pripravljena obvestila in jih poslje prek SMTP ali zapise v outbox/log, odvisno od nastavitev.
 
 ## Varnost
 
-### Kaj je ze narejeno
+### Varnostni mehanizmi
 
 - `HF_TOKEN` ostaja na strezniku.
 - `TURNSTILE_SECRET_KEY` ostaja na strezniku.
@@ -666,28 +676,10 @@ V trenutnem prototipu obstaja demo/hardcoded logika prejemnika, ki jo je treba p
 - SI-PASS seja je sifrirana v `HttpOnly` cookieju.
 - SI-PASS podpis ne zaupa frontendu.
 - `signatures-security.sql` zapre direktni insert podpisov.
+- `backend-write-security.sql` zapre direktno pisanje pobud in komentarjev.
+- Admin vloga pri demo prijavi se doloci na backendu iz `ADMIN_EMAILS`.
+- Sprememba statusa pobude se preverja na backendu.
 - CI preverja, da se lokalne skrivnosti ne commitajo.
-
-### Kaj ostaja prototipno
-
-- demo admin je client-side demo vloga,
-- glasovi se se vedno lahko zapisujejo direktno iz frontenda,
-- komentarji se se vedno lahko zapisujejo direktno iz frontenda,
-- oddaja pobud se se vedno zapisuje prek frontend/Supabase adapterja,
-- osnovne Supabase RLS politike so se vedno razvojno odprte,
-- ni polnega rate limitinga na vseh pisalnih akcijah,
-- ni produkcijskega moderatorskega modela.
-
-### Priporoceni naslednji varnostni koraki
-
-1. Premakniti glasove na backend endpoint.
-2. Premakniti komentarje na backend endpoint.
-3. Premakniti oddajo pobud na backend endpoint.
-4. Zapreti `insert` pravice za `votes`, `comments` in po potrebi `initiatives`.
-5. Uvesti moderatorske vloge na backendu.
-6. Dodati rate limiting.
-7. Odstraniti hardcoded demo email prejemnika.
-8. Dodati audit log za statusne spremembe.
 
 ## CI/CD
 
@@ -771,18 +763,7 @@ Preverite:
 - `CLARITY_ANALYTICS_ENDPOINT=/api/analytics/clarity`,
 - dnevno omejitev Clarity Data Export API.
 
-## Znane omejitve
-
-- Projekt je prototip, ne zakljucen produkcijski drzavni sistem.
-- SI-CES podpis dokumenta se ni implementiran.
-- Demo prijava ni nadomestilo za SI-PASS.
-- Demo admin ni produkcijski model avtorizacije.
-- Nekateri zapisi se vedno nastajajo neposredno iz frontenda.
-- RLS je delno prototipno odprt.
-- Email prejemniki potrebujejo produkcijski model.
-- Ni E2E testov za celoten brskalniski tok.
-
-## Priporocen vrstni red preverjanja
+## Vrstni red preverjanja
 
 1. Preberite ta dokument.
 2. Zazenite:
@@ -842,5 +823,4 @@ Ta dokument zdruzuje vsebino in navodila iz:
 - `docs/sicas-vps-vzpostavitev.md`,
 - `docs/si-pass-testno-okolje.md`,
 - `docs/ci-cd-pipeline.md`,
-- `docs/roadmap.md`,
 - `docs/diagrams.md`.

@@ -1,4 +1,4 @@
-import { emptyClarityInsights, normalizeClarityInsights } from "../../src/domain/clarity-insights.js";
+import { emptyClarityInsights, normalizeClarityInsights } from "../src/domain/clarity-insights.js";
 
 const clarityEndpoint = "https://www.clarity.ms/export-data/api/v1/project-live-insights";
 const cacheTtlMs = 6 * 60 * 60 * 1000;

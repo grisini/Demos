@@ -22,7 +22,7 @@ import { publicTurnstileConfig, verifyTurnstileToken } from "../server/turnstile
 import { buildRemoteAiReviewText } from "../src/domain/ai-review.js";
 import { emptyClarityInsights, normalizeClarityInsights } from "../src/domain/clarity-insights.js";
 import { CATEGORIES, evaluateInitiative, normalizeInput } from "../src/domain/validation.js";
-import { sendDailyCreatorDigest } from "../api/notifications/daily-digest.js";
+import { sendDailyCreatorDigest } from "../server/daily-digest.mjs";
 
 const root = resolve(process.cwd());
 const defaultPort = Number(process.env.PORT || 5173);

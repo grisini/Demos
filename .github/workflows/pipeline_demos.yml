@@ -63,17 +63,18 @@ jobs:
           test -f src/lib/supabase.js
           test -f api/config.local.js
           test -f api/ai/review-initiative.js
-          test -f api/initiatives.js
-          test -f api/initiatives/[id]/comments.js
-          test -f api/initiatives/[id]/status.js
+          test -f api/initiatives/[...path].js
           test -f api/signatures.js
-          test -f api/auth/demo-login.js
-          test -f api/auth/session.js
-          test -f api/auth/logout.js
-          test -f api/notifications/email.js
+          test -f api/analytics/[...path].js
+          test -f api/auth/[...path].js
+          test -f api/notifications/[...path].js
           test -f api/security/turnstile.js
           test -f server/sipass-session.mjs
           test -f server/demo-login.mjs
+          test -f server/analytics-clarity.mjs
+          test -f server/analytics-system.mjs
+          test -f server/daily-digest.mjs
+          test -f server/email.mjs
           test -f server/initiatives.mjs
           test -f server/signatures.mjs
           test -f server/turnstile.mjs

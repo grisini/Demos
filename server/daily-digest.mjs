@@ -1,5 +1,5 @@
-import { buildInitiativeDailyDigestEmailNotifications } from "../../src/domain/notifications.js";
-import { deliverEmailNotifications } from "./email.js";
+import { buildInitiativeDailyDigestEmailNotifications } from "../src/domain/notifications.js";
+import { deliverEmailNotifications } from "./email.mjs";
 
 const defaultTimeZone = "Europe/Ljubljana";
 const digestSentEventType = "daily_creator_digest_sent";

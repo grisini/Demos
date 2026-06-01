@@ -185,7 +185,7 @@ Podrobna navodila so v `docs/analitika.md`.
 
 Statusna sprememba pobude takoj pošlje email ustvarjalcu pobude. Glasovi, SI-PASS podpisi in komentarji se ne pošiljajo sproti; Vercel cron enkrat dnevno pokliče `GET /api/notifications/daily-digest` in ustvarjalcu pošlje en dnevni povzetek po pobudi, npr. `Število novih glasov: +2134`.
 
-Lokalno endpoint zagotovi `scripts/dev-server.mjs`, na Vercelu pa `api/notifications/email.js`. Brez SMTP nastavitev se obvestila samo zabelezijo v log; za dejansko posiljanje nastavite SMTP podatke v `.env.local` ali v deployment env:
+Lokalno endpoint zagotovi `scripts/dev-server.mjs`, na Vercelu pa `api/notifications/[...path].js`. Brez SMTP nastavitev se obvestila samo zabelezijo v log; za dejansko posiljanje nastavite SMTP podatke v `.env.local` ali v deployment env:
 
 ```bash
 EMAIL_NOTIFICATIONS_ENDPOINT=/api/notifications/email

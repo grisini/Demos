@@ -1,4 +1,4 @@
-import { adminEmails } from "../../server/demo-login.mjs";
+import { adminEmails } from "./demo-login.mjs";
 
 const maxBodyBytes = 128 * 1024;
 const maxEventsPerRequest = 20;

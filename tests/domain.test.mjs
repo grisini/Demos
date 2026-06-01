@@ -48,7 +48,7 @@ import {
 } from "../server/sipass-session.mjs";
 import { createSipassSignature } from "../server/signatures.mjs";
 import { verifyTurnstileToken } from "../server/turnstile.mjs";
-import { sendDailyCreatorDigest } from "../api/notifications/daily-digest.js";
+import { sendDailyCreatorDigest } from "../server/daily-digest.mjs";
 
 const validInput = {
   title: "Javna sledljivost zakonodajnih sprememb",
