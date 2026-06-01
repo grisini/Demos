@@ -15,6 +15,7 @@ import { publicTurnstileConfig, verifyTurnstileToken } from "../server/turnstile
 import { buildRemoteAiReviewText } from "../src/domain/ai-review.js";
 import { emptyClarityInsights, normalizeClarityInsights } from "../src/domain/clarity-insights.js";
 import { CATEGORIES, evaluateInitiative, normalizeInput } from "../src/domain/validation.js";
+import { sendDailyCreatorDigest } from "../api/notifications/daily-digest.js";
 
 const root = resolve(process.cwd());
 const defaultPort = Number(process.env.PORT || 5173);
@@ -1077,6 +1078,32 @@ function createAppServer() {
         console.error("[Demokracija 2.0] Email notifications failed", error);
         json(res, error.status || 500, {
           error: error.message || "Email notifications failed"
+        });
+      }
+      return;
+    }
+
+    if (pathname === "/api/notifications/daily-digest") {
+      if (!["GET", "POST"].includes(req.method || "")) {
+        json(res, 405, { error: "Method not allowed" });
+        return;
+      }
+
+      try {
+        const env = serverEnv();
+        const result = await sendDailyCreatorDigest({
+          env,
+          dateKey: requestedUrl.searchParams.get("date") || "",
+          timeZone: requestedUrl.searchParams.get("timeZone") || env.DAILY_DIGEST_TIME_ZONE || "Europe/Ljubljana",
+          dryRun: ["1", "true", "yes"].includes(String(requestedUrl.searchParams.get("dryRun") || "").toLowerCase()),
+          siteUrl: `http://${req.headers.host}`,
+          deliverNotifications: deliverEmailNotifications
+        });
+        json(res, 202, result);
+      } catch (error) {
+        console.error("[Demokracija 2.0] Daily creator digest failed", error);
+        json(res, error.status || 500, {
+          error: error.message || "Daily creator digest failed"
         });
       }
       return;

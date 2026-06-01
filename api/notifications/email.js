@@ -56,7 +56,7 @@ async function readJsonBody(request) {
   return raw ? JSON.parse(raw) : {};
 }
 
-async function deliverEmailNotifications(payload, env) {
+export async function deliverEmailNotifications(payload, env) {
   const rawCount = Array.isArray(payload?.notifications) ? payload.notifications.length : Array.isArray(payload) ? payload.length : 0;
   const notifications = normalizeEmailNotifications(payload, env);
 
