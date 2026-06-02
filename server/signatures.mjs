@@ -162,7 +162,8 @@ function mapInitiative(row, votes, signatures, comments) {
     updatedAt: row.updated_at,
     author: {
       id: row.author_ref,
-      name: row.author_name
+      name: row.author_name,
+      email: row.notification_email || ""
     },
     aiReview: {
       score: row.ai_score || 0,

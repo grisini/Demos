@@ -229,6 +229,7 @@ function toInitiativeRow(initiative) {
     status: initiative.status,
     author_ref: initiative.author.id,
     author_name: initiative.author.name,
+    notification_email: initiative.author.email || "",
     ai_score: initiative.aiReview.score,
     ai_risk: initiative.aiReview.risk,
     ai_findings: initiative.aiReview.findings,
@@ -259,7 +260,8 @@ function mapInitiative(row, votes = [], signatures = [], comments = []) {
     updatedAt: row.updated_at,
     author: {
       id: row.author_ref,
-      name: row.author_name
+      name: row.author_name,
+      email: row.notification_email || ""
     },
     aiReview: {
       score: row.ai_score || 0,

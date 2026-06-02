@@ -83,6 +83,7 @@ create table if not exists initiatives (
   status initiative_status not null default 'review',
   author_ref text not null,
   author_name text not null,
+  notification_email text not null default '',
   ai_score integer not null default 0 check (ai_score between 0 and 100),
   ai_risk ai_risk_level not null default 'low',
   ai_findings jsonb not null default '[]'::jsonb,
@@ -101,6 +102,7 @@ alter table initiatives add column if not exists impact_assessment text not null
 alter table initiatives add column if not exists public_participation text not null default '';
 alter table initiatives add column if not exists proposer_representatives text not null default '';
 alter table initiatives add column if not exists affected_provisions text not null default '';
+alter table initiatives add column if not exists notification_email text not null default '';
 
 create table if not exists votes (
   id uuid primary key default gen_random_uuid(),
@@ -320,7 +322,8 @@ select
   i.impact_assessment,
   i.public_participation,
   i.proposer_representatives,
-  i.affected_provisions
+  i.affected_provisions,
+  i.notification_email
 from initiatives i;
 
 create or replace view initiative_analytics as
