@@ -2,6 +2,502 @@
 
 Prototip spletne platforme za oddajo, pregled, glasovanje, komentiranje, AI predpregled in analitiko zakonodajnih pobud.
 
+## Projektna dokumentacija za prevzem projekta
+
+Ta README je namenjen tudi kot glavna projektna dokumentacija. Ideja je, da lahko nov razvijalec brez dodatnega Word dokumenta razume namen sistema, arhitekturo, podatkovne tokove, model baze, glavne use case-e, kakovostne kontrole in nacin dela na projektu.
+
+### Namen sistema
+
+Demokracija 2.0 je prototip platforme za pripravo zakonodajnih pobud. Uporabnik lahko pregleda pobude, odda novo pobudo, dobi AI predpregled skladnosti, glasuje, komentira in pobudo podpise s SI-PASS identiteto. Sistem enkrat letno pobude zapakira za posiljanje v Drzavni zbor, dnevno pa ustvarjalcem pobud posilja povzetek novih glasov, podpisov in komentarjev.
+
+Sistem je zgrajen kot majhna web aplikacija brez klasicnega frameworka. Frontend je v `src/main.js`, domenska pravila so locena v `src/domain/*`, podatkovni dostop je v `src/lib/*`, backend endpointi pa so loceni v `api/*` in `server/*`. Produkcijski deployment cilja na Vercel + Supabase, lokalni razvoj pa uporablja `scripts/dev-server.mjs`.
+
+### Glavni uporabniki in use case diagram
+
+```mermaid
+flowchart LR
+  Citizen[Drzavljan / uporabnik]
+  Anonymous[Neprijavljen obiskovalec]
+  Creator[Ustvarjalec pobude]
+  Admin[Demo admin]
+  Sipass[SI-PASS uporabnik]
+
+  Browse((Pregled pobud))
+  Search((Iskanje in filtriranje))
+  Vote((Anonimni ali prijavljeni glas))
+  Submit((Oddaja pobude))
+  AiReview((AI predpregled))
+  Comment((Komentiranje))
+  Sign((SI-PASS podpis))
+  Export((PDF/DOCX/ODT izvoz za DZ))
+  Analytics((Analitika pobud))
+  SystemAnalytics((Sistemska analitika))
+  DailyDigest((Dnevni email povzetek))
+
+  Anonymous --> Browse
+  Anonymous --> Search
+  Anonymous --> Vote
+  Citizen --> Browse
+  Citizen --> Search
+  Citizen --> Vote
+  Citizen --> Submit
+  Citizen --> AiReview
+  Citizen --> Comment
+  Creator --> DailyDigest
+  Sipass --> Sign
+  Admin --> Export
+  Admin --> Analytics
+  Admin --> SystemAnalytics
+```
+
+### Kontekstni diagram sistema
+
+```mermaid
+flowchart LR
+  User[Uporabnik v brskalniku]
+  Browser[Frontend app<br/>src/main.js]
+  RuntimeConfig[/Runtime config<br/>config.local.js/]
+  Vercel[Vercel serverless API<br/>api/*]
+  ServerModules[Server moduli<br/>server/*]
+  Supabase[(Supabase Postgres<br/>schema/search/analytics)]
+  HF[Hugging Face AI]
+  SMTP[SMTP streznik]
+  Clarity[Microsoft Clarity]
+  VercelAnalytics[Vercel Analytics<br/>Speed Insights]
+  Turnstile[Cloudflare Turnstile]
+  Sipass[SI-PASS / SI-CAS bridge]
+
+  User --> Browser
+  Browser --> RuntimeConfig
+  Browser --> Vercel
+  Browser --> VercelAnalytics
+  Browser --> Clarity
+  Browser --> Turnstile
+  Browser --> Sipass
+  Vercel --> ServerModules
+  ServerModules --> Supabase
+  ServerModules --> HF
+  ServerModules --> SMTP
+  ServerModules --> Clarity
+```
+
+### Arhitektura po plasteh
+
+```mermaid
+flowchart TB
+  subgraph UI["Frontend UI"]
+    Main[src/main.js<br/>DemocracyApp]
+    Styles[src/styles.css]
+    Config[src/config.js]
+  end
+
+  subgraph Domain["Domenska pravila"]
+    Validation[src/domain/validation.js<br/>validacija, statusi, AI scoring]
+    Notifications[src/domain/notifications.js<br/>email dogodki]
+    Analytics[src/domain/analytics.js<br/>metrike in statistika]
+    AiReview[src/domain/ai-review.js<br/>remote AI payload]
+    Email[src/domain/email.js<br/>email normalizacija]
+  end
+
+  subgraph Repositories["Podatkovni dostop"]
+    LocalRepo[src/lib/storage.js<br/>LocalInitiativeRepository]
+    SupabaseRepo[src/lib/supabase.js<br/>SupabaseInitiativeRepository]
+    Auth[src/lib/auth.js<br/>DemoAuth]
+    Telemetry[src/lib/telemetry.js]
+  end
+
+  subgraph Api["HTTP endpointi"]
+    ApiConfig[api/config.local.js]
+    ApiInitiatives[api/initiatives.js]
+    ApiSignatures[api/signatures.js]
+    ApiNotifications["api/notifications/[...path].js"]
+    ApiAnalytics["api/analytics/[...path].js"]
+    ApiAuth["api/auth/[...path].js"]
+    ApiAi[api/ai/review-initiative.js]
+  end
+
+  subgraph Server["Server logika"]
+    ServerInitiatives[server/initiatives.mjs]
+    ServerSignatures[server/signatures.mjs]
+    ServerDigest[server/daily-digest.mjs]
+    ServerEmail[server/email.mjs]
+    ServerTurnstile[server/turnstile.mjs]
+    ServerSipass[server/sipass-session.mjs]
+  end
+
+  Main --> Validation
+  Main --> Notifications
+  Main --> Analytics
+  Main --> LocalRepo
+  Main --> SupabaseRepo
+  SupabaseRepo --> ApiInitiatives
+  ApiInitiatives --> ServerInitiatives
+  ApiSignatures --> ServerSignatures
+  ApiNotifications --> ServerDigest
+  ApiNotifications --> ServerEmail
+  ServerInitiatives --> Validation
+  ServerDigest --> Notifications
+```
+
+### Zakaj je arhitektura taka
+
+- Frontend ostane preprost in pregleden, ker ni build koraka, ki bi skrival runtime nastavitve.
+- Domenska pravila so v `src/domain`, da se ista validacija uporablja v UI, backendu in testih.
+- Varnostno obcutljive operacije, kot so zapis pobude s service role kljucem, SI-PASS podpis, email posiljanje in Turnstile preverjanje, gredo prek backend endpointov.
+- Supabase anon kljuc je javen in se uporablja samo za branje oziroma dovoljene javne RPC operacije; `SUPABASE_SERVICE_ROLE_KEY` ostane server-only.
+- Lokalni development server posnema produkcijske endpoint-e, zato E2E smoke test preverja realno obliko aplikacije.
+
+### Repozitorij in odgovornost datotek
+
+| Pot | Namen |
+| --- | --- |
+| `src/main.js` | Glavna browser aplikacija, render pogledi, UI dogodki, izvoz PDF, povezava domene z repozitorijem. |
+| `src/domain/validation.js` | Validacija pobude, statusi, lokalni AI scoring, glasovanje, podpisovanje, komentarji. |
+| `src/domain/analytics.js` | Izracun metrik pobud, uporabnika in sistema. |
+| `src/domain/notifications.js` | Gradnja email obvestil za statusne spremembe in dnevni digest. |
+| `src/lib/supabase.js` | Supabase repozitorij, mapiranje SQL vrstic v domenski model, backend write endpointi. |
+| `src/lib/storage.js` | Lokalni repozitorij za prototip in fallback. |
+| `api/*` | Vercel entrypointi. Tanke HTTP plasti, ki delegirajo v `server/*`. |
+| `server/*` | Server-only logika: service role Supabase requesti, SMTP, SI-PASS session, Turnstile, cron digest. |
+| `supabase/schema.sql` | Osnovna shema, RLS, view-i in indeksi. |
+| `supabase/search.sql` | Hybrid search RPC funkcije za full-text + fuzzy iskanje. |
+| `tests/*` | Domain, E2E smoke in performance budget testi. |
+| `.github/workflows/pipeline_demos.yml` | CI, testi, coverage in SonarCloud scan. |
+
+### Podatkovni model in ER diagram
+
+```mermaid
+erDiagram
+  INITIATIVES ||--o{ VOTES : receives
+  INITIATIVES ||--o{ SIGNATURES : receives
+  INITIATIVES ||--o{ COMMENTS : receives
+  INITIATIVES ||--o{ INITIATIVE_AI_REVIEWS : has
+
+  INITIATIVES {
+    uuid id PK
+    text title
+    text summary
+    text description
+    initiative_category category
+    initiative_status status
+    text author_ref
+    text author_name
+    text notification_email
+    int ai_score
+    ai_risk_level ai_risk
+    jsonb ai_findings
+    jsonb ai_checks
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  VOTES {
+    uuid id PK
+    uuid initiative_id FK
+    text voter_ref
+    text voter_name
+    timestamptz created_at
+  }
+
+  SIGNATURES {
+    uuid id PK
+    uuid initiative_id FK
+    text signer_ref
+    text signer_name
+    text method
+    timestamptz created_at
+  }
+
+  COMMENTS {
+    uuid id PK
+    uuid initiative_id FK
+    text author_ref
+    text author_name
+    text body
+    timestamptz created_at
+  }
+
+  INITIATIVE_AI_REVIEWS {
+    uuid id PK
+    uuid initiative_id FK
+    text provider
+    text model
+    int score
+    ai_risk_level risk
+    ai_suitability suitability
+    jsonb findings
+    jsonb checks
+    timestamptz created_at
+  }
+```
+
+Ključni view-i:
+
+- `initiative_detail`: pobuda skupaj z agregiranimi `votes`, `signatures` in `comments` JSON seznami.
+- `initiative_analytics`: izracun stevila glasov, podpisov, komentarjev, support score in AI podatkov.
+- `category_analytics`: agregacija po kategorijah.
+
+### Stanja pobude
+
+```mermaid
+stateDiagram-v2
+  [*] --> review: oddaja pobude z visokim tveganjem
+  [*] --> active: oddaja pobude z nizkim/srednjim tveganjem
+  review --> active: admin potrdi
+  review --> rejected: admin zavrne
+  active --> signature_collection: prvi podpis
+  signature_collection --> submitted: izvoz/oddaja DZ
+  submitted --> [*]
+  rejected --> [*]
+```
+
+Pomen statusov:
+
+| Status | Pomen |
+| --- | --- |
+| `draft` | Lokalni osnutek, ni namenjen bazi kot javna pobuda. |
+| `review` | Pobuda potrebuje uredniski/admin pregled. |
+| `active` | Pobuda je javno aktivna, mozno je glasovanje in komentiranje. |
+| `signature_collection` | Pobuda zbira podpise, omogočen je izvoz za DZ. |
+| `submitted` | Pobuda je pripravljena oziroma oddana DZ. |
+| `rejected` | Pobuda je zavrnjena. |
+
+### Tok oddaje pobude
+
+```mermaid
+sequenceDiagram
+  actor U as Uporabnik
+  participant UI as DemocracyApp
+  participant V as validateInitiative/evaluateInitiative
+  participant T as Turnstile
+  participant API as api/initiatives.js
+  participant S as server/initiatives.mjs
+  participant DB as Supabase
+  participant N as Email notifications
+
+  U->>UI: izpolni obrazec pobude
+  UI->>V: validacija obveznih polj
+  V-->>UI: errors ali normalized values
+  UI->>T: preverjanje anti-bot tokena
+  T-->>UI: verified
+  UI->>U: zahteva email za obvestila
+  U->>UI: potrdi notification email
+  UI->>V: AI predpregled / score
+  UI->>API: POST /api/initiatives
+  API->>S: createServerInitiative
+  S->>V: ponovno doloci actorja in domenski model
+  S->>DB: insert initiatives s service role
+  DB-->>S: shranjena pobuda
+  S-->>API: initiative DTO
+  API-->>UI: created initiative
+  UI->>N: po potrebi statusna obvestila
+```
+
+Zakaj se validacija ponovi na serverju: frontend validacija je za uporabnisko izkusnjo, server validacija pa je meja zaupanja. Actor, author, status in `notification_email` se na koncu zapisujejo prek backenda, da frontend ne more samovoljno zapisati tujih avtorjev ali obiti pravil.
+
+### Tok glasovanja, komentarjev in podpisov
+
+```mermaid
+flowchart TD
+  Start[Uporabnik klikne akcijo] --> AuthCheck{Je potrebna prijava?}
+  AuthCheck -->|Anonimni glas| PublicCheck{Je pobuda javno aktivna?}
+  PublicCheck -->|Da| Vote[Zapis glasu]
+  PublicCheck -->|Ne| Stop[Zavrni in prikazi sporocilo]
+  AuthCheck -->|Komentar| LoggedIn{Je prijavljen?}
+  LoggedIn -->|Da| Comment[Zapis komentarja]
+  LoggedIn -->|Ne| Stop
+  AuthCheck -->|SI-PASS podpis| SipassCheck{Je SI-PASS user?}
+  SipassCheck -->|Da| Signature[POST /api/signatures]
+  SipassCheck -->|Ne| Stop
+  Vote --> Refresh[Osvezi pobude]
+  Comment --> Refresh
+  Signature --> Refresh
+```
+
+### Tok dnevnega email digest-a
+
+```mermaid
+sequenceDiagram
+  participant Cron as Vercel cron
+  participant API as /api/notifications/daily-digest
+  participant Digest as server/daily-digest.mjs
+  participant DB as Supabase
+  participant Domain as buildInitiativeDailyDigestEmailNotifications
+  participant SMTP as server/email.mjs
+
+  Cron->>API: GET daily-digest
+  API->>Digest: sendDailyCreatorDigest
+  Digest->>DB: preberi votes/signatures/comments za dan
+  Digest->>DB: preberi initiatives z notification_email
+  Digest->>Digest: izracun novih dogodkov po pobudi
+  Digest->>Domain: sestavi email povzetke
+  Domain-->>Digest: notifications[]
+  Digest->>SMTP: deliverEmailNotifications
+  SMTP-->>Digest: accepted/sent/outbox
+  Digest-->>API: JSON rezultat
+```
+
+Pomembno: glasovi, komentarji in podpisi se ne posiljajo sproti, ampak se zdruzijo v en dnevni email po pobudi. Statusna sprememba pa se poslje takoj.
+
+### AI predpregled
+
+AI pregled ima dve plasti:
+
+- Lokalni rule engine v `src/domain/validation.js`, ki vedno deluje in izracuna `score`, `risk`, `suitability`, `completeness`, `categorySuggestion` in `findings`.
+- Remote AI endpoint `/api/ai/review-initiative`, ki uporablja Hugging Face, ce je nastavljen `HF_TOKEN`. Ce remote endpoint pade ali token ni nastavljen, frontend uporabi lokalni fallback.
+
+```mermaid
+flowchart LR
+  Form[Pobuda] --> Compact[src/domain/ai-review.js<br/>compact payload]
+  Compact --> Endpoint["/api/ai/review-initiative"]
+  Endpoint --> HF{HF_TOKEN nastavljen?}
+  HF -->|Da| HuggingFace[Hugging Face model]
+  HF -->|Ne| Local[local rule engine]
+  HuggingFace --> Review[AI review DTO]
+  Local --> Review
+  Review --> UI[AI predpregled v UI]
+```
+
+### Razredni oziroma modulni diagram
+
+```mermaid
+classDiagram
+  class DemocracyApp {
+    +render()
+    +handleClick(event)
+    +handleSubmit(event)
+    +refresh()
+    +reviewInitiative(values)
+  }
+
+  class LocalInitiativeRepository {
+    +list()
+    +create(initiative)
+    +vote(id, actor)
+    +comment(id, body, actor)
+  }
+
+  class SupabaseInitiativeRepository {
+    +list()
+    +create(initiative)
+    +vote(id, actor)
+    +comment(id, body, actor)
+    +request(path, options)
+  }
+
+  class DemoAuth {
+    +currentUser()
+    +signIn(user)
+    +signOut()
+  }
+
+  class SystemTelemetry {
+    +record(type, data)
+    +flush()
+  }
+
+  class DomainValidation {
+    +validateInitiative(input)
+    +evaluateInitiative(input)
+    +createInitiative(input, actor, review)
+    +voteForInitiative(initiative, actor)
+    +signInitiative(initiative, actor, method)
+    +addComment(initiative, actor, body)
+  }
+
+  DemocracyApp --> LocalInitiativeRepository
+  DemocracyApp --> SupabaseInitiativeRepository
+  DemocracyApp --> DemoAuth
+  DemocracyApp --> SystemTelemetry
+  DemocracyApp --> DomainValidation
+  SupabaseInitiativeRepository --> ServerInitiatives
+  ServerInitiatives --> DomainValidation
+```
+
+### Deployment diagram
+
+```mermaid
+flowchart TB
+  GitHub[GitHub repo] --> Actions[GitHub Actions CI]
+  Actions --> Sonar[SonarCloud]
+  Actions --> VercelDeploy[Vercel deploy]
+  VercelDeploy --> Browser[Browser]
+  VercelDeploy --> Api[Vercel API functions]
+  Api --> Supabase[(Supabase)]
+  Api --> SMTP[SMTP]
+  Api --> HF[Hugging Face]
+  Api --> ClarityAPI[Clarity Data Export API]
+  Browser --> Clarity[Microsoft Clarity script]
+  Browser --> VercelAnalytics[Vercel Analytics]
+  Browser --> Turnstile[Cloudflare Turnstile]
+```
+
+### Runtime konfiguracija in skrivnosti
+
+Frontend dobi samo javne nastavitve prek `/config.local.js`. To pomeni, da so v browserju dovoljeni `SUPABASE_URL`, `SUPABASE_ANON_KEY`, public endpointi, Clarity project id in Turnstile site key. Vse skrivnosti ostanejo server-only:
+
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `HF_TOKEN`
+- `SMTP_PASS`
+- `CLARITY_API_TOKEN`
+- `TURNSTILE_SECRET_KEY`
+- `SIPASS_SESSION_SECRET`
+- `SIPASS_USER_REF_SALT`
+- `CRON_SECRET`
+
+CI ima dodatno preverjanje, da frontend ne bere server-only secretov.
+
+### Kakovost, testi in SonarCloud
+
+```mermaid
+flowchart LR
+  Commit[Commit / PR] --> CI[GitHub Actions]
+  CI --> NpmCi[npm ci]
+  NpmCi --> Coverage[npm run test:coverage]
+  Coverage --> Domain[Domain tests]
+  Coverage --> E2E[E2E smoke tests]
+  Coverage --> Perf[Performance budget tests]
+  Coverage --> LCOV[coverage/lcov.info]
+  LCOV --> Sonar[SonarCloud scan]
+  CI --> Syntax[node --check]
+  CI --> Wiring[deployment wiring checks]
+  CI --> SecretScan[secret exposure checks]
+```
+
+Kakovostne plasti:
+
+| Plast | Kaj preverja |
+| --- | --- |
+| `tests/domain.test.mjs` | Validacija, AI scoring, analitika, email obvestila, SI-PASS session, backend servisne funkcije. |
+| `tests/e2e.test.mjs` | Lokalni dev server, statični asseti, runtime config, osnovni API endpointi, 404. |
+| `tests/performance.test.mjs` | Velikost zacetnega payload-a in lazy-loading DOCX/ODT generatorja. |
+| `scripts/run-coverage.mjs` | Ustvari `coverage/lcov.info` za SonarCloud brez dodatnih dependencyjev. |
+| SonarCloud | Reliability, maintainability, security hotspots, coverage in duplication. |
+| GitHub Actions | Avtomatski pipeline za teste, syntax check, wiring check in secret check. |
+
+### Projektno vodenje in nacin dela
+
+Projekt je voden iterativno. Vsaka vecja funkcionalnost ima:
+
+1. domensko pravilo ali helper v `src/domain`,
+2. UI integracijo v `src/main.js`,
+3. backend pot v `api/*` oziroma `server/*`, ce zahteva skrivnosti ali service role,
+4. SQL spremembo v `supabase/*`, ce gre za trajne podatke,
+5. test v `tests/domain.test.mjs`, `tests/e2e.test.mjs` ali `tests/performance.test.mjs`,
+6. dokumentacijsko sled v README ali `docs/*`.
+
+Pri spremembah velja pravilo: najprej se doloci podatkovni tok in meja zaupanja, potem se implementira UI. Varnostno obcutljive operacije ne ostanejo samo v browserju.
+
+### Kako naj nov razvijalec zacne
+
+1. Preberi ta README do konca, posebej diagrame arhitekture, ER in data flow.
+2. Zazeni `npm test`, da dobis baseline.
+3. Zazeni `npm run dev` in odpri lokalni URL.
+4. Preglej `src/main.js` za UI tokove in `src/domain/validation.js` za poslovna pravila.
+5. Preglej `server/initiatives.mjs`, `server/signatures.mjs`, `server/daily-digest.mjs` za backend meje zaupanja.
+6. Preglej `supabase/schema.sql` in `supabase/search.sql`, ce delas na podatkih ali iskanju.
+7. Pred spremembo naredi majhen test ali vsaj opredeli, kateri obstojeci test dokazuje, da vedenje ostaja pravilno.
+
 ## Zagon
 
 ```bash
