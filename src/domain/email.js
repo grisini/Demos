@@ -18,12 +18,12 @@ export function isValidEmailAddress(value) {
   if (!localPart || localPart.length > MAX_LOCAL_PART_LENGTH) return false;
   if (!domain.includes(".") || domain.startsWith(".") || domain.endsWith(".") || domain.includes("..")) return false;
 
-  return domain.split(".").every((label) => Boolean(label));
+  return domain.split(".").every(Boolean);
 }
 
 function hasForbiddenEmailChar(email) {
   for (const char of email) {
-    const code = char.charCodeAt(0);
+    const code = char.codePointAt(0);
     if (code <= 32 || code === 127 || char === "<" || char === ">") return true;
   }
   return false;

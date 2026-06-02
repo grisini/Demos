@@ -635,6 +635,7 @@ test("SI-PASS podpis backend zavrne zahtevo brez seje", async () => {
 
 test("oddaja pobude gre prek backend service role in doloci avtorja na strezniku", async () => {
   const calls = [];
+  const notificationEmail = "obvestila@example.test";
   const fetchImpl = async (url, options = {}) => {
     calls.push({ url, options });
     const path = new URL(url).pathname;
@@ -642,7 +643,7 @@ test("oddaja pobude gre prek backend service role in doloci avtorja na strezniku
       const body = JSON.parse(options.body);
       assert.equal(body.author_ref, actor.id);
       assert.equal(body.author_name, actor.name);
-      assert.equal(body.notification_email, actor.email);
+      assert.equal(body.notification_email, notificationEmail);
       assert.ok(["low", "medium", "high"].includes(body.ai_risk));
       return jsonResponse([{ ...initiativeRow(body), id: body.id }], 201);
     }
@@ -651,7 +652,7 @@ test("oddaja pobude gre prek backend service role in doloci avtorja na strezniku
 
   const initiative = await createServerInitiative(
     { headers: {} },
-    { values: validInput, actor: { ...actor, provider: "demo" } },
+    { values: { ...validInput, notificationEmail }, actor: { ...actor, provider: "demo" } },
     {
       AUTH_MODE: "demo",
       SUPABASE_URL: "https://example.supabase.co",
@@ -661,7 +662,8 @@ test("oddaja pobude gre prek backend service role in doloci avtorja na strezniku
   );
 
   assert.equal(initiative.author.id, actor.id);
-  assert.equal(initiative.author.email, actor.email);
+  assert.equal(initiative.notificationEmail, notificationEmail);
+  assert.equal(initiative.author.email, notificationEmail);
   assert.equal(initiative.title, validInput.title);
   assert.ok(calls[0].options.headers.Authorization.includes("service-role-key"));
 });

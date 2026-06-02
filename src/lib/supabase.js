@@ -274,7 +274,6 @@ function toInitiativeRow(initiative) {
     status: initiative.status,
     author_ref: initiative.author.id,
     author_name: initiative.author.name,
-    notification_email: initiative.author.email || "",
     ai_score: initiative.aiReview.score,
     ai_risk: initiative.aiReview.risk,
     ai_findings: initiative.aiReview.findings,

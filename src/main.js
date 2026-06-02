@@ -2238,7 +2238,8 @@ class DemocracyApp {
           return;
         }
 
-        const email = String(new FormData(form).get("notificationEmail") || "").trim().toLowerCase();
+        const notificationEmailValue = new FormData(form).get("notificationEmail");
+        const email = typeof notificationEmailValue === "string" ? notificationEmailValue.trim().toLowerCase() : "";
         this.state.notificationEmailDraft = email;
         if (!isValidEmail(email)) {
           this.state.notificationEmailError = "Vnesite veljaven e-postni naslov.";
