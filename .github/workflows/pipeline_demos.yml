@@ -36,6 +36,17 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=grisini
+            -Dsonar.projectKey=grisini_Demos
+            -Dsonar.sources=src,api,server
+            -Dsonar.tests=tests
+
       - name: Check JavaScript syntax
         shell: bash
         run: |
