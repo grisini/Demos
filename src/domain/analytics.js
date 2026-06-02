@@ -301,57 +301,39 @@ function statusBreakdown(stats) {
 }
 
 function recentUserActivity(initiatives, user) {
-  const events = [];
+  return initiatives
+    .flatMap((initiative) => initiativeUserActivity(initiative, user.id))
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+}
 
-  for (const initiative of initiatives) {
-    if (initiative.author?.id === user.id) {
-      events.push({
-        type: "created",
-        label: "Oddana pobuda",
-        title: initiative.title,
-        category: initiative.category,
-        createdAt: initiative.createdAt
-      });
-    }
+function initiativeUserActivity(initiative, userId) {
+  return [
+    ...createdActivity(initiative, userId),
+    ...collectionActivity(initiative.votes, userId, initiative, "vote", "Glas"),
+    ...collectionActivity(initiative.signatures, userId, initiative, "signature", "Podpis"),
+    ...collectionActivity(initiative.comments, userId, initiative, "comment", "Komentar")
+  ];
+}
 
-    for (const vote of initiative.votes || []) {
-      if (vote.userId === user.id) {
-        events.push({
-          type: "vote",
-          label: "Glas",
-          title: initiative.title,
-          category: initiative.category,
-          createdAt: vote.createdAt
-        });
-      }
-    }
+function createdActivity(initiative, userId) {
+  if (initiative.author?.id !== userId) return [];
+  return [activityEvent(initiative, "created", "Oddana pobuda", initiative.createdAt)];
+}
 
-    for (const signature of initiative.signatures || []) {
-      if (signature.userId === user.id) {
-        events.push({
-          type: "signature",
-          label: "Podpis",
-          title: initiative.title,
-          category: initiative.category,
-          createdAt: signature.createdAt
-        });
-      }
-    }
+function collectionActivity(items, userId, initiative, type, label) {
+  return (items || [])
+    .filter((item) => item.userId === userId)
+    .map((item) => activityEvent(initiative, type, label, item.createdAt));
+}
 
-    for (const comment of initiative.comments || []) {
-      if (comment.userId === user.id) {
-        events.push({
-          type: "comment",
-          label: "Komentar",
-          title: initiative.title,
-          category: initiative.category,
-          createdAt: comment.createdAt
-        });
-      }
-    }
-  }
-
-  return events.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+function activityEvent(initiative, type, label, createdAt) {
+  return {
+    type,
+    label,
+    title: initiative.title,
+    category: initiative.category,
+    createdAt
+  };
 }
 
 function voteDistribution(stats) {

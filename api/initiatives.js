@@ -14,75 +14,81 @@ export default async function handler(request, response) {
     return;
   }
 
-  let payload = {};
+  const payload = await readPayloadOrRespond(request, response);
+  if (!payload) return;
+
+  const route = initiativeRoutes[normalizeAction(payload.action)];
+  if (!route) {
+    sendJson(response, 404, { error: "Not found" });
+    return;
+  }
+
+  if (!route.methods.includes(request.method || "")) {
+    sendJson(response, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  await runInitiativeRoute(route, request, response, payload);
+}
+
+const initiativeRoutes = {
+  create: {
+    methods: ["POST"],
+    run: createServerInitiative,
+    status: 201,
+    success: "created",
+    log: "Initiative create failed",
+    error: "Initiative create failed",
+    includeValidationErrors: true
+  },
+  comment: {
+    methods: ["POST"],
+    run: createServerComment,
+    status: 201,
+    success: "created",
+    log: "Comment create failed",
+    error: "Comment create failed"
+  },
+  status: {
+    methods: ["PATCH", "POST"],
+    run: updateServerInitiativeStatus,
+    status: 200,
+    success: "updated",
+    log: "Initiative status update failed",
+    error: "Initiative status update failed"
+  }
+};
+
+async function readPayloadOrRespond(request, response) {
   try {
-    payload = await readJsonBody(request, request.method === "POST" ? largeBodyBytes : smallBodyBytes);
+    return await readJsonBody(request, request.method === "POST" ? largeBodyBytes : smallBodyBytes);
   } catch (error) {
     sendJson(response, error.status || 400, { error: error.message || "Invalid JSON body" });
-    return;
+    return null;
   }
+}
 
-  const action = String(payload.action || "").toLowerCase();
+function normalizeAction(action) {
+  const value = String(action || "").toLowerCase();
+  return value || "create";
+}
 
-  if (!action || action === "create") {
-    if (request.method !== "POST") {
-      sendJson(response, 405, { error: "Method not allowed" });
-      return;
-    }
-
-    try {
-      const initiative = await createServerInitiative(request, payload, process.env);
-      sendJson(response, 201, { created: true, initiative });
-    } catch (error) {
-      console.error("[Demokracija 2.0] Initiative create failed", error);
-      sendJson(response, error.status || 500, {
-        created: false,
-        error: error.message || "Initiative create failed",
-        errors: error.errors || undefined
-      });
-    }
-    return;
+async function runInitiativeRoute(route, request, response, payload) {
+  try {
+    const initiative = await route.run(request, payload, process.env);
+    sendJson(response, route.status, { [route.success]: true, initiative });
+  } catch (error) {
+    console.error(`[Demokracija 2.0] ${route.log}`, error);
+    sendJson(response, error.status || 500, routeErrorPayload(route, error));
   }
+}
 
-  if (action === "comment") {
-    if (request.method !== "POST") {
-      sendJson(response, 405, { error: "Method not allowed" });
-      return;
-    }
-
-    try {
-      const initiative = await createServerComment(request, payload, process.env);
-      sendJson(response, 201, { created: true, initiative });
-    } catch (error) {
-      console.error("[Demokracija 2.0] Comment create failed", error);
-      sendJson(response, error.status || 500, {
-        created: false,
-        error: error.message || "Comment create failed"
-      });
-    }
-    return;
-  }
-
-  if (action === "status") {
-    if (!["PATCH", "POST"].includes(request.method || "")) {
-      sendJson(response, 405, { error: "Method not allowed" });
-      return;
-    }
-
-    try {
-      const initiative = await updateServerInitiativeStatus(request, payload, process.env);
-      sendJson(response, 200, { updated: true, initiative });
-    } catch (error) {
-      console.error("[Demokracija 2.0] Initiative status update failed", error);
-      sendJson(response, error.status || 500, {
-        updated: false,
-        error: error.message || "Initiative status update failed"
-      });
-    }
-    return;
-  }
-
-  sendJson(response, 404, { error: "Not found" });
+function routeErrorPayload(route, error) {
+  return {
+    [route.success]: false,
+    error: error.message || route.error,
+    errors: route.includeValidationErrors ? error.errors || undefined : undefined
+  };
 }
 
 function sendJson(response, status, value) {

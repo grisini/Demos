@@ -108,6 +108,16 @@ const categoryKeywords = {
   Drugo: []
 };
 
+const SCORE_BONUSES = [
+  ["description", 500, 8],
+  ["legalReference", 8, 9],
+  ["expectedImpact", 40, 7],
+  ["legislativeText", 80, 9],
+  ["articleExplanation", 120, 7],
+  ["comparativeReview", 120, 5],
+  ["impactAssessment", 120, 5]
+];
+
 export function validateInitiative(input) {
   const values = normalizeInput(input);
   const errors = {};
@@ -158,48 +168,15 @@ export function evaluateInitiative(input) {
   const vagueHits = findHits(text, vagueKeywords);
   const categorySuggestion = suggestCategory(text, values.category);
   const completeness = completenessChecks(values);
-
-  let score = 42;
-  score += Math.min(words.length, 220) / 6;
-  score += legalHits.length * 8;
-  score -= budgetHits.length * 7;
-  score -= vagueHits.length * 4;
-  score += completeness.score / 8;
-  score += categorySuggestion.confidence >= 60 ? 4 : 0;
-
-  if (values.description.length >= 500) score += 8;
-  if (values.legalReference.length >= 8) score += 9;
-  if (values.expectedImpact.length >= 40) score += 7;
-  if (values.legislativeText.length >= 80) score += 9;
-  if (values.articleExplanation.length >= 120) score += 7;
-  if (values.comparativeReview.length >= 120) score += 5;
-  if (values.impactAssessment.length >= 120) score += 5;
-
-  const boundedScore = Math.max(0, Math.min(100, Math.round(score)));
-  const risk = budgetHits.length >= 3 || boundedScore < 45 ? "high" : budgetHits.length > 0 || vagueHits.length > 1 ? "medium" : "low";
-  const suitability = boundedScore >= 72 && risk === "low" ? "ready" : boundedScore >= 50 ? "needs_review" : "insufficient";
+  const reviewContext = { budgetHits, legalHits, vagueHits, completeness, categorySuggestion };
+  const boundedScore = initiativeScore(values, words, reviewContext);
+  const risk = initiativeRisk(budgetHits, vagueHits, boundedScore);
+  const suitability = initiativeSuitability(boundedScore, risk);
 
   return {
     score: boundedScore,
     risk,
-    findings: [
-      `Ustreznost: ${suitabilityLabel(suitability)} (${completeness.score}% popolnosti podatkov).`,
-      categorySuggestion.category && categorySuggestion.category !== values.category
-        ? `AI predlaga kategorijo ${categorySuggestion.category} z ${categorySuggestion.confidence}% ujemanjem.`
-        : "Izbrana kategorija je skladna z zaznanimi izrazi.",
-      legalHits.length
-        ? `Zaznane pravne oporne tocke: ${legalHits.join(", ")}.`
-        : "Dodajte jasnejso pravno podlago ali navedbo zakona.",
-      completeness.missing.length
-        ? `Za DZ manjkajo ali so prekratka polja: ${completeness.missing.map((field) => FIELD_LABELS[field] || field).join(", ")}.`
-        : "Predlog vsebuje obvezne vsebinske sklope za predlog zakona.",
-      budgetHits.length
-        ? `Pobuda omenja proracunsko obcutljive pojme: ${budgetHits.join(", ")}.`
-        : "Ni ocitnih proracunskih opozoril v osnovnem pregledu.",
-      vagueHits.length
-        ? "Besedilo vsebuje nekaj splosnih izrazov; predlog naj bo bolj merljiv."
-        : "Besedilo je dovolj konkretno za prvi pregled."
-    ],
+    findings: initiativeFindings(reviewContext, values.category, suitability),
     checks: {
       length: words.length,
       budgetHits,
@@ -210,6 +187,84 @@ export function evaluateInitiative(input) {
       suitability
     }
   };
+}
+
+function initiativeScore(values, words, reviewContext) {
+  const score =
+    42 +
+    Math.min(words.length, 220) / 6 +
+    reviewContext.legalHits.length * 8 -
+    reviewContext.budgetHits.length * 7 -
+    reviewContext.vagueHits.length * 4 +
+    reviewContext.completeness.score / 8 +
+    categoryConfidenceBonus(reviewContext.categorySuggestion) +
+    fieldScoreBonus(values);
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function categoryConfidenceBonus(categorySuggestion) {
+  return categorySuggestion.confidence >= 60 ? 4 : 0;
+}
+
+function fieldScoreBonus(values) {
+  return SCORE_BONUSES.reduce((total, [field, minLength, bonus]) => {
+    return total + (values[field].length >= minLength ? bonus : 0);
+  }, 0);
+}
+
+function initiativeRisk(budgetHits, vagueHits, boundedScore) {
+  if (budgetHits.length >= 3 || boundedScore < 45) return "high";
+  if (budgetHits.length > 0 || vagueHits.length > 1) return "medium";
+  return "low";
+}
+
+function initiativeSuitability(boundedScore, risk) {
+  if (boundedScore >= 72 && risk === "low") return "ready";
+  if (boundedScore >= 50) return "needs_review";
+  return "insufficient";
+}
+
+function initiativeFindings(reviewContext, selectedCategory, suitability) {
+  const { budgetHits, legalHits, vagueHits, completeness, categorySuggestion } = reviewContext;
+  return [
+    `Ustreznost: ${suitabilityLabel(suitability)} (${completeness.score}% popolnosti podatkov).`,
+    categoryFinding(categorySuggestion, selectedCategory),
+    legalFinding(legalHits),
+    completenessFinding(completeness),
+    budgetFinding(budgetHits),
+    vagueFinding(vagueHits)
+  ];
+}
+
+function categoryFinding(categorySuggestion, selectedCategory) {
+  if (categorySuggestion.category && categorySuggestion.category !== selectedCategory) {
+    return `AI predlaga kategorijo ${categorySuggestion.category} z ${categorySuggestion.confidence}% ujemanjem.`;
+  }
+  return "Izbrana kategorija je skladna z zaznanimi izrazi.";
+}
+
+function legalFinding(legalHits) {
+  return legalHits.length
+    ? `Zaznane pravne oporne tocke: ${legalHits.join(", ")}.`
+    : "Dodajte jasnejso pravno podlago ali navedbo zakona.";
+}
+
+function completenessFinding(completeness) {
+  return completeness.missing.length
+    ? `Za DZ manjkajo ali so prekratka polja: ${completeness.missing.map((field) => FIELD_LABELS[field] || field).join(", ")}.`
+    : "Predlog vsebuje obvezne vsebinske sklope za predlog zakona.";
+}
+
+function budgetFinding(budgetHits) {
+  return budgetHits.length
+    ? `Pobuda omenja proracunsko obcutljive pojme: ${budgetHits.join(", ")}.`
+    : "Ni ocitnih proracunskih opozoril v osnovnem pregledu.";
+}
+
+function vagueFinding(vagueHits) {
+  return vagueHits.length
+    ? "Besedilo vsebuje nekaj splosnih izrazov; predlog naj bo bolj merljiv."
+    : "Besedilo je dovolj konkretno za prvi pregled.";
 }
 
 export function createInitiative(input, actor, review = evaluateInitiative(input)) {

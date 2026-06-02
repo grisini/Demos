@@ -594,22 +594,25 @@ class DemocracyApp {
 
   renderDashboardView(analytics, selected) {
     const initiatives = this.filteredInitiatives();
-    const visibleCount = Math.min(this.state.visibleInitiativeCount, initiatives.length);
-    const visibleInitiatives = initiatives.slice(0, visibleCount);
-    const hasMoreInitiatives = visibleCount < initiatives.length;
     const user = this.currentUser();
-    const dashboardAnalytics = user ? analytics : calculateAnalytics(this.visibleInitiatives());
-    const mobileDetailOpen = Boolean(this.state.selectedId && selected?.id === this.state.selectedId);
+    const model = {
+      initiatives,
+      selected,
+      user,
+      visibleCount: Math.min(this.state.visibleInitiativeCount, initiatives.length),
+      dashboardAnalytics: user ? analytics : calculateAnalytics(this.visibleInitiatives())
+    };
+    model.visibleInitiatives = initiatives.slice(0, model.visibleCount);
+    model.hasMoreInitiatives = model.visibleCount < initiatives.length;
+    model.mobileDetailOpen = Boolean(this.state.selectedId && selected?.id === this.state.selectedId);
+    const listContent = this.renderDashboardInitiativeList(model);
+    const visibleCount = model.visibleCount;
+    const hasMoreInitiatives = model.hasMoreInitiatives;
+    const mobileDetailOpen = model.mobileDetailOpen;
     return `
       ${this.renderAnnualDeadlineCountdown()}
       <section class="dashboard-layout">
-        <section class="metric-grid dashboard-metrics" aria-label="Povzetek">
-          ${this.metric(user ? "Pobude" : "Aktualne pobude", dashboardAnalytics.initiativeCount, user ? "Vse oddane pobude" : "Javno odprte pobude")}
-          ${this.metric("Glasovi", dashboardAnalytics.totalVotes, "Oddani glasovi")}
-          ${this.metric("Komentarji", user ? dashboardAnalytics.totalComments : "-", user ? "Razprava ob pobudah" : "Vidno po prijavi")}
-          ${this.metric("AI ocena", user ? `${dashboardAnalytics.averageScore}%` : "-", user ? "Povprecje skladnosti" : "Vidno po prijavi")}
-        </section>
-
+        ${this.renderDashboardMetrics(model)}
         <section class="workspace-grid dashboard-workspace">
           <div class="panel list-panel">
             <div class="panel-header">
@@ -649,13 +652,7 @@ class DemocracyApp {
             ${this.state.searchLoading ? `<div class="empty-state" role="status" aria-live="polite">Iskanje...</div>` : ""}
             ${this.state.searchError ? `<div class="empty-state" role="alert">${escapeHtml(this.state.searchError)}</div>` : ""}
             <div class="initiative-list" role="list" aria-label="Seznam pobud">
-              ${
-                this.state.searchLoading
-                  ? ""
-                  : initiatives.length
-                  ? visibleInitiatives.map((initiative) => this.renderInitiativeCard(initiative)).join("")
-                  : `<div class="empty-state">${user ? "Ni pobud za izbrane filtre." : "Trenutno ni javno odprtih pobud."}</div>`
-              }
+              ${listContent}
             </div>
             ${
               !this.state.searchLoading && hasMoreInitiatives
@@ -693,6 +690,25 @@ class DemocracyApp {
         </section>
       </section>
     `;
+  }
+
+  renderDashboardMetrics({ dashboardAnalytics, user }) {
+    return `
+      <section class="metric-grid dashboard-metrics" aria-label="Povzetek">
+        ${this.metric(user ? "Pobude" : "Aktualne pobude", dashboardAnalytics.initiativeCount, user ? "Vse oddane pobude" : "Javno odprte pobude")}
+        ${this.metric("Glasovi", dashboardAnalytics.totalVotes, "Oddani glasovi")}
+        ${this.metric("Komentarji", user ? dashboardAnalytics.totalComments : "-", user ? "Razprava ob pobudah" : "Vidno po prijavi")}
+        ${this.metric("AI ocena", user ? `${dashboardAnalytics.averageScore}%` : "-", user ? "Povprecje skladnosti" : "Vidno po prijavi")}
+      </section>
+    `;
+  }
+
+  renderDashboardInitiativeList({ initiatives, visibleInitiatives, user }) {
+    if (this.state.searchLoading) return "";
+    if (initiatives.length) {
+      return visibleInitiatives.map((initiative) => this.renderInitiativeCard(initiative)).join("");
+    }
+    return `<div class="empty-state">${user ? "Ni pobud za izbrane filtre." : "Trenutno ni javno odprtih pobud."}</div>`;
   }
 
   renderSubmitView() {
@@ -1903,231 +1919,258 @@ class DemocracyApp {
     if (!target) return;
     const action = target.dataset.action;
 
-    if (action === "view") {
-      event.preventDefault();
-      if (target.dataset.view === "systemAnalytics" && !this.isAdminUser()) {
-        this.toast("Sistemska analitika je namenjena administratorju.");
+    if (await this.handleViewClick(action, target, event)) return;
+    if (this.handleSimpleClick(action)) return;
+    if (await this.handleAsyncUtilityClick(action)) return;
+    if (this.handleSelectClick(action, target)) return;
+    if (await this.handleExportClick(action, target)) return;
+    if (await this.handleSessionClick(action)) return;
+    if (await this.handleVoteClick(action, target)) return;
+    await this.handleSignClick(action, target);
+  }
+
+  async handleViewClick(action, target, event) {
+    if (action !== "view") return false;
+    event.preventDefault();
+    if (!this.canOpenView(target.dataset.view)) return true;
+    this.setActiveView(target.dataset.view);
+    this.requestMainFocus();
+    if (isSmallViewport()) this.state.sidebarOpen = false;
+    trackClarityEvent(`view_${this.state.activeView}`);
+    setClarityTag("app_view", this.state.activeView);
+    trackVercelEvent("ViewChanged", { view: this.state.activeView });
+    await this.loadViewTelemetry();
+    this.render();
+    return true;
+  }
+
+  canOpenView(view) {
+    if (view !== "systemAnalytics" || this.isAdminUser()) return true;
+    this.toast("Sistemska analitika je namenjena administratorju.");
+    this.render();
+    return false;
+  }
+
+  async loadViewTelemetry() {
+    if (this.state.activeView === "systemAnalytics") {
+      await this.loadSystemTelemetry();
+      await this.loadClarityInsights();
+    }
+    if (this.state.activeView === "analytics") {
+      await this.loadClarityInsights();
+    }
+  }
+
+  handleSimpleClick(action) {
+    const handlers = {
+      "toggle-sidebar": () => {
+        this.state.sidebarOpen = !this.state.sidebarOpen;
         this.render();
-        return;
-      }
-      this.setActiveView(target.dataset.view);
-      this.requestMainFocus();
-      if (isSmallViewport()) {
+      },
+      "close-sidebar": () => {
         this.state.sidebarOpen = false;
-      }
-      trackClarityEvent(`view_${this.state.activeView}`);
-      setClarityTag("app_view", this.state.activeView);
-      trackVercelEvent("ViewChanged", { view: this.state.activeView });
-      if (this.state.activeView === "systemAnalytics") {
-        await this.loadSystemTelemetry();
-        await this.loadClarityInsights();
-      }
-      if (this.state.activeView === "analytics") {
-        await this.loadClarityInsights();
-      }
-      this.render();
-      return;
-    }
+        this.render();
+      },
+      "close-detail": () => {
+        this.state.selectedId = null;
+        this.render();
+      },
+      "show-more-initiatives": () => {
+        this.state.visibleInitiativeCount += INITIATIVE_LIST_PAGE_SIZE;
+        this.render();
+      },
+      "clear-draft": () => this.clearDraft(),
+      "cancel-notification-email": () => this.cancelNotificationEmail(),
+      "reset-accessibility": () => this.resetAccessibilityPreferences()
+    };
+    const handler = handlers[action];
+    if (!handler) return false;
+    handler();
+    return true;
+  }
 
-    if (action === "toggle-sidebar") {
-      this.state.sidebarOpen = !this.state.sidebarOpen;
-      this.render();
-      return;
-    }
+  clearDraft() {
+    this.state.draft = emptyDraft();
+    this.state.errors = {};
+    this.state.aiPreviewReview = null;
+    this.cancelNotificationEmail();
+  }
 
-    if (action === "close-sidebar") {
-      this.state.sidebarOpen = false;
-      this.render();
-      return;
-    }
+  cancelNotificationEmail() {
+    this.state.pendingInitiativeSubmission = null;
+    this.state.notificationEmailDraft = "";
+    this.state.notificationEmailError = "";
+    this.resetSecurityGate();
+    this.render();
+  }
 
-    if (action === "close-detail") {
-      this.state.selectedId = null;
-      this.render();
-      return;
-    }
-
+  async handleAsyncUtilityClick(action) {
     if (action === "refresh") {
       await this.refresh();
-      if (this.state.activeView === "analytics") {
-        await this.loadClarityInsights({ force: true });
-      }
-      return;
+      if (this.state.activeView === "analytics") await this.loadClarityInsights({ force: true });
+      return true;
     }
-
-    if (action === "show-more-initiatives") {
-      this.state.visibleInitiativeCount += INITIATIVE_LIST_PAGE_SIZE;
-      this.render();
-      return;
-    }
-
     if (action === "refresh-clarity-insights") {
       await this.loadClarityInsights({ force: true });
-      return;
+      return true;
     }
-
-    if (action === "select") {
-      this.state.selectedId = target.dataset.id;
-      const selected = this.state.initiatives.find((initiative) => initiative.id === target.dataset.id);
-      if (selected) {
-        setClarityTag("initiative_category", selected.category);
-        trackClarityEvent("initiative_selected");
-      }
-      this.render();
-      return;
-    }
-
-    if (action === "clear-draft") {
-      this.state.draft = emptyDraft();
-      this.state.errors = {};
-      this.state.aiPreviewReview = null;
-      this.state.pendingInitiativeSubmission = null;
-      this.state.notificationEmailDraft = "";
-      this.state.notificationEmailError = "";
-      this.resetSecurityGate();
-      this.render();
-      return;
-    }
-
-    if (action === "cancel-notification-email") {
-      this.state.pendingInitiativeSubmission = null;
-      this.state.notificationEmailDraft = "";
-      this.state.notificationEmailError = "";
-      this.resetSecurityGate();
-      this.render();
-      return;
-    }
-
-    if (action === "reset-accessibility") {
-      this.resetAccessibilityPreferences();
-      return;
-    }
-
     if (action === "ai-preview") {
       trackClarityEvent("ai_preview_requested");
       await this.updateRemoteAiPreview();
-      return;
+      return true;
     }
+    return false;
+  }
 
+  handleSelectClick(action, target) {
+    if (action !== "select") return false;
+    this.state.selectedId = target.dataset.id;
+    const selected = this.state.initiatives.find((initiative) => initiative.id === target.dataset.id);
+    if (selected) {
+      setClarityTag("initiative_category", selected.category);
+      trackClarityEvent("initiative_selected");
+    }
+    this.render();
+    return true;
+  }
+
+  async handleExportClick(action, target) {
     const exportAction = INITIATIVE_EXPORT_ACTIONS[action];
-    if (exportAction) {
-      const initiative = this.findInitiativeForAction(target.dataset.id);
-      if (!initiative) {
-        this.toast("Pobuda ne obstaja.");
-        this.render();
-        return;
-      }
+    if (!exportAction) return false;
+    const initiative = this.findInitiativeForAction(target.dataset.id);
+    if (!this.ensureExportableInitiative(initiative)) return true;
+    if (!(await this.runInitiativeExport(action, initiative))) return true;
+    this.trackInitiativeExport(exportAction, initiative);
+    return true;
+  }
 
-      if (!canExportInitiative(initiative)) {
-        this.toast(exportStatusHint(initiative));
-        this.render();
-        return;
-      }
-
-      if (action === "print-pdf") {
-        const opened = openInitiativePrintExport(initiative, this.currentUser());
-        if (!opened) {
-          this.toast("Brskalnik je blokiral okno za tiskanje.");
-          this.render();
-          return;
-        }
-      } else if (action === "download-pdf") {
-        downloadInitiativePdfExport(initiative, this.currentUser());
-      } else if (action === "download-docx") {
-        await downloadInitiativeDocxExport(initiative, this.currentUser());
-      } else {
-        await downloadInitiativeOdtExport(initiative, this.currentUser());
-      }
-
-      this.recordSystemEvent(exportAction.systemEvent, {
-        initiativeId: initiative.id,
-        status: initiative.status,
-        signatureCount: initiative.signatures.length,
-        voteCount: initiative.votes.length
-      });
-      trackClarityEvent(exportAction.clarityEvent);
-      trackVercelEvent(exportAction.vercelEvent, {
-        status: initiative.status,
-        category: initiative.category
-      });
-      this.toast(exportAction.toast);
+  ensureExportableInitiative(initiative) {
+    if (!initiative) {
+      this.toast("Pobuda ne obstaja.");
       this.render();
-      return;
+      return false;
     }
+    if (canExportInitiative(initiative)) return true;
+    this.toast(exportStatusHint(initiative));
+    this.render();
+    return false;
+  }
 
+  async runInitiativeExport(action, initiative) {
+    if (action === "print-pdf") {
+      const opened = openInitiativePrintExport(initiative, this.currentUser());
+      if (opened) return true;
+      this.toast("Brskalnik je blokiral okno za tiskanje.");
+      this.render();
+      return false;
+    }
+    if (action === "download-pdf") downloadInitiativePdfExport(initiative, this.currentUser());
+    if (action === "download-docx") await downloadInitiativeDocxExport(initiative, this.currentUser());
+    if (action === "download-odt") await downloadInitiativeOdtExport(initiative, this.currentUser());
+    return true;
+  }
+
+  trackInitiativeExport(exportAction, initiative) {
+    this.recordSystemEvent(exportAction.systemEvent, {
+      initiativeId: initiative.id,
+      status: initiative.status,
+      signatureCount: initiative.signatures.length,
+      voteCount: initiative.votes.length
+    });
+    trackClarityEvent(exportAction.clarityEvent);
+    trackVercelEvent(exportAction.vercelEvent, {
+      status: initiative.status,
+      category: initiative.category
+    });
+    this.toast(exportAction.toast);
+    this.render();
+  }
+
+  async handleSessionClick(action) {
     if (action === "logout") {
-      if (this.currentUser()?.provider === "sipass" && this.config.AUTH_LOGOUT_ENDPOINT) {
-        await fetch(this.config.AUTH_LOGOUT_ENDPOINT, {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            Accept: "application/json"
-          }
-        }).catch(() => {});
-      }
-      this.auth.signOut();
-      this.state.status = "all";
-      this.state.category = "all";
-      if (this.state.activeView !== "dashboard") {
-        this.setActiveView("dashboard", { replace: true });
-      }
-      this.toast("Odjavljeni ste.");
-      this.scheduleRemoteSearch();
-      return;
+      await this.logout();
+      return true;
     }
-
     if (action === "sipass-login") {
       window.location.assign(this.sipassLoginUrl());
-      return;
+      return true;
     }
-
     if (action === "test-email") {
       await this.sendTestEmailNotification();
-      return;
+      return true;
     }
+    return false;
+  }
 
-    if (action === "vote") {
-      const actor = this.currentUser() || this.anonymousActor({ create: true });
-      try {
-        const id = target.dataset.id;
-        const initiative = this.state.initiatives.find((item) => item.id === id);
-        if (!this.currentUser() && (!initiative || !PUBLIC_INITIATIVE_STATUSES.includes(initiative.status))) {
-          this.toast("Anonimno glasovanje je dovoljeno samo pri aktualnih pobudah.");
-          this.render();
-          return;
-        }
+  async logout() {
+    await this.destroyRemoteSession();
+    this.auth.signOut();
+    this.state.status = "all";
+    this.state.category = "all";
+    if (this.state.activeView !== "dashboard") {
+      this.setActiveView("dashboard", { replace: true });
+    }
+    this.toast("Odjavljeni ste.");
+    this.scheduleRemoteSearch();
+  }
 
-        await this.repository.vote(id, actor);
-        await this.refresh();
-        trackClarityEvent(this.currentUser() ? "initiative_voted" : "initiative_voted_anonymous");
-        this.recordSystemEvent("vote", {
-          initiativeId: id,
-          anonymous: !this.currentUser()
-        });
-        this.toast(this.currentUser() ? "Glas je zabelezen." : "Anonimni glas je zabelezen.");
-      } catch (error) {
-        this.reportError("Napaka pri glasovanju", error);
-        this.toast(userFacingErrorMessage(error));
+  async destroyRemoteSession() {
+    if (this.currentUser()?.provider !== "sipass" || !this.config.AUTH_LOGOUT_ENDPOINT) return;
+    await fetch(this.config.AUTH_LOGOUT_ENDPOINT, {
+      method: "POST",
+      credentials: "include",
+      headers: { Accept: "application/json" }
+    }).catch(() => {});
+  }
+
+  async handleVoteClick(action, target) {
+    if (action !== "vote") return false;
+    const actor = this.currentUser() || this.anonymousActor({ create: true });
+    try {
+      await this.voteForTargetInitiative(target.dataset.id, actor);
+    } catch (error) {
+      this.reportError("Napaka pri glasovanju", error);
+      this.toast(userFacingErrorMessage(error));
+      this.render();
+    }
+    return true;
+  }
+
+  async voteForTargetInitiative(id, actor) {
+    if (!this.canVoteForTarget(id)) return;
+    await this.repository.vote(id, actor);
+    await this.refresh();
+    trackClarityEvent(this.currentUser() ? "initiative_voted" : "initiative_voted_anonymous");
+    this.recordSystemEvent("vote", {
+      initiativeId: id,
+      anonymous: !this.currentUser()
+    });
+    this.toast(this.currentUser() ? "Glas je zabelezen." : "Anonimni glas je zabelezen.");
+  }
+
+  canVoteForTarget(id) {
+    const initiative = this.state.initiatives.find((item) => item.id === id);
+    const isPublic = initiative && PUBLIC_INITIATIVE_STATUSES.includes(initiative.status);
+    if (this.currentUser() || isPublic) return true;
+    this.toast("Anonimno glasovanje je dovoljeno samo pri aktualnih pobudah.");
+    this.render();
+    return false;
+  }
+
+  async handleSignClick(action, target) {
+    if (action !== "sign") return false;
+    await this.withActor(async (actor) => {
+      if (!isSipassUser(actor)) {
+        this.toast("Za SI-PASS podpis se prijavite s SI-PASS identiteto.");
         this.render();
+        return;
       }
-      return;
-    }
-
-    if (action === "sign") {
-      await this.withActor(async (actor) => {
-        if (!isSipassUser(actor)) {
-          this.toast("Za SI-PASS podpis se prijavite s SI-PASS identiteto.");
-          this.render();
-          return;
-        }
-
-        const id = target.dataset.id;
-        await this.createSipassSignature(id);
-        await this.refresh();
-        trackClarityEvent("initiative_signed");
-        this.toast("SI-PASS podpis je evidentiran.");
-      });
-    }
+      await this.createSipassSignature(target.dataset.id);
+      await this.refresh();
+      trackClarityEvent("initiative_signed");
+      this.toast("SI-PASS podpis je evidentiran.");
+    });
+    return true;
   }
 
   async createSipassSignature(initiativeId) {
@@ -3593,30 +3636,35 @@ function pdfEnsureSpace(renderer, height) {
 
 function pdfWrappedLines(value, width, size) {
   const maxChars = Math.max(12, Math.floor(width / (size * 0.52)));
-  const output = [];
-  const paragraphs = String(value ?? "").split(/\n+/);
+  return String(value ?? "")
+    .split(/\n+/)
+    .flatMap((paragraph) => pdfParagraphLines(paragraph, maxChars));
+}
 
-  for (const paragraph of paragraphs) {
-    const words = pdfSafeText(paragraph).split(/\s+/).filter(Boolean);
-    let line = "";
-
-    for (const word of words) {
-      const parts = word.length > maxChars ? pdfSplitLongWord(word, maxChars) : [word];
-      for (const part of parts) {
-        const next = line ? `${line} ${part}` : part;
-        if (next.length > maxChars && line) {
-          output.push(line);
-          line = part;
-        } else {
-          line = next;
-        }
-      }
-    }
-
-    if (line) output.push(line);
+function pdfParagraphLines(paragraph, maxChars) {
+  const state = { lines: [], line: "" };
+  const words = pdfSafeText(paragraph).split(/\s+/).filter(Boolean);
+  for (const word of words) {
+    pdfAppendWord(state, word, maxChars);
   }
+  return state.line ? [...state.lines, state.line] : state.lines;
+}
 
-  return output;
+function pdfAppendWord(state, word, maxChars) {
+  const parts = word.length > maxChars ? pdfSplitLongWord(word, maxChars) : [word];
+  for (const part of parts) {
+    pdfAppendLinePart(state, part, maxChars);
+  }
+}
+
+function pdfAppendLinePart(state, part, maxChars) {
+  const next = state.line ? `${state.line} ${part}` : part;
+  if (next.length > maxChars && state.line) {
+    state.lines.push(state.line);
+    state.line = part;
+    return;
+  }
+  state.line = next;
 }
 
 function pdfSplitLongWord(word, maxChars) {
