@@ -33,8 +33,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
+      - name: Run tests with coverage
+        run: npm run test:coverage
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v5
@@ -46,6 +46,8 @@ jobs:
             -Dsonar.projectKey=grisini_Demos
             -Dsonar.sources=src,api,server
             -Dsonar.tests=tests
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.coverage.exclusions=api/**,server/**,src/main.js,src/config.js,src/lib/auth.js,src/lib/clarity.js,src/lib/clarity-insights.js,src/lib/notifications.js,src/lib/storage.js,src/lib/supabase.js,src/lib/telemetry.js,src/lib/turnstile.js,src/lib/vercel-analytics.js,src/lib/vercel-speed-insights.js
 
       - name: Check JavaScript syntax
         shell: bash
@@ -64,8 +66,10 @@ jobs:
           test -f package.json
           test -f package-lock.json
           test -f vercel.json
+          test -f scripts/run-coverage.mjs
           test -f src/main.js
           test -f src/config.js
+          test -f src/domain/email.js
           test -f src/domain/validation.js
           test -f src/domain/analytics.js
           test -f src/domain/notifications.js

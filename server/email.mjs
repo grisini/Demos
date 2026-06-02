@@ -1,5 +1,6 @@
 import net from "node:net";
 import tls from "node:tls";
+import { isValidEmailAddress } from "../src/domain/email.js";
 import { checkRateLimit, rateLimitHeaders } from "./rate-limit.mjs";
 
 const maxBodyBytes = 128 * 1024;
@@ -360,7 +361,7 @@ function envFlag(value, fallback) {
 }
 
 function isEmailAddress(value) {
-  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(value || "").trim());
+  return isValidEmailAddress(value);
 }
 
 function maskEmail(value) {

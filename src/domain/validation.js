@@ -1,3 +1,5 @@
+import { isValidEmailAddress, normalizeEmailAddress } from "./email.js";
+
 export const CATEGORIES = [
   "Javne finance",
   "Zdravstvo",
@@ -32,8 +34,6 @@ const REQUIRED_MIN = {
   publicParticipation: 20,
   proposerRepresentatives: 3
 };
-
-const EMAIL_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 
 const FIELD_LABELS = {
   title: "Naslov",
@@ -135,7 +135,7 @@ export function validateInitiative(input) {
     }
   }
 
-  if (values.notificationEmail && !EMAIL_PATTERN.test(values.notificationEmail)) {
+  if (values.notificationEmail && !isValidEmailAddress(values.notificationEmail)) {
     errors.notificationEmail = "Vnesite veljaven e-postni naslov za obvestila.";
   }
 
@@ -379,12 +379,12 @@ export function normalizeInput(input) {
 }
 
 function normalizeEmail(value) {
-  return String(value || "").trim().toLowerCase();
+  return normalizeEmailAddress(value);
 }
 
 function validEmail(value) {
-  const email = String(value || "").trim().toLowerCase();
-  return EMAIL_PATTERN.test(email) ? email : "";
+  const email = normalizeEmailAddress(value);
+  return isValidEmailAddress(email) ? email : "";
 }
 
 function firstValidEmail(...values) {

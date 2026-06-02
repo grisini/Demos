@@ -10,6 +10,7 @@
     "test:domain": "node tests/domain.test.mjs",
     "test:e2e": "node tests/e2e.test.mjs",
     "test:performance": "node tests/performance.test.mjs",
+    "test:coverage": "node scripts/run-coverage.mjs",
     "check": "npm test"
   },
   "dependencies": {

@@ -15,7 +15,8 @@ import {
   NOTIFICATION_EVENTS,
   buildCategoryMatchEmailNotifications,
   buildInitiativeDailyDigestEmailNotifications,
-  buildInitiativeChangeEmailNotifications
+  buildInitiativeChangeEmailNotifications,
+  isValidEmail
 } from "../src/domain/notifications.js";
 import {
   DOCX_MIME_TYPE,
@@ -118,6 +119,17 @@ test("validateInitiative zavrne neveljaven email za obvestila", () => {
 
   assert.equal(result.valid, false);
   assert.equal(result.errors.notificationEmail, "Vnesite veljaven e-postni naslov za obvestila.");
+});
+
+test("email validacija zavrne neveljavne in predolge naslove", () => {
+  assert.equal(isValidEmail("demo@demos.local"), true);
+  assert.equal(isValidEmail("Demo@Example.Test"), true);
+  assert.equal(isValidEmail("ni-email"), false);
+  assert.equal(isValidEmail("demo@@example.test"), false);
+  assert.equal(isValidEmail("demo@example"), false);
+  assert.equal(isValidEmail("demo@.example.test"), false);
+  assert.equal(isValidEmail(`${"a".repeat(65)}@example.test`), false);
+  assert.equal(isValidEmail(`demo@${"a".repeat(255)}.test`), false);
 });
 
 test("pobuda uporablja izbran email za obvestila loceno od avtorja", () => {

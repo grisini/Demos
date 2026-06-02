@@ -1,6 +1,6 @@
 import { statusLabel } from "./validation.js";
+import { isValidEmailAddress, normalizeEmailAddress } from "./email.js";
 
-const EMAIL_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 const HARDCODED_NOTIFICATION_RECIPIENT = "janezpederka@gmail.com";
 
 export const NOTIFICATION_EVENTS = {
@@ -111,7 +111,7 @@ export function buildInitiativeDailyDigestEmailNotifications({ initiative, dateK
 }
 
 export function isValidEmail(value) {
-  return EMAIL_PATTERN.test(String(value || "").trim());
+  return isValidEmailAddress(value);
 }
 
 function initiativeStatusChangeMessage({ initiative, previousStatus, siteUrl }) {
@@ -161,7 +161,7 @@ function addRecipient(recipients, recipient) {
 }
 
 function firstValidEmail(...values) {
-  return values.map((value) => String(value || "").trim().toLowerCase()).find(isValidEmail) || "";
+  return values.map(normalizeEmailAddress).find(isValidEmailAddress) || "";
 }
 
 function emailNotification({ type, recipient, subject, text, metadata }) {

@@ -23,6 +23,7 @@ import { checkRateLimit, rateLimitHeaders } from "../server/rate-limit.mjs";
 import { securityHeaders } from "../server/security-headers.mjs";
 import { buildRemoteAiReviewText } from "../src/domain/ai-review.js";
 import { emptyClarityInsights, normalizeClarityInsights } from "../src/domain/clarity-insights.js";
+import { isValidEmailAddress } from "../src/domain/email.js";
 import { CATEGORIES, evaluateInitiative, normalizeInput } from "../src/domain/validation.js";
 import { sendDailyCreatorDigest } from "../server/daily-digest.mjs";
 
@@ -887,7 +888,7 @@ function maskEmail(value) {
 }
 
 function isEmailAddress(value) {
-  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(value || "").trim());
+  return isValidEmailAddress(value);
 }
 
 function safeIsoDate(value) {

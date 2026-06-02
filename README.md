@@ -71,9 +71,11 @@ Celoten ukaz zaporedno izvede domenske teste, E2E smoke test lokalnega streznika
 npm run test:domain
 npm run test:e2e
 npm run test:performance
+npm run test:coverage
 ```
 
 E2E test zazene `scripts/dev-server.mjs`, preveri aplikacijsko lupino, runtime config, glavne statice, AI fallback endpoint, email endpoint brez obvestil, Turnstile fallback in 404 odziv. Performance test preverja velikost zacetnega HTML/JS/CSS payload-a, locene budgete za `main.js` in `styles.css` ter to, da se DOCX/ODT generator nalozi sele ob prenosu dokumenta.
+Coverage ukaz ustvari `coverage/lcov.info`, ki ga GitHub workflow poslje v SonarCloud.
 
 ## Trenutno pokrito
 
