@@ -157,6 +157,7 @@ function mapInitiative(row, votes, signatures, comments) {
     publicParticipation: row.public_participation || "",
     proposerRepresentatives: row.proposer_representatives || "",
     affectedProvisions: row.affected_provisions || "",
+    notificationEmail: row.notification_email || "",
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

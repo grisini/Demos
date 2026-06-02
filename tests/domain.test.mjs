@@ -110,6 +110,39 @@ test("validateInitiative sprejme DZ popoln predlog zakona", () => {
   assert.equal(result.values.articleExplanation, validInput.articleExplanation);
 });
 
+test("validateInitiative zavrne neveljaven email za obvestila", () => {
+  const result = validateInitiative({
+    ...validInput,
+    notificationEmail: "ni-email"
+  });
+
+  assert.equal(result.valid, false);
+  assert.equal(result.errors.notificationEmail, "Vnesite veljaven e-postni naslov za obvestila.");
+});
+
+test("pobuda uporablja izbran email za obvestila loceno od avtorja", () => {
+  const notificationEmail = "obvestila@example.test";
+  const initiative = createInitiative(
+    {
+      ...validInput,
+      notificationEmail
+    },
+    actor
+  );
+  const notifications = buildInitiativeChangeEmailNotifications({
+    initiative,
+    actor: { id: "admin@demos.local", name: "Demo admin", email: "admin@demos.local" },
+    eventType: NOTIFICATION_EVENTS.STATUS_CHANGED,
+    previousStatus: "review"
+  });
+
+  assert.equal(initiative.notificationEmail, notificationEmail);
+  assert.deepEqual(
+    new Set(notifications.map((item) => item.to)),
+    new Set([notificationEmail, hardcodedNotificationRecipient])
+  );
+});
+
 test("evaluateInitiative oznaci proracunsko tveganje", () => {
   const review = evaluateInitiative({
     ...validInput,

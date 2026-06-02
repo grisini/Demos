@@ -33,6 +33,8 @@ const REQUIRED_MIN = {
   proposerRepresentatives: 3
 };
 
+const EMAIL_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+
 const FIELD_LABELS = {
   title: "Naslov",
   summary: "Kratek povzetek",
@@ -46,7 +48,8 @@ const FIELD_LABELS = {
   comparativeReview: "Primerjalni prikaz in pravo EU",
   impactAssessment: "Presoja posledic",
   publicParticipation: "Sodelovanje javnosti",
-  proposerRepresentatives: "Predstavniki predlagatelja"
+  proposerRepresentatives: "Predstavniki predlagatelja",
+  notificationEmail: "E-posta za obvestila"
 };
 
 const INITIATIVE_TEXT_FIELDS = [
@@ -132,6 +135,10 @@ export function validateInitiative(input) {
     }
   }
 
+  if (values.notificationEmail && !EMAIL_PATTERN.test(values.notificationEmail)) {
+    errors.notificationEmail = "Vnesite veljaven e-postni naslov za obvestila.";
+  }
+
   return {
     valid: Object.keys(errors).length === 0,
     errors,
@@ -208,6 +215,8 @@ export function evaluateInitiative(input) {
 export function createInitiative(input, actor, review = evaluateInitiative(input)) {
   const values = normalizeInput(input);
   const now = new Date().toISOString();
+  const actorEmail = validEmail(actor?.email);
+  const notificationEmail = firstValidEmail(values.notificationEmail, actorEmail, actor?.id);
 
   return {
     id: cryptoId(),
@@ -226,13 +235,14 @@ export function createInitiative(input, actor, review = evaluateInitiative(input
     publicParticipation: values.publicParticipation,
     proposerRepresentatives: values.proposerRepresentatives,
     affectedProvisions: values.affectedProvisions,
+    notificationEmail,
     status: review.risk === "high" ? "review" : "active",
     createdAt: now,
     updatedAt: now,
     author: {
       id: actor?.id || "anonymous",
       name: actor?.name || "Anonimni uporabnik",
-      email: actor?.email || ""
+      email: actorEmail
     },
     aiReview: review,
     votes: [],
@@ -363,8 +373,22 @@ export function normalizeInput(input) {
     impactAssessment: String(input?.impactAssessment || "").trim(),
     publicParticipation: String(input?.publicParticipation || "").trim(),
     proposerRepresentatives: String(input?.proposerRepresentatives || "").trim(),
-    affectedProvisions: String(input?.affectedProvisions || "").trim()
+    affectedProvisions: String(input?.affectedProvisions || "").trim(),
+    notificationEmail: normalizeEmail(input?.notificationEmail)
   };
+}
+
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function validEmail(value) {
+  const email = String(value || "").trim().toLowerCase();
+  return EMAIL_PATTERN.test(email) ? email : "";
+}
+
+function firstValidEmail(...values) {
+  return values.map(validEmail).find(Boolean) || "";
 }
 
 function findHits(text, keywords) {

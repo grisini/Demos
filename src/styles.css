@@ -1180,6 +1180,13 @@ textarea:focus-visible {
   margin-bottom: 16px;
 }
 
+.detail-author {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
 .list-panel,
 .detail-panel {
   container-type: inline-size;
@@ -1281,6 +1288,11 @@ textarea:focus-visible {
 .card-button strong {
   margin-bottom: 4px;
   line-height: 1.25;
+}
+
+.initiative-author {
+  color: var(--text);
+  font-weight: 800;
 }
 
 .support-count {
@@ -2121,6 +2133,34 @@ html[data-a11y-contrast="dark"] .bar-row span {
   max-width: min(420px, calc(100vw - 44px));
   border-color: rgba(0, 75, 141, 0.22);
   padding: 14px 16px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(9, 24, 38, 0.52);
+}
+
+.modal-panel {
+  width: min(460px, 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 24px 60px rgba(9, 24, 38, 0.26);
+  padding: 20px;
+}
+
+.notification-email-dialog form {
+  display: grid;
+  gap: 14px;
+}
+
+.notification-email-dialog .panel-header {
+  margin-bottom: 0;
 }
 
 .loading-panel {

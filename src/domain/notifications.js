@@ -130,7 +130,7 @@ function initiativeStatusChangeMessage({ initiative, previousStatus, siteUrl }) 
 }
 
 function initiativeAuthorRecipient(initiative) {
-  const email = firstValidEmail(initiative?.author?.email, initiative?.author?.id);
+  const email = firstValidEmail(initiative?.notificationEmail, initiative?.author?.email, initiative?.author?.id);
   if (!email) return null;
   return {
     email,

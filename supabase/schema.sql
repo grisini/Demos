@@ -259,6 +259,7 @@ select
   i.status,
   i.author_ref,
   i.author_name,
+  i.notification_email,
   i.ai_score,
   i.ai_risk,
   i.ai_findings,
