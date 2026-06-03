@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import https from "node:https";
 import { sessionUserFromRequest } from "./sipass-session.mjs";
 import {
@@ -152,17 +153,18 @@ export function sicesConfig(env = process.env) {
   const endpoint = firstValue(env.SICES_ENDPOINT, env.SICES_WSDL_URL, defaultEndpoint).replace(/\?wsdl$/i, "");
   const serviceProvider = firstValue(env.SICES_SERVICE_PROVIDER, defaultServiceProvider);
   const pfxBase64 = firstValue(env.SICES_PFX_BASE64);
+  const pfxPath = firstValue(env.SICES_PFX_PATH);
   const pfxPassword = firstValue(env.SICES_PFX_PASSWORD, env.SICES_CERT_PASS);
   const callback = firstValue(env.SICES_CALLBACK_URL);
 
-  if (!pfxBase64) throwHttp(503, "SICES_PFX_BASE64 mora biti nastavljen na strezniku.");
+  if (!pfxBase64 && !pfxPath) throwHttp(503, "SICES_PFX_BASE64 ali SICES_PFX_PATH mora biti nastavljen na strezniku.");
   if (!pfxPassword) throwHttp(503, "SICES_PFX_PASSWORD mora biti nastavljen na strezniku.");
   if (!callback) throwHttp(503, "SICES_CALLBACK_URL mora biti nastavljen na strezniku.");
 
   return {
     endpoint,
     serviceProvider,
-    pfx: Buffer.from(pfxBase64.replace(/\s+/g, ""), "base64"),
+    pfx: pfxPath ? readFileSync(pfxPath) : Buffer.from(pfxBase64.replace(/\s+/g, ""), "base64"),
     pfxPassword,
     callbackUrl: callback,
     trustLevel: firstValue(env.SICES_TRUST_LEVEL, "MEDIUM").toUpperCase(),
