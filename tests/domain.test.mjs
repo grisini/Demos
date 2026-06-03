@@ -811,6 +811,7 @@ test("SI-CeS konfiguracija zahteva PFX skrivnosti in callback", () => {
   assert.equal(config.serviceProvider, "UNI-MB_eDemokracija");
   assert.equal(config.endpoint, "https://sicas-test.sigov.si/CES-Sign/SicesSign");
   assert.equal(config.trustLevel, "MEDIUM");
+  assert.equal(config.tlsVersion, "TLSv1.2");
   assert.equal(config.timeoutMs, 5000);
 });
 

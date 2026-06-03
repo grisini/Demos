@@ -170,6 +170,7 @@ export function sicesConfig(env = process.env) {
     trustLevel: firstValue(env.SICES_TRUST_LEVEL, "MEDIUM").toUpperCase(),
     signatureLevel: firstValue(env.SICES_SIGNATURE_LEVEL, "XAdES_BASELINE_B"),
     signaturePackaging: firstValue(env.SICES_SIGNATURE_PACKAGING, "ENVELOPED"),
+    tlsVersion: firstValue(env.SICES_TLS_VERSION, "TLSv1.2"),
     timeoutMs: positiveInteger(env.SICES_SOAP_TIMEOUT_MS, 8000)
   };
 }
@@ -231,6 +232,8 @@ async function sendSicesSoap(soap, config) {
         method: "POST",
         pfx: config.pfx,
         passphrase: config.pfxPassword,
+        minVersion: config.tlsVersion,
+        maxVersion: config.tlsVersion,
         headers: {
           "Content-Type": "text/xml; charset=utf-8",
           "Content-Length": Buffer.byteLength(soap, "utf8")
