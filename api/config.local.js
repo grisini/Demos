@@ -58,6 +58,11 @@ function publicRuntimeConfig(env) {
       env.VITE_SICES_START_ENDPOINT,
       "/api/sices/start"
     ),
+    SICES_COMPLETE_ENDPOINT: firstValue(
+      env.SICES_COMPLETE_ENDPOINT,
+      env.VITE_SICES_COMPLETE_ENDPOINT,
+      "/api/sices/complete"
+    ),
     AI_PROVIDER: firstValue(env.AI_PROVIDER, env.VITE_AI_PROVIDER, env.HF_TOKEN ? "huggingface" : "local"),
     AI_REVIEW_ENDPOINT: firstValue(
       env.AI_REVIEW_ENDPOINT,

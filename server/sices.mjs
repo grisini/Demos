@@ -116,6 +116,38 @@ export async function completeSicesSignature(request, query = {}, env = process.
   };
 }
 
+export async function acknowledgeSicesCallback(query = {}, env = process.env, fetchImpl = fetch) {
+  const requestId = clean(query.requestid || query.requestId, 512);
+  const status = String(query.status || "").toLowerCase();
+  const callbackError = clean(query.error, 512);
+
+  if (!requestId) throwHttp(400, "Manjka SI-CeS requestid.");
+  const client = supabaseServerClient(env, fetchImpl);
+  const signature = await findSignatureBySicesRequestId(client, requestId);
+  if (!signature) throwHttp(404, "SI-CeS podpisni zahtevek ni najden.");
+
+  if (status !== "true") {
+    await updateSignatureSicesStatus(client, signature.id, {
+      signatureStatus: "NOTSIGNED",
+      error: callbackError || "SI-CeS podpis ni uspel."
+    });
+    return {
+      signed: false,
+      readyForCompletion: false,
+      requestId,
+      initiativeId: signature.initiative_id,
+      error: callbackError || "SI-CeS podpis ni uspel."
+    };
+  }
+
+  return {
+    signed: false,
+    readyForCompletion: true,
+    requestId,
+    initiativeId: signature.initiative_id
+  };
+}
+
 export function sicesConfig(env = process.env) {
   const endpoint = firstValue(env.SICES_ENDPOINT, env.SICES_WSDL_URL, defaultEndpoint).replace(/\?wsdl$/i, "");
   const serviceProvider = firstValue(env.SICES_SERVICE_PROVIDER, defaultServiceProvider);

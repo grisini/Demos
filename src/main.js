@@ -170,6 +170,7 @@ class DemocracyApp {
     initializeMicrosoftClarity(this.config.MICROSOFT_CLARITY_PROJECT_ID);
     this.syncExternalAnalytics();
     await this.refresh();
+    await this.handleSicesReturn();
     if (this.state.activeView === "analytics" && this.currentUser()) {
       await this.loadClarityInsights();
     }
@@ -2195,11 +2196,34 @@ class DemocracyApp {
     const payload = await response.json().catch(() => ({}));
 
     if (!response.ok || !payload?.redirectUrl) {
-      throw new Error(payload?.error || "SI-CeS podpis ni uspel.");
+      throw new Error(payload?.error || `SI-CeS podpis ni uspel (${response.status}).`);
     }
 
     trackClarityEvent("sices_signature_started");
     window.location.assign(payload.redirectUrl);
+  }
+
+  async completeSicesSignature(requestId) {
+    const endpoint = this.config.SICES_COMPLETE_ENDPOINT || "/api/sices/complete";
+    const response = await fetch(endpoint, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        requestid: requestId,
+        status: "true"
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok || !payload?.signed) {
+      throw new Error(payload?.error || `SI-CeS prevzem podpisa ni uspel (${response.status}).`);
+    }
+
+    return payload;
   }
 
   async createSipassSignature(initiativeId) {
@@ -2858,6 +2882,35 @@ class DemocracyApp {
   setActiveView(view, options = {}) {
     this.state.activeView = normalizeView(view, this.currentUser());
     this.syncViewUrl(options);
+  }
+
+  async handleSicesReturn() {
+    if (typeof window === "undefined" || !this.config.SICES_ENABLED) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("sices") !== "pending") return;
+    const requestId = url.searchParams.get("requestid");
+    if (!requestId) return;
+
+    try {
+      this.toast("SI-CeS podpis se zapisuje.");
+      this.render();
+      const result = await this.completeSicesSignature(requestId);
+      url.searchParams.set("sices", "signed");
+      url.searchParams.delete("requestid");
+      window.history.replaceState({ view: this.state.activeView }, "", `${url.pathname}${url.search}${url.hash}`);
+      await this.refresh();
+      if (result.initiativeId) this.state.selectedId = result.initiativeId;
+      trackClarityEvent("sices_signature_completed");
+      this.toast("SI-CeS podpis je evidentiran.");
+      this.render();
+    } catch (error) {
+      this.reportError("Napaka pri zakljucku SI-CeS podpisa", error);
+      url.searchParams.set("sices", "failed");
+      url.searchParams.delete("requestid");
+      window.history.replaceState({ view: this.state.activeView }, "", `${url.pathname}${url.search}${url.hash}`);
+      this.toast(userFacingErrorMessage(error));
+      this.render();
+    }
   }
 
   syncViewUrl(options = {}) {

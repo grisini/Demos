@@ -1,9 +1,14 @@
-import { completeSicesSignature, startSicesSignature } from "../../server/sices.mjs";
+import {
+  acknowledgeSicesCallback,
+  completeSicesSignature,
+  startSicesSignature
+} from "../../server/sices.mjs";
 import { checkRateLimit, rateLimitHeaders } from "../../server/rate-limit.mjs";
 
 const maxBodyBytes = 32 * 1024;
 const startRateLimit = { name: "sices-start", limit: 8, windowMs: 5 * 60 * 1000 };
 const callbackRateLimit = { name: "sices-callback", limit: 60, windowMs: 5 * 60 * 1000 };
+const completeRateLimit = { name: "sices-complete", limit: 20, windowMs: 5 * 60 * 1000 };
 
 export default async function handler(request, response) {
   if (request.method === "OPTIONS") {
@@ -57,15 +62,16 @@ export default async function handler(request, response) {
 
     try {
       const url = new URL(request.url, publicOrigin(request));
-      const result = await completeSicesSignature(request, Object.fromEntries(url.searchParams), process.env);
+      const result = await acknowledgeSicesCallback(Object.fromEntries(url.searchParams), process.env);
       const returnUrl = new URL("/", publicOrigin(request));
       returnUrl.searchParams.set("view", "dashboard");
       if (result.initiativeId) returnUrl.searchParams.set("initiative", result.initiativeId);
-      returnUrl.searchParams.set("sices", result.signed ? "signed" : "failed");
+      if (result.requestId) returnUrl.searchParams.set("requestid", result.requestId);
+      returnUrl.searchParams.set("sices", result.readyForCompletion ? "pending" : "failed");
       sendHtml(
         response,
         200,
-        callbackHtml(returnUrl.toString(), result.signed ? "SI-CeS podpis je evidentiran." : result.error || "SI-CeS podpis ni uspel.")
+        callbackHtml(returnUrl.toString(), result.readyForCompletion ? "SI-CeS podpis je prejet. Zakljucujem zapis v aplikaciji." : result.error || "SI-CeS podpis ni uspel.")
       );
     } catch (error) {
       console.error("[Demokracija 2.0] SI-CeS callback failed", error);
@@ -73,6 +79,36 @@ export default async function handler(request, response) {
       returnUrl.searchParams.set("view", "dashboard");
       returnUrl.searchParams.set("sices", "failed");
       sendHtml(response, error.status || 500, callbackHtml(returnUrl.toString(), error.message || "SI-CeS callback failed"));
+    }
+    return;
+  }
+
+  if (action === "complete") {
+    if (!["GET", "POST"].includes(request.method || "")) {
+      sendJson(response, 405, { error: "Method not allowed" });
+      return;
+    }
+
+    const limit = checkRateLimit(request, completeRateLimit);
+    if (limit.limited) {
+      sendJson(response, 429, { signed: false, error: "Too many SI-CeS completion requests." }, rateLimitHeaders(limit));
+      return;
+    }
+
+    try {
+      const url = new URL(request.url, publicOrigin(request));
+      const body = request.method === "POST" ? await readJsonBody(request) : {};
+      const result = await completeSicesSignature(request, {
+        ...Object.fromEntries(url.searchParams),
+        ...body
+      }, process.env);
+      sendJson(response, 200, result, rateLimitHeaders(limit));
+    } catch (error) {
+      console.error("[Demokracija 2.0] SI-CeS complete failed", error);
+      sendJson(response, error.status || 500, {
+        signed: false,
+        error: error.message || "SI-CeS complete failed"
+      });
     }
     return;
   }

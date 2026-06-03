@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/sices/[...path].js": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/notifications/daily-digest",
