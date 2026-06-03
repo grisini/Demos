@@ -18,6 +18,7 @@ import {
 } from "../server/initiatives.mjs";
 import { adminEmails, createDemoLogin } from "../server/demo-login.mjs";
 import { createSipassSignature } from "../server/signatures.mjs";
+import { completeSicesSignature, startSicesSignature } from "../server/sices.mjs";
 import { publicTurnstileConfig, verifyTurnstileToken } from "../server/turnstile.mjs";
 import { checkRateLimit, rateLimitHeaders } from "../server/rate-limit.mjs";
 import { securityHeaders } from "../server/security-headers.mjs";
@@ -91,6 +92,8 @@ function runtimeConfig() {
     DEMO_LOGIN_ENDPOINT: env.DEMO_LOGIN_ENDPOINT || env.VITE_DEMO_LOGIN_ENDPOINT || "/api/auth/demo-login",
     INITIATIVES_ENDPOINT: env.INITIATIVES_ENDPOINT || env.VITE_INITIATIVES_ENDPOINT || "/api/initiatives",
     SIGNATURES_ENDPOINT: env.SIGNATURES_ENDPOINT || env.VITE_SIGNATURES_ENDPOINT || "/api/signatures",
+    SICES_ENABLED: (env.SICES_ENABLED || env.VITE_SICES_ENABLED) === "true",
+    SICES_START_ENDPOINT: env.SICES_START_ENDPOINT || env.VITE_SICES_START_ENDPOINT || "/api/sices/start",
     AI_PROVIDER: env.AI_PROVIDER || env.VITE_AI_PROVIDER || (env.HF_TOKEN ? "huggingface" : "local"),
     AI_REVIEW_ENDPOINT:
       env.AI_REVIEW_ENDPOINT || env.VITE_AI_REVIEW_ENDPOINT || (env.HF_TOKEN ? "/api/ai/review-initiative" : ""),
@@ -995,6 +998,48 @@ function createAppServer() {
         json(res, error.status || 500, {
           signed: false,
           error: error.message || "SI-PASS signature failed"
+        });
+      }
+      return;
+    }
+
+    if (pathname === "/api/sices/start") {
+      if (req.method !== "POST") {
+        json(res, 405, { error: "Method not allowed" });
+        return;
+      }
+      if (!enforceRateLimit(req, res, { name: "dev-sices-start", limit: 8, windowMs: 5 * 60 * 1000 })) return;
+
+      try {
+        const payload = await readJsonBody(req, 32 * 1024);
+        json(res, 200, {
+          started: true,
+          ...(await startSicesSignature(req, payload, serverEnv()))
+        });
+      } catch (error) {
+        console.error("[Demokracija 2.0] SI-CeS start failed", error);
+        json(res, error.status || 500, {
+          started: false,
+          error: error.message || "SI-CeS start failed"
+        });
+      }
+      return;
+    }
+
+    if (pathname === "/api/sices/callback") {
+      if (req.method !== "GET") {
+        json(res, 405, { error: "Method not allowed" });
+        return;
+      }
+      if (!enforceRateLimit(req, res, { name: "dev-sices-callback", limit: 60, windowMs: 5 * 60 * 1000 })) return;
+
+      try {
+        json(res, 200, await completeSicesSignature(req, Object.fromEntries(requestedUrl.searchParams), serverEnv()));
+      } catch (error) {
+        console.error("[Demokracija 2.0] SI-CeS callback failed", error);
+        json(res, error.status || 500, {
+          signed: false,
+          error: error.message || "SI-CeS callback failed"
         });
       }
       return;

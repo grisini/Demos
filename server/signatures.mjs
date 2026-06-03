@@ -177,12 +177,15 @@ function mapInitiative(row, votes, signatures, comments) {
       userName: vote.voter_name,
       createdAt: vote.created_at
     })),
-    signatures: (signatures || []).map((signature) => ({
-      userId: signature.signer_ref,
-      userName: signature.signer_name,
-      method: signature.method,
-      createdAt: signature.created_at
-    })),
+    signatures: (signatures || [])
+      .filter((signature) => String(signature.signature_status || "SIGNED").toUpperCase() !== "NOTSIGNED")
+      .map((signature) => ({
+        userId: signature.signer_ref,
+        userName: signature.signer_name,
+        method: signature.method,
+        signatureStatus: signature.signature_status || "SIGNED",
+        createdAt: signature.created_at
+      })),
     comments: (comments || []).map((comment) => ({
       id: comment.id,
       userId: comment.author_ref,

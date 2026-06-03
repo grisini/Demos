@@ -1509,8 +1509,12 @@ class DemocracyApp {
     if (!user) return this.renderPublicInitiativeDetail(initiative);
 
     const voted = user && initiative.votes.some((vote) => vote.userId === user.id);
-    const signed = user && initiative.signatures.some((signature) => signature.userId === user.id);
+    const signed = user && initiative.signatures.some((signature) => (
+      signature.userId === user.id &&
+      String(signature.signatureStatus || "SIGNED").toUpperCase() !== "NOTSIGNED"
+    ));
     const canSipassSign = isSipassUser(user);
+    const signatureLabel = this.config.SICES_ENABLED ? "SI-CeS podpis" : "SI-PASS podpis";
     const review = initiative.aiReview || { score: 0, risk: "low", findings: [] };
     const exportReady = canExportInitiative(initiative);
     const admin = this.isAdminUser(user);
@@ -1530,7 +1534,7 @@ class DemocracyApp {
           ${voted ? "Glas oddan" : "Glasuj"}
         </button>
         <button class="button secondary" type="button" data-action="sign" data-id="${initiative.id}" ${signed || !canSipassSign ? "disabled" : ""}>
-          ${signed ? "SI-PASS podpis evidentiran" : canSipassSign ? "SI-PASS podpis" : "Za podpis uporabite SI-PASS"}
+          ${signed ? `${signatureLabel} evidentiran` : canSipassSign ? signatureLabel : "Za podpis uporabite SI-PASS"}
         </button>
         ${
           exportReady
@@ -2161,8 +2165,12 @@ class DemocracyApp {
     if (action !== "sign") return false;
     await this.withActor(async (actor) => {
       if (!isSipassUser(actor)) {
-        this.toast("Za SI-PASS podpis se prijavite s SI-PASS identiteto.");
+        this.toast("Za podpis se prijavite s SI-PASS identiteto.");
         this.render();
+        return;
+      }
+      if (this.config.SICES_ENABLED) {
+        await this.startSicesSignature(target.dataset.id);
         return;
       }
       await this.createSipassSignature(target.dataset.id);
@@ -2171,6 +2179,27 @@ class DemocracyApp {
       this.toast("SI-PASS podpis je evidentiran.");
     });
     return true;
+  }
+
+  async startSicesSignature(initiativeId) {
+    const endpoint = this.config.SICES_START_ENDPOINT || "/api/sices/start";
+    const response = await fetch(endpoint, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ initiativeId })
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok || !payload?.redirectUrl) {
+      throw new Error(payload?.error || "SI-CeS podpis ni uspel.");
+    }
+
+    trackClarityEvent("sices_signature_started");
+    window.location.assign(payload.redirectUrl);
   }
 
   async createSipassSignature(initiativeId) {

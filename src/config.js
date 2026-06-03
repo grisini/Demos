@@ -53,6 +53,8 @@ export const config = {
   DEMO_LOGIN_ENDPOINT: publicConfigValue("DEMO_LOGIN_ENDPOINT", "/api/auth/demo-login"),
   INITIATIVES_ENDPOINT: publicConfigValue("INITIATIVES_ENDPOINT", "/api/initiatives"),
   SIGNATURES_ENDPOINT: publicConfigValue("SIGNATURES_ENDPOINT", "/api/signatures"),
+  SICES_ENABLED: booleanValue(publicConfigValue("SICES_ENABLED"), false),
+  SICES_START_ENDPOINT: publicConfigValue("SICES_START_ENDPOINT", "/api/sices/start"),
   AI_PROVIDER: optionConfigValue("AI_PROVIDER", "local"),
   AI_REVIEW_ENDPOINT: publicConfigValue("AI_REVIEW_ENDPOINT"),
   EMAIL_NOTIFICATIONS_ENDPOINT: publicConfigValue("EMAIL_NOTIFICATIONS_ENDPOINT"),

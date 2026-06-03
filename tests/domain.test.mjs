@@ -48,6 +48,12 @@ import {
   sipassUserFromHeaders
 } from "../server/sipass-session.mjs";
 import { createSipassSignature } from "../server/signatures.mjs";
+import {
+  buildPutRequestSoap,
+  parseGetSignedDataResponse,
+  parsePutRequestResponse,
+  sicesConfig
+} from "../server/sices.mjs";
 import { verifyTurnstileToken } from "../server/turnstile.mjs";
 import { checkRateLimit, rateLimitHeaders } from "../server/rate-limit.mjs";
 import { sendDailyCreatorDigest } from "../server/daily-digest.mjs";
@@ -790,6 +796,61 @@ test("demo prijava izpelje uporabnisko ime iz emaila", () => {
 
   assert.equal(login.user.name, "ime");
   assert.equal(login.user.id, "ime@demos.si");
+});
+
+test("SI-CeS konfiguracija zahteva PFX skrivnosti in callback", () => {
+  assert.throws(() => sicesConfig({}), /SICES_PFX_BASE64/);
+
+  const config = sicesConfig({
+    SICES_PFX_BASE64: Buffer.from("pfx").toString("base64"),
+    SICES_PFX_PASSWORD: "geslo",
+    SICES_CALLBACK_URL: "https://example.test/api/sices/callback"
+  });
+
+  assert.equal(config.serviceProvider, "UNI-MB_eDemokracija");
+  assert.equal(config.endpoint, "https://sicas-test.sigov.si/CES-Sign/SicesSign");
+  assert.equal(config.trustLevel, "MEDIUM");
+});
+
+test("SI-CeS SOAP helperji sestavijo putRequest in preberejo odzive", () => {
+  const soap = buildPutRequestSoap({
+    serviceProvider: "UNI-MB_eDemokracija",
+    callbackUrl: "https://example.test/api/sices/callback?initiativeId=1",
+    document: "<test>Vsebina</test>",
+    fileName: "test.xml",
+    mimeType: "application/xml",
+    signatureLevel: "XAdES_BASELINE_B",
+    signaturePackaging: "ENVELOPED",
+    trustLevel: "MEDIUM"
+  });
+
+  assert.match(soap, /<serviceProvider>UNI-MB_eDemokracija<\/serviceProvider>/);
+  assert.match(soap, /<mimeTypeString>application\/xml<\/mimeTypeString>/);
+  assert.match(soap, /<signatureLevel>XAdES_BASELINE_B<\/signatureLevel>/);
+
+  assert.deepEqual(parsePutRequestResponse(`
+    <S:Envelope><S:Body><ns2:putRequestResponse><return>
+      <requestId>abc123</requestId>
+      <URL>https://sices.test/signws.htm?requestid=abc123</URL>
+    </return></ns2:putRequestResponse></S:Body></S:Envelope>
+  `), {
+    requestId: "abc123",
+    url: "https://sices.test/signws.htm?requestid=abc123"
+  });
+
+  const signed = parseGetSignedDataResponse(`
+    <S:Envelope><S:Body><ns2:getSignedDataResponse><return>
+      <status>SIGNED</status>
+      <cesid>0002</cesid>
+      <document><bytes>cG9kcGlz</bytes></document>
+      <certificateChain><certificate>cert-a</certificate><certificate>cert-b</certificate></certificateChain>
+    </return></ns2:getSignedDataResponse></S:Body></S:Envelope>
+  `);
+
+  assert.equal(signed.status, "SIGNED");
+  assert.equal(signed.cesId, "0002");
+  assert.equal(signed.documentBytes, "cG9kcGlz");
+  assert.deepEqual(signed.certificateChain, ["cert-a", "cert-b"]);
 });
 
 test("Turnstile zavrne preverjanje brez server secret kljuca", async () => {

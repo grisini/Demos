@@ -234,10 +234,12 @@ function mapInitiative(row, votes, signatures, comments) {
       })),
     signatures: signatures
       .filter((signature) => signature.initiative_id === row.id)
+      .filter((signature) => String(signature.signature_status || "SIGNED").toUpperCase() !== "NOTSIGNED")
       .map((signature) => ({
         userId: signature.signer_ref,
         userName: signature.signer_name,
         method: signature.method,
+        signatureStatus: signature.signature_status || "SIGNED",
         createdAt: signature.created_at
       })),
     comments: comments

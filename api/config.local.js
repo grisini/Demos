@@ -52,6 +52,12 @@ function publicRuntimeConfig(env) {
       env.VITE_SIGNATURES_ENDPOINT,
       "/api/signatures"
     ),
+    SICES_ENABLED: firstValue(env.SICES_ENABLED, env.VITE_SICES_ENABLED, "false") === "true",
+    SICES_START_ENDPOINT: firstValue(
+      env.SICES_START_ENDPOINT,
+      env.VITE_SICES_START_ENDPOINT,
+      "/api/sices/start"
+    ),
     AI_PROVIDER: firstValue(env.AI_PROVIDER, env.VITE_AI_PROVIDER, env.HF_TOKEN ? "huggingface" : "local"),
     AI_REVIEW_ENDPOINT: firstValue(
       env.AI_REVIEW_ENDPOINT,
