@@ -32,3 +32,5 @@ export function securityHeadersForVercel() {
   return Object.entries(securityHeaders).map(([key, value]) => ({ key, value }));
 }
 
+
+
