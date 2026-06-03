@@ -34,7 +34,7 @@ export async function startSicesSignature(request, payload = {}, env = process.e
     signaturePackaging: config.signaturePackaging,
     trustLevel: config.trustLevel
   });
-  const result = parsePutRequestResponse(await sendSicesSoap(soap, config));
+  const result = parsePutRequestResponse(await sendSicesSoap(soap, config, "putRequest"));
 
   await upsertPendingSignature(client, {
     initiativeId,
@@ -80,7 +80,7 @@ export async function completeSicesSignature(request, query = {}, env = process.
     serviceProvider: config.serviceProvider,
     requestId
   });
-  const signedData = parseGetSignedDataResponse(await sendSicesSoap(soap, config));
+  const signedData = parseGetSignedDataResponse(await sendSicesSoap(soap, config, "getSignedData"));
   if (signedData.status !== "SIGNED") {
     await updateSignatureSicesStatus(client, signature.id, {
       signatureStatus: signedData.status || "NOTSIGNED"
@@ -220,8 +220,9 @@ function soapEnvelope(body) {
 </soapenv:Envelope>`;
 }
 
-async function sendSicesSoap(soap, config) {
+async function sendSicesSoap(soap, config, operation = "") {
   const endpoint = new URL(config.endpoint);
+  const soapAction = operation ? `http://ws.sign.sices.osi.si/SicesSign/${operation}Request` : "";
   return new Promise((resolve, reject) => {
     const req = https.request(
       {
@@ -236,6 +237,7 @@ async function sendSicesSoap(soap, config) {
         maxVersion: config.tlsVersion,
         headers: {
           "Content-Type": "text/xml; charset=utf-8",
+          ...(soapAction ? { SOAPAction: soapAction } : {}),
           "Content-Length": Buffer.byteLength(soap, "utf8")
         },
         timeout: config.timeoutMs
