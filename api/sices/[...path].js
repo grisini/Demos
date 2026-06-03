@@ -42,7 +42,8 @@ export default async function handler(request, response) {
       console.error("[Demokracija 2.0] SI-CeS start failed", error);
       sendJson(response, error.status || 500, {
         started: false,
-        error: error.message || "SI-CeS start failed"
+        error: error.message || "SI-CeS start failed",
+        details: publicErrorDetails(error)
       });
     }
     return;
@@ -107,7 +108,8 @@ export default async function handler(request, response) {
       console.error("[Demokracija 2.0] SI-CeS complete failed", error);
       sendJson(response, error.status || 500, {
         signed: false,
-        error: error.message || "SI-CeS complete failed"
+        error: error.message || "SI-CeS complete failed",
+        details: publicErrorDetails(error)
       });
     }
     return;
@@ -205,4 +207,14 @@ function escapeAttribute(value) {
   return escapeHtml(value)
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function publicErrorDetails(error) {
+  const details = String(error?.details || "").trim();
+  if (!details) return undefined;
+  return details
+    .replace(/[A-Za-z0-9+/=]{120,}/g, "[base64]")
+    .replace(/<bytes>[\s\S]*?<\/bytes>/gi, "<bytes>[redacted]</bytes>")
+    .replace(/<certificate>[\s\S]*?<\/certificate>/gi, "<certificate>[redacted]</certificate>")
+    .slice(0, 1200);
 }

@@ -4191,6 +4191,8 @@ function userFacingErrorMessage(error) {
   if (message.includes("Komentar je prekratek.")) return message;
   if (message.includes("Pobuda ne obstaja.")) return message;
   if (message.includes("Status ni veljaven.")) return message;
+  if (message.includes("SI-CeS")) return message;
+  if (message.includes("SICES_")) return message;
 
   if (message.includes("duplicate key value") || message.includes("23505")) {
     return "To dejanje je ze bilo zabelezeno.";
