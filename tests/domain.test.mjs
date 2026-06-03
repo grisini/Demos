@@ -804,12 +804,14 @@ test("SI-CeS konfiguracija zahteva PFX skrivnosti in callback", () => {
   const config = sicesConfig({
     SICES_PFX_BASE64: Buffer.from("pfx").toString("base64"),
     SICES_PFX_PASSWORD: "geslo",
-    SICES_CALLBACK_URL: "https://example.test/api/sices/callback"
+    SICES_CALLBACK_URL: "https://example.test/api/sices/callback",
+    SICES_SOAP_TIMEOUT_MS: "5000"
   });
 
   assert.equal(config.serviceProvider, "UNI-MB_eDemokracija");
   assert.equal(config.endpoint, "https://sicas-test.sigov.si/CES-Sign/SicesSign");
   assert.equal(config.trustLevel, "MEDIUM");
+  assert.equal(config.timeoutMs, 5000);
 });
 
 test("SI-CeS SOAP helperji sestavijo putRequest in preberejo odzive", () => {

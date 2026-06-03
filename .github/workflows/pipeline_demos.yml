@@ -79,7 +79,6 @@ jobs:
           test -f api/config.local.js
           test -f api/ai/review-initiative.js
           test -f api/initiatives.js
-          test -f api/sices/[...path].js
           test -f api/signatures.js
           test -f api/analytics/[...path].js
           test -f api/auth/[...path].js

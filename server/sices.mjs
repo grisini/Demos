@@ -167,7 +167,8 @@ export function sicesConfig(env = process.env) {
     callbackUrl: callback,
     trustLevel: firstValue(env.SICES_TRUST_LEVEL, "MEDIUM").toUpperCase(),
     signatureLevel: firstValue(env.SICES_SIGNATURE_LEVEL, "XAdES_BASELINE_B"),
-    signaturePackaging: firstValue(env.SICES_SIGNATURE_PACKAGING, "ENVELOPED")
+    signaturePackaging: firstValue(env.SICES_SIGNATURE_PACKAGING, "ENVELOPED"),
+    timeoutMs: positiveInteger(env.SICES_SOAP_TIMEOUT_MS, 8000)
   };
 }
 
@@ -232,7 +233,7 @@ async function sendSicesSoap(soap, config) {
           "Content-Type": "text/xml; charset=utf-8",
           "Content-Length": Buffer.byteLength(soap, "utf8")
         },
-        timeout: 30000
+        timeout: config.timeoutMs
       },
       (res) => {
         const chunks = [];
@@ -438,6 +439,11 @@ function clean(value, maxLength) {
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function positiveInteger(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? Math.round(number) : fallback;
 }
 
 function throwHttp(status, message) {

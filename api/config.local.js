@@ -56,12 +56,12 @@ function publicRuntimeConfig(env) {
     SICES_START_ENDPOINT: firstValue(
       env.SICES_START_ENDPOINT,
       env.VITE_SICES_START_ENDPOINT,
-      "/api/sices/start"
+      "https://auth.demokracija-20.si/api/sices/start"
     ),
     SICES_COMPLETE_ENDPOINT: firstValue(
       env.SICES_COMPLETE_ENDPOINT,
       env.VITE_SICES_COMPLETE_ENDPOINT,
-      "/api/sices/complete"
+      "https://auth.demokracija-20.si/api/sices/complete"
     ),
     AI_PROVIDER: firstValue(env.AI_PROVIDER, env.VITE_AI_PROVIDER, env.HF_TOKEN ? "huggingface" : "local"),
     AI_REVIEW_ENDPOINT: firstValue(

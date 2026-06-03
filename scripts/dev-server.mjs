@@ -165,6 +165,36 @@ function json(res, status, value, headers = {}) {
   send(res, status, JSON.stringify(value), "application/json; charset=utf-8", headers);
 }
 
+function sicesCorsHeaders(req) {
+  const env = serverEnv();
+  const origin = String(req.headers.origin || "");
+  const allowed = new Set([
+    env.SICES_ALLOWED_ORIGIN || "https://demokracija-20.si",
+    env.SIPASS_APP_ORIGIN || "https://demokracija-20.si"
+  ]);
+  if (!origin || !allowed.has(origin)) return {};
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Headers": "Content-Type, Accept",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+  };
+}
+
+function sicesJson(req, res, status, value, headers = {}) {
+  json(res, status, value, {
+    ...sicesCorsHeaders(req),
+    ...headers
+  });
+}
+
+function sicesRedirect(req, res, location, headers = {}) {
+  redirect(res, location, {
+    ...sicesCorsHeaders(req),
+    ...headers
+  });
+}
+
 function redirect(res, location, headers = {}) {
   res.writeHead(302, {
     ...securityHeaders,
@@ -1005,21 +1035,25 @@ function createAppServer() {
     }
 
     if (pathname === "/api/sices/start") {
+      if (req.method === "OPTIONS") {
+        sicesJson(req, res, 204, {});
+        return;
+      }
       if (req.method !== "POST") {
-        json(res, 405, { error: "Method not allowed" });
+        sicesJson(req, res, 405, { error: "Method not allowed" });
         return;
       }
       if (!enforceRateLimit(req, res, { name: "dev-sices-start", limit: 8, windowMs: 5 * 60 * 1000 })) return;
 
       try {
         const payload = await readJsonBody(req, 32 * 1024);
-        json(res, 200, {
+        sicesJson(req, res, 200, {
           started: true,
           ...(await startSicesSignature(req, payload, serverEnv()))
         });
       } catch (error) {
         console.error("[Demokracija 2.0] SI-CeS start failed", error);
-        json(res, error.status || 500, {
+        sicesJson(req, res, error.status || 500, {
           started: false,
           error: error.message || "SI-CeS start failed"
         });
@@ -1029,39 +1063,49 @@ function createAppServer() {
 
     if (pathname === "/api/sices/callback") {
       if (req.method !== "GET") {
-        json(res, 405, { error: "Method not allowed" });
+        sicesJson(req, res, 405, { error: "Method not allowed" });
         return;
       }
       if (!enforceRateLimit(req, res, { name: "dev-sices-callback", limit: 60, windowMs: 5 * 60 * 1000 })) return;
 
       try {
-        json(res, 200, await acknowledgeSicesCallback(Object.fromEntries(requestedUrl.searchParams), serverEnv()));
+        const result = await acknowledgeSicesCallback(Object.fromEntries(requestedUrl.searchParams), serverEnv());
+        const returnUrl = new URL("/", serverEnv().SIPASS_APP_ORIGIN || "https://demokracija-20.si");
+        returnUrl.searchParams.set("view", "dashboard");
+        if (result.initiativeId) returnUrl.searchParams.set("initiative", result.initiativeId);
+        if (result.requestId) returnUrl.searchParams.set("requestid", result.requestId);
+        returnUrl.searchParams.set("sices", result.readyForCompletion ? "pending" : "failed");
+        sicesRedirect(req, res, returnUrl.toString());
       } catch (error) {
         console.error("[Demokracija 2.0] SI-CeS callback failed", error);
-        json(res, error.status || 500, {
-          signed: false,
-          error: error.message || "SI-CeS callback failed"
-        });
+        const returnUrl = new URL("/", serverEnv().SIPASS_APP_ORIGIN || "https://demokracija-20.si");
+        returnUrl.searchParams.set("view", "dashboard");
+        returnUrl.searchParams.set("sices", "failed");
+        sicesRedirect(req, res, returnUrl.toString());
       }
       return;
     }
 
     if (pathname === "/api/sices/complete") {
+      if (req.method === "OPTIONS") {
+        sicesJson(req, res, 204, {});
+        return;
+      }
       if (!["GET", "POST"].includes(req.method || "")) {
-        json(res, 405, { error: "Method not allowed" });
+        sicesJson(req, res, 405, { error: "Method not allowed" });
         return;
       }
       if (!enforceRateLimit(req, res, { name: "dev-sices-complete", limit: 20, windowMs: 5 * 60 * 1000 })) return;
 
       try {
         const body = req.method === "POST" ? await readJsonBody(req, 32 * 1024) : {};
-        json(res, 200, await completeSicesSignature(req, {
+        sicesJson(req, res, 200, await completeSicesSignature(req, {
           ...Object.fromEntries(requestedUrl.searchParams),
           ...body
         }, serverEnv()));
       } catch (error) {
         console.error("[Demokracija 2.0] SI-CeS complete failed", error);
-        json(res, error.status || 500, {
+        sicesJson(req, res, error.status || 500, {
           signed: false,
           error: error.message || "SI-CeS complete failed"
         });
