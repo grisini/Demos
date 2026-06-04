@@ -9,24 +9,59 @@ flowchart LR
   Anonymous[Neprijavljen uporabnik]
   Sipass[SI-PASS prijavljen uporabnik]
   Admin[Admin]
+
+  subgraph App[Demokracija 2.0]
+    direction TB
+
+    subgraph PublicCases[Javni primeri uporabe]
+      direction TB
+      PublicList([Pregled aktualnih pobud])
+      Search([Iskanje in filtriranje])
+      AnonymousVote([Anonimno glasovanje])
+    end
+
+    subgraph SipassCases[SI-PASS primeri uporabe]
+      direction TB
+      Submit([Oddaja pobude])
+      VoteComment([Glasovanje in komentiranje])
+      SipassSign([SI-PASS podpis])
+      ExportDocs([Izvoz PDF DOCX ODT])
+      UserAnalytics([Osebna analitika])
+    end
+
+    subgraph AdminCases[Admin primeri uporabe]
+      direction TB
+      StatusAdmin([Urejanje statusov])
+      Integrations([Integracije])
+      SystemAnalytics([Sistemska analitika])
+    end
+  end
+
   AI[AI presoja]
-  Platform[Demokracija 2.0]
   Database[(Supabase / localStorage)]
 
-  Anonymous -->|pregleda aktualne pobude| Platform
-  Anonymous -->|isce in filtrira javni seznam| Platform
-  Anonymous -->|odda anonimen glas| Platform
-  Sipass -->|odda pobudo| Platform
-  Sipass -->|glasuje in komentira| Platform
-  Sipass -->|izvede SI-PASS podpis| Platform
-  Sipass -->|izvozi PDF/DOCX/ODT| Platform
-  Sipass -->|pregleda osebno analitiko| Platform
-  Admin -->|spreminja statuse pobud| Platform
-  Admin -->|pregleda integracije| Platform
-  Admin -->|pregleda sistemsko analitiko| Platform
-  Platform -->|shrani pobude, glasove, podpise, komentarje| Database
-  Platform -->|zahteva predpregled| AI
-  AI -->|score, risk, kategorija, ugotovitve| Platform
+  Anonymous --> PublicList
+  Anonymous --> Search
+  Anonymous --> AnonymousVote
+
+  Sipass --> PublicList
+  Sipass --> Search
+  Sipass --> Submit
+  Sipass --> VoteComment
+  Sipass --> SipassSign
+  Sipass --> ExportDocs
+  Sipass --> UserAnalytics
+
+  Admin --> StatusAdmin
+  Admin --> Integrations
+  Admin --> SystemAnalytics
+
+  Submit --> AI
+  Submit --> Database
+  AnonymousVote --> Database
+  VoteComment --> Database
+  SipassSign --> Database
+  StatusAdmin --> Database
 ```
 
 ## Tok oddaje pobude
