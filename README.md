@@ -626,7 +626,7 @@ Coverage ukaz ustvari `coverage/lcov.info`, ki ga GitHub workflow poslje v Sonar
 - `docs/sicas-sices-vps-checklist.md` - kratek VPS checklist za SI-CAS/SI-CES,
 - `docs/sicas-sp-metadata.xml` - staticni SI-CAS SP metadata izvoz brez Shibboleth opozorilnega komentarja.
 
-## Hitri pregled za ocenjevanje
+## Hitri pregled po konceptih
 
 1. Preberite `docs/pregled-projekta.md` za arhitekturo, DevWork koncept in znane omejitve.
 2. Preverite `docs/funkcionalnosti.md` za seznam implementiranih, delnih in pripravljenih funkcionalnosti.
