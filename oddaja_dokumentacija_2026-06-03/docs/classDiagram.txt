@@ -17,10 +17,24 @@ classDiagram
     string publicParticipation
     string proposerRepresentatives
     string affectedProvisions
+    UserSession author
+    string notificationEmail
     AiReview aiReview
     Vote[] votes
     Signature[] signatures
     Comment[] comments
+    datetime createdAt
+    datetime updatedAt
+  }
+
+  class UserSession {
+    string id
+    string name
+    string firstName
+    string lastName
+    string email
+    string role
+    string provider
   }
 
   class AiReview {
@@ -60,6 +74,7 @@ classDiagram
     number engagementScore
   }
 
+  UserSession "1" --> "*" Initiative
   Initiative "1" --> "1" AiReview
   Initiative "1" --> "*" Vote
   Initiative "1" --> "*" Signature
