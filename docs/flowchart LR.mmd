@@ -1,16 +1,22 @@
 flowchart LR
-  Citizen[Drzavljan]
-  Admin[Administrator]
+  Anonymous[Neprijavljen uporabnik]
+  Sipass[SI-PASS prijavljen uporabnik]
+  Admin[Admin]
   AI[AI presoja]
   Platform[Demokracija 2.0]
   Database[(Supabase / localStorage)]
 
-  Citizen -->|oddaja pobudo| Platform
-  Citizen -->|isce in filtrira pobude| Platform
-  Citizen -->|glasuje| Platform
-  Citizen -->|komentira| Platform
-  Platform -->|shrani pobudo, glas, komentar| Database
+  Anonymous -->|pregleda aktualne pobude| Platform
+  Anonymous -->|isce in filtrira javni seznam| Platform
+  Anonymous -->|odda anonimen glas| Platform
+  Sipass -->|odda pobudo| Platform
+  Sipass -->|glasuje in komentira| Platform
+  Sipass -->|izvede SI-PASS podpis| Platform
+  Sipass -->|izvozi PDF/DOCX/ODT| Platform
+  Sipass -->|pregleda osebno analitiko| Platform
+  Admin -->|spreminja statuse pobud| Platform
+  Admin -->|pregleda integracije| Platform
+  Admin -->|pregleda sistemsko analitiko| Platform
+  Platform -->|shrani pobude, glasove, podpise, komentarje| Database
   Platform -->|zahteva predpregled| AI
   AI -->|score, risk, kategorija, ugotovitve| Platform
-  Admin -->|spreminja status| Platform
-  Admin -->|pregleda analitiko| Platform

@@ -77,7 +77,7 @@ E2E test zazene `scripts/dev-server.mjs`, preveri aplikacijsko lupino, runtime c
 
 ## Trenutno pokrito
 
-- razvojna demo prijava za lokalno preverjanje uporabniskih in admin pravic,
+- demo prijava brez SI-PASS,
 - oddaja pobude z osnovno validacijo,
 - Hugging Face AI predpregled besedila pobude s score, risk, suitability, completeness in categorySuggestion,
 - lokalni AI predpregled kot fallback, kadar Hugging Face ni nastavljen ali ni dosegljiv,
@@ -85,7 +85,7 @@ E2E test zazene `scripts/dev-server.mjs`, preveri aplikacijsko lupino, runtime c
 - javni pregled aktualnih pobud za neprijavljene uporabnike,
 - anonimno glasovanje z omejitvijo enega glasu na pobudo na lokalni brskalniski ID,
 - glasovanje, demo podpisovanje, komentarji in statusi,
-- PDF tiskanje, PDF prenos in DOCX/Word prenos pobude za DZ pri statusih `signature_collection` in `submitted`, tudi za SI-PASS prijavljenega uporabnika,
+- PDF tiskanje, PDF prenos in DOCX/Word prenos pobude za DZ pri statusih `signature_collection` in `submitted`,
 - email obvestila ustvarjalcu pobude ob spremembi statusa in dnevni povzetek novih glasov, podpisov ter komentarjev,
 - napredna statistika glasov na pobudo, kategorije, komentarje in AI tveganja,
 - osebna analitika pobud za prijavljenega uporabnika,
@@ -100,16 +100,6 @@ E2E test zazene `scripts/dev-server.mjs`, preveri aplikacijsko lupino, runtime c
 - povzetek SI-PASS testnega okolja,
 - celostni E2E smoke test lokalnega streznika in osnovnih API tokov,
 - performance budget test za zacetni payload in lazy-loading DOCX/ODT izvoza.
-
-## Glavni uporabniki
-
-Glavne vloge aplikacije so:
-
-- **Neprijavljen uporabnik**: vidi javno aktualne pobude, isce in filtrira javni seznam ter lahko odda en anonimen glas na pobudo.
-- **SI-PASS prijavljen uporabnik**: odda pobudo, glasuje, komentira, izvede SI-PASS evidencni podpis, vidi osebno analitiko ter izvozi PDF/DOCX/ODT dokument pobude, ko je pobuda v statusu `signature_collection` ali `submitted`.
-- **Admin**: ima prijavljeno sejo z admin pravico, spreminja statuse pobud ter vidi integracije in sistemsko analitiko.
-
-Demo prijava ostaja razvojni mehanizem za lokalno preverjanje teh pravic; ni locena glavna uporabniska vloga produkcijskega modela.
 
 ## Dokumentacija
 

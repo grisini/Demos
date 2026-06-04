@@ -22,11 +22,16 @@ erDiagram
     text proposer_representatives
     text affected_provisions
     initiative_status status
+    text author_ref
+    text author_name
+    text notification_email
     integer ai_score
     text ai_risk
     jsonb ai_findings
     jsonb ai_checks
+    timestamptz ai_reviewed_at
     timestamptz created_at
+    timestamptz updated_at
   }
 
   VOTES {
@@ -50,6 +55,7 @@ erDiagram
     uuid id PK
     uuid initiative_id FK
     text author_ref
+    text author_name
     text body
     timestamptz created_at
   }
@@ -63,6 +69,20 @@ erDiagram
     text risk
     text suitability
     text suggested_category
+    jsonb findings
     jsonb checks
     jsonb raw_response
+    timestamptz created_at
+  }
+
+  SYSTEM_ANALYTICS_EVENTS {
+    uuid id PK
+    text event_type
+    text source
+    text user_ref
+    text user_role
+    text session_id
+    text path
+    jsonb data
+    timestamptz created_at
   }

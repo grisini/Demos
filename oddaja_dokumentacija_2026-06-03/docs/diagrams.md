@@ -1,39 +1,33 @@
 # Mermaid diagrami
 
-Diagrami pokrivajo obseg pobud, glasovanja, komentarjev, SI-PASS podpisov, izvoza dokumentov, analitike in AI presoje. Glavni uporabniki so neprijavljen uporabnik, SI-PASS prijavljen uporabnik in admin.
+Diagrami pokrivajo samo obseg pobud, glasovanja, komentarjev, analitike in AI presoje.
 
 ## Uporabniski diagram
 
 ```mermaid
 flowchart LR
-  Anonymous[Neprijavljen uporabnik]
-  Sipass[SI-PASS prijavljen uporabnik]
-  Admin[Admin]
+  Citizen[Drzavljan]
+  Admin[Administrator]
   AI[AI presoja]
   Platform[Demokracija 2.0]
   Database[(Supabase / localStorage)]
 
-  Anonymous -->|pregleda aktualne pobude| Platform
-  Anonymous -->|isce in filtrira javni seznam| Platform
-  Anonymous -->|odda anonimen glas| Platform
-  Sipass -->|odda pobudo| Platform
-  Sipass -->|glasuje in komentira| Platform
-  Sipass -->|izvede SI-PASS podpis| Platform
-  Sipass -->|izvozi PDF/DOCX/ODT| Platform
-  Sipass -->|pregleda osebno analitiko| Platform
-  Admin -->|spreminja statuse pobud| Platform
-  Admin -->|pregleda integracije| Platform
-  Admin -->|pregleda sistemsko analitiko| Platform
-  Platform -->|shrani pobude, glasove, podpise, komentarje| Database
+  Citizen -->|oddaja pobudo| Platform
+  Citizen -->|isce in filtrira pobude| Platform
+  Citizen -->|glasuje| Platform
+  Citizen -->|komentira| Platform
+  Platform -->|shrani pobudo, glas, komentar| Database
   Platform -->|zahteva predpregled| AI
   AI -->|score, risk, kategorija, ugotovitve| Platform
+  Admin -->|spreminja status| Platform
+  Admin -->|pregleda analitiko| Platform
 ```
 
 ## Tok oddaje pobude
 
 ```mermaid
 sequenceDiagram
-  actor Uporabnik as SI-PASS prijavljen uporabnik
+  actor Uporabnik
   participant UI as Frontend
   participant Domain as Domenska logika
   participant AI as Dev AI endpoint
@@ -57,41 +51,26 @@ sequenceDiagram
   UI-->>Uporabnik: prikaz pobude in analitike
 ```
 
-## Glasovanje, podpis in izvoz
+## Glasovanje in komentiranje
 
 ```mermaid
 sequenceDiagram
-  actor Anonymous as Neprijavljen uporabnik
-  actor Sipass as SI-PASS prijavljen uporabnik
-  actor Admin
+  actor Uporabnik
   participant UI as Frontend
   participant Repo as Repozitorij
   participant Domain as Domenska logika
-  participant Signatures as /api/signatures
-  participant Export as Izvoz dokumenta
-  participant DB as Supabase/localStorage
+  participant DB as Podatki
 
-  Anonymous->>UI: klik Glasuj anonimno
-  UI->>Repo: vote(initiativeId, anonymousActor)
-  Repo->>Domain: voteForInitiative(initiative, anonymousActor)
+  Uporabnik->>UI: klik Glasuj
+  UI->>Repo: vote(initiativeId, actor)
+  Repo->>Domain: voteForInitiative(initiative, actor)
   Domain-->>Repo: pobuda brez podvojenega glasu
-  Repo->>DB: shrani anonimen glas
-  Sipass->>UI: klik Glasuj ali Komentiraj
-  UI->>Repo: vote/comment(initiativeId, sipassActor)
-  Repo->>Domain: voteForInitiative/addComment
-  Domain-->>Repo: posodobljena pobuda ali validacijska napaka
-  Repo->>DB: shrani glas ali komentar
-  Sipass->>UI: klik SI-PASS podpis
-  UI->>Signatures: POST initiativeId
-  Signatures->>DB: shrani podpis method=sipass
-  Signatures-->>UI: osvezena pobuda
-  Sipass->>UI: klik PDF/DOCX/ODT izvoz
-  UI->>UI: preveri status signature_collection/submitted
-  UI->>Export: ustvari dokument za DZ
-  Export-->>Sipass: prenos ali tiskanje dokumenta
-  Admin->>UI: spremeni status pobude
-  UI->>Repo: update status
-  Repo->>DB: shrani status
+  Repo->>DB: shrani glas
+  UI->>Repo: comment(initiativeId, actor, body)
+  Repo->>Domain: addComment(initiative, actor, body)
+  Domain-->>Repo: komentar ali validacijska napaka
+  Repo->>DB: shrani komentar
+  UI-->>Uporabnik: posodobljeni glasovi in komentarji
 ```
 
 ## UML domenskih objektov
@@ -116,24 +95,10 @@ classDiagram
     string publicParticipation
     string proposerRepresentatives
     string affectedProvisions
-    UserSession author
-    string notificationEmail
     AiReview aiReview
     Vote[] votes
     Signature[] signatures
     Comment[] comments
-    datetime createdAt
-    datetime updatedAt
-  }
-
-  class UserSession {
-    string id
-    string name
-    string firstName
-    string lastName
-    string email
-    string role
-    string provider
   }
 
   class AiReview {
@@ -173,7 +138,6 @@ classDiagram
     number engagementScore
   }
 
-  UserSession "1" --> "*" Initiative
   Initiative "1" --> "1" AiReview
   Initiative "1" --> "*" Vote
   Initiative "1" --> "*" Signature
@@ -208,16 +172,11 @@ erDiagram
     text proposer_representatives
     text affected_provisions
     initiative_status status
-    text author_ref
-    text author_name
-    text notification_email
     integer ai_score
     text ai_risk
     jsonb ai_findings
     jsonb ai_checks
-    timestamptz ai_reviewed_at
     timestamptz created_at
-    timestamptz updated_at
   }
 
   VOTES {
@@ -241,7 +200,6 @@ erDiagram
     uuid id PK
     uuid initiative_id FK
     text author_ref
-    text author_name
     text body
     timestamptz created_at
   }
@@ -255,22 +213,8 @@ erDiagram
     text risk
     text suitability
     text suggested_category
-    jsonb findings
     jsonb checks
     jsonb raw_response
-    timestamptz created_at
-  }
-
-  SYSTEM_ANALYTICS_EVENTS {
-    uuid id PK
-    text event_type
-    text source
-    text user_ref
-    text user_role
-    text session_id
-    text path
-    jsonb data
-    timestamptz created_at
   }
 ```
 
