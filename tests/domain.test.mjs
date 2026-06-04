@@ -544,6 +544,32 @@ test("SI-PASS session mapira atribute in obnovi sifriranega uporabnika", () => {
   assert.deepEqual(restored, user);
 });
 
+test("SI-PASS session popravi UTF-8 imena iz proxy headerjev", () => {
+  const user = sipassUserFromHeaders(
+    {
+      "x-sipass-first-name": "\u00c5\u00bdiga",
+      "x-sipass-last-name": "\u00c4\u008cernigoj",
+      "x-sipass-token": "stable-sicas-token"
+    },
+    sipassEnv
+  );
+
+  assert.equal(user.firstName, "\u017diga");
+  assert.equal(user.lastName, "\u010cernigoj");
+  assert.equal(user.name, "\u017diga \u010cernigoj");
+
+  const windows1250User = sipassUserFromHeaders(
+    {
+      "x-sipass-first-name": "\u0139\u02ddiga",
+      "x-sipass-last-name": "Kova\u00c4\u0164",
+      "x-sipass-token": "stable-sicas-token-2"
+    },
+    sipassEnv
+  );
+
+  assert.equal(windows1250User.name, "\u017diga Kova\u010d");
+});
+
 test("SI-PASS podpis backend zahteva sejo in sam zapise sipass metodo", async () => {
   const user = {
     id: "sipass-test-ref",

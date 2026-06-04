@@ -1,10 +1,16 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { TextDecoder } from "node:util";
 
 export const SIPASS_SESSION_COOKIE = "__Secure-demos_sipass";
 export const SIPASS_SESSION_MAX_AGE_SECONDS = 8 * 60 * 60;
 
 const sessionVersion = "v1";
 const cookiePath = "/";
+const mojibakePattern = /(?:\u00c3.|\u00c2.|\u00c5.|\u00c4.|\u0139.|[\u0080-\u009f])/u;
+const mojibakePairPattern = /(?:\u00c3.|\u00c2.|\u00c5.|\u00c4.|\u0139.)/gu;
+const badUtf8Pattern = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\ufffd]/gu;
+const mojibakeSourceEncodings = ["windows-1252", "windows-1250", "latin1"];
+const reverseByteMaps = new Map();
 
 export function createSipassSessionToken(user, secret, now = Date.now()) {
   const key = sessionKey(secret);
@@ -123,9 +129,9 @@ export function sipassUserFromHeaders(headers, env = process.env) {
 export function normalizeSessionUser(value) {
   return {
     id: clean(value?.id, 160),
-    name: clean(value?.name, 200) || "SI-PASS uporabnik",
-    firstName: clean(value?.firstName, 120),
-    lastName: clean(value?.lastName, 120),
+    name: cleanPersonName(value?.name, 200) || "SI-PASS uporabnik",
+    firstName: cleanPersonName(value?.firstName, 120),
+    lastName: cleanPersonName(value?.lastName, 120),
     emso: clean(value?.emso, 32),
     taxNumber: clean(value?.taxNumber, 32),
     email: clean(value?.email, 320).toLowerCase(),
@@ -197,13 +203,98 @@ function headerValue(headers = {}, configuredName, fallbacks) {
   for (const name of names) {
     const value = headers[String(name).toLowerCase()] ?? headers[name];
     const text = Array.isArray(value) ? value[0] : value;
-    if (String(text || "").trim()) return clean(text, 512);
+    if (String(text || "").trim()) return cleanHeaderText(text, 512);
   }
   return "";
 }
 
+function cleanPersonName(value, maxLength) {
+  return clean(repairMisdecodedUtf8(value), maxLength);
+}
+
+function cleanHeaderText(value, maxLength) {
+  return clean(repairMisdecodedUtf8(value), maxLength);
+}
+
 function clean(value, maxLength) {
   return String(value || "").trim().slice(0, maxLength);
+}
+
+function repairMisdecodedUtf8(value) {
+  const text = String(value || "").trim();
+  if (!text || !mojibakePattern.test(text)) return text;
+
+  const originalScore = textQuality(text);
+  let best = text;
+  let bestScore = originalScore;
+
+  for (const encoding of mojibakeSourceEncodings) {
+    const decoded = decodeMisdecodedUtf8(text, encoding);
+    if (!decoded || decoded === text) continue;
+
+    const score = textQuality(decoded);
+    if (score < bestScore) {
+      best = decoded;
+      bestScore = score;
+    }
+  }
+
+  return best;
+}
+
+function decodeMisdecodedUtf8(text, sourceEncoding) {
+  const bytes = sourceEncoding === "latin1"
+    ? latin1Bytes(text)
+    : bytesFromSingleByteEncoding(text, sourceEncoding);
+  if (!bytes) return "";
+  return Buffer.from(bytes).toString("utf8");
+}
+
+function latin1Bytes(text) {
+  const bytes = [];
+  for (const char of text) {
+    const code = char.codePointAt(0);
+    if (code > 0xff) return null;
+    bytes.push(code);
+  }
+  return bytes;
+}
+
+function bytesFromSingleByteEncoding(text, encoding) {
+  const reverse = reverseByteMap(encoding);
+  const bytes = [];
+  for (const char of text) {
+    if (!reverse.has(char)) return null;
+    bytes.push(reverse.get(char));
+  }
+  return bytes;
+}
+
+function reverseByteMap(encoding) {
+  if (reverseByteMaps.has(encoding)) return reverseByteMaps.get(encoding);
+
+  const decoder = new TextDecoder(encoding);
+  const map = new Map();
+  for (let byte = 0; byte <= 0xff; byte += 1) {
+    const char = decoder.decode(Uint8Array.of(byte));
+    if (char && char !== "\ufffd" && !map.has(char)) {
+      map.set(char, byte);
+    }
+  }
+
+  reverseByteMaps.set(encoding, map);
+  return map;
+}
+
+function textQuality(value) {
+  return (
+    countMatches(value, badUtf8Pattern) * 100 +
+    countMatches(value, mojibakePairPattern) * 5
+  );
+}
+
+function countMatches(value, pattern) {
+  return [...String(value || "").matchAll(pattern)].length;
 }
 
 function requiredOrigin(value) {

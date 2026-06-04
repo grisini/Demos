@@ -1,0 +1,16 @@
+flowchart LR
+  Citizen[Drzavljan]
+  Admin[Administrator]
+  AI[AI presoja]
+  Platform[Demokracija 2.0]
+  Database[(Supabase / localStorage)]
+
+  Citizen -->|oddaja pobudo| Platform
+  Citizen -->|isce in filtrira pobude| Platform
+  Citizen -->|glasuje| Platform
+  Citizen -->|komentira| Platform
+  Platform -->|shrani pobudo, glas, komentar| Database
+  Platform -->|zahteva predpregled| AI
+  AI -->|score, risk, kategorija, ugotovitve| Platform
+  Admin -->|spreminja status| Platform
+  Admin -->|pregleda analitiko| Platform

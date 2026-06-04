@@ -1,0 +1,17 @@
+sequenceDiagram
+  actor Uporabnik
+  participant UI as Frontend
+  participant Repo as Repozitorij
+  participant Domain as Domenska logika
+  participant DB as Podatki
+
+  Uporabnik->>UI: klik Glasuj
+  UI->>Repo: vote(initiativeId, actor)
+  Repo->>Domain: voteForInitiative(initiative, actor)
+  Domain-->>Repo: pobuda brez podvojenega glasu
+  Repo->>DB: shrani glas
+  UI->>Repo: comment(initiativeId, actor, body)
+  Repo->>Domain: addComment(initiative, actor, body)
+  Domain-->>Repo: komentar ali validacijska napaka
+  Repo->>DB: shrani komentar
+  UI-->>Uporabnik: posodobljeni glasovi in komentarji

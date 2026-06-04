@@ -1,54 +1,33 @@
 # Mermaid diagrami
 
-Diagrami pokrivajo obseg pobud, glasovanja, komentarjev, SI-PASS podpisov, izvoza dokumentov, analitike in AI presoje. Glavni uporabniki so neprijavljen uporabnik, SI-PASS prijavljen uporabnik in admin.
+Diagrami pokrivajo samo obseg pobud, glasovanja, komentarjev, analitike in AI presoje.
 
 ## Uporabniski diagram
 
 ```mermaid
 flowchart LR
-  Anonymous[Neprijavljen uporabnik]
-  Sipass[SI-PASS prijavljen uporabnik]
-  Admin[Admin]
+  Citizen[Drzavljan]
+  Admin[Administrator]
+  AI[AI presoja]
+  Platform[Demokracija 2.0]
+  Database[(Supabase / localStorage)]
 
-  subgraph App[Demokracija 2.0]
-    direction TB
-
-    subgraph PublicCases[Javni primeri uporabe]
-      direction LR
-      PublicList([Pregled javnih pobud])
-      Search([Iskanje in filtriranje])
-      AnonymousVote([Anonimno glasovanje])
-    end
-
-    subgraph SipassCases[SI-PASS primeri uporabe]
-      direction LR
-      Submit([Oddaja pobude])
-      Vote([Glasovanje])
-      Comment([Komentiranje])
-      SipassSign([SI-PASS podpis])
-      ExportDocs([Izvoz PDF DOCX ODT])
-      UserAnalytics([Osebna analitika])
-    end
-
-    subgraph AdminCases[Admin primeri uporabe]
-      direction LR
-      StatusAdmin([Urejanje statusov])
-      Integrations([Integracije])
-      SystemAnalytics([Sistemska analitika])
-    end
-  end
-
-  Anonymous --> PublicCases
-  Sipass --> PublicCases
-  Sipass --> SipassCases
-  Admin --> AdminCases
+  Citizen -->|oddaja pobudo| Platform
+  Citizen -->|isce in filtrira pobude| Platform
+  Citizen -->|glasuje| Platform
+  Citizen -->|komentira| Platform
+  Platform -->|shrani pobudo, glas, komentar| Database
+  Platform -->|zahteva predpregled| AI
+  AI -->|score, risk, kategorija, ugotovitve| Platform
+  Admin -->|spreminja status| Platform
+  Admin -->|pregleda analitiko| Platform
 ```
 
 ## Tok oddaje pobude
 
 ```mermaid
 sequenceDiagram
-  actor Uporabnik as SI-PASS prijavljen uporabnik
+  actor Uporabnik
   participant UI as Frontend
   participant Domain as Domenska logika
   participant AI as Dev AI endpoint
@@ -72,41 +51,26 @@ sequenceDiagram
   UI-->>Uporabnik: prikaz pobude in analitike
 ```
 
-## Glasovanje, podpis in izvoz
+## Glasovanje in komentiranje
 
 ```mermaid
 sequenceDiagram
-  actor Anonymous as Neprijavljen uporabnik
-  actor Sipass as SI-PASS prijavljen uporabnik
-  actor Admin
+  actor Uporabnik
   participant UI as Frontend
   participant Repo as Repozitorij
   participant Domain as Domenska logika
-  participant Signatures as /api/signatures
-  participant Export as Izvoz dokumenta
-  participant DB as Supabase/localStorage
+  participant DB as Podatki
 
-  Anonymous->>UI: klik Glasuj anonimno
-  UI->>Repo: vote(initiativeId, anonymousActor)
-  Repo->>Domain: voteForInitiative(initiative, anonymousActor)
+  Uporabnik->>UI: klik Glasuj
+  UI->>Repo: vote(initiativeId, actor)
+  Repo->>Domain: voteForInitiative(initiative, actor)
   Domain-->>Repo: pobuda brez podvojenega glasu
-  Repo->>DB: shrani anonimen glas
-  Sipass->>UI: klik Glasuj ali Komentiraj
-  UI->>Repo: vote/comment(initiativeId, sipassActor)
-  Repo->>Domain: voteForInitiative/addComment
-  Domain-->>Repo: posodobljena pobuda ali validacijska napaka
-  Repo->>DB: shrani glas ali komentar
-  Sipass->>UI: klik SI-PASS podpis
-  UI->>Signatures: POST initiativeId
-  Signatures->>DB: shrani podpis method=sipass
-  Signatures-->>UI: osvezena pobuda
-  Sipass->>UI: klik PDF/DOCX/ODT izvoz
-  UI->>UI: preveri status signature_collection/submitted
-  UI->>Export: ustvari dokument za DZ
-  Export-->>Sipass: prenos ali tiskanje dokumenta
-  Admin->>UI: spremeni status pobude
-  UI->>Repo: update status
-  Repo->>DB: shrani status
+  Repo->>DB: shrani glas
+  UI->>Repo: comment(initiativeId, actor, body)
+  Repo->>Domain: addComment(initiative, actor, body)
+  Domain-->>Repo: komentar ali validacijska napaka
+  Repo->>DB: shrani komentar
+  UI-->>Uporabnik: posodobljeni glasovi in komentarji
 ```
 
 ## UML domenskih objektov
@@ -131,24 +95,10 @@ classDiagram
     string publicParticipation
     string proposerRepresentatives
     string affectedProvisions
-    UserSession author
-    string notificationEmail
     AiReview aiReview
     Vote[] votes
     Signature[] signatures
     Comment[] comments
-    datetime createdAt
-    datetime updatedAt
-  }
-
-  class UserSession {
-    string id
-    string name
-    string firstName
-    string lastName
-    string email
-    string role
-    string provider
   }
 
   class AiReview {
@@ -188,7 +138,6 @@ classDiagram
     number engagementScore
   }
 
-  UserSession "1" --> "*" Initiative
   Initiative "1" --> "1" AiReview
   Initiative "1" --> "*" Vote
   Initiative "1" --> "*" Signature
@@ -198,40 +147,36 @@ classDiagram
 
 ## ER shema
 
-`USER_IDENTITY` je konceptualni identifikator uporabnika oziroma seje. V trenutni Supabase shemi ni fizicna tabela; vrednosti so zapisane v poljih `author_ref`, `voter_ref`, `signer_ref`, `author_ref` in `user_ref`.
-
 ```mermaid
 erDiagram
-  %% USER_IDENTITY je konceptualni identifikator uporabnika, ne fizicna Supabase tabela.
-  USER_IDENTITY ||--o{ INITIATIVES : authors
-  USER_IDENTITY ||--o{ VOTES : casts
-  USER_IDENTITY ||--o{ SIGNATURES : signs
-  USER_IDENTITY ||--o{ COMMENTS : writes
-  USER_IDENTITY ||--o{ SYSTEM_ANALYTICS_EVENTS : produces
   INITIATIVES ||--o{ VOTES : has
   INITIATIVES ||--o{ SIGNATURES : has
   INITIATIVES ||--o{ COMMENTS : has
   INITIATIVES ||--o{ INITIATIVE_AI_REVIEWS : reviewed_by
 
-  USER_IDENTITY {
-    text user_ref PK
-    text display_name
-    text provider
-    text role
-  }
-
   INITIATIVES {
     uuid id PK
-    text author_ref
-    text author_name
     text title
+    text summary
+    text description
     text category
+    text legal_reference
+    text expected_impact
+    text legislative_text
+    text article_explanation
+    text financial_impact
+    text budget_funding
+    text comparative_review
+    text impact_assessment
+    text public_participation
+    text proposer_representatives
+    text affected_provisions
     initiative_status status
-    text notification_email
     integer ai_score
     text ai_risk
+    jsonb ai_findings
+    jsonb ai_checks
     timestamptz created_at
-    timestamptz updated_at
   }
 
   VOTES {
@@ -255,7 +200,6 @@ erDiagram
     uuid id PK
     uuid initiative_id FK
     text author_ref
-    text author_name
     text body
     timestamptz created_at
   }
@@ -268,20 +212,9 @@ erDiagram
     integer score
     text risk
     text suitability
-    jsonb findings
+    text suggested_category
+    jsonb checks
     jsonb raw_response
-    timestamptz created_at
-  }
-
-  SYSTEM_ANALYTICS_EVENTS {
-    uuid id PK
-    text user_ref
-    text user_role
-    text event_type
-    text source
-    text session_id
-    jsonb data
-    timestamptz created_at
   }
 ```
 

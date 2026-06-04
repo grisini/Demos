@@ -1,16 +1,37 @@
 flowchart LR
-  Citizen[Drzavljan]
-  Admin[Administrator]
-  AI[AI presoja]
-  Platform[Demokracija 2.0]
-  Database[(Supabase / localStorage)]
+  Anonymous[Neprijavljen uporabnik]
+  Sipass[SI-PASS prijavljen uporabnik]
+  Admin[Admin]
 
-  Citizen -->|oddaja pobudo| Platform
-  Citizen -->|isce in filtrira pobude| Platform
-  Citizen -->|glasuje| Platform
-  Citizen -->|komentira| Platform
-  Platform -->|shrani pobudo, glas, komentar| Database
-  Platform -->|zahteva predpregled| AI
-  AI -->|score, risk, kategorija, ugotovitve| Platform
-  Admin -->|spreminja status| Platform
-  Admin -->|pregleda analitiko| Platform
+  subgraph App[Demokracija 2.0]
+    direction TB
+
+    subgraph PublicCases[Javni primeri uporabe]
+      direction LR
+      PublicList([Pregled javnih pobud])
+      Search([Iskanje in filtriranje])
+      AnonymousVote([Anonimno glasovanje])
+    end
+
+    subgraph SipassCases[SI-PASS primeri uporabe]
+      direction LR
+      Submit([Oddaja pobude])
+      Vote([Glasovanje])
+      Comment([Komentiranje])
+      SipassSign([SI-PASS podpis])
+      ExportDocs([Izvoz PDF DOCX ODT])
+      UserAnalytics([Osebna analitika])
+    end
+
+    subgraph AdminCases[Admin primeri uporabe]
+      direction LR
+      StatusAdmin([Urejanje statusov])
+      Integrations([Integracije])
+      SystemAnalytics([Sistemska analitika])
+    end
+  end
+
+  Anonymous --> PublicCases
+  Sipass --> PublicCases
+  Sipass --> SipassCases
+  Admin --> AdminCases
