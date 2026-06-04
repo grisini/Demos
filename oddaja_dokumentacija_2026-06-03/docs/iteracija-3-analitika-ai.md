@@ -1,5 +1,21 @@
 # Iteracija 3: analitika in AI presoja pobud
 
+Datum revizije: 2026-06-04
+
+Ta dokument ostaja opis Iteracije 3, vendar je spodaj dodana opomba o trenutnem stanju zadnje verzije. Krovni povzetek je v `docs/stanje-zadnje-verzije.md`.
+
+## Trenutno stanje po kasnejsih iteracijah
+
+Po Iteraciji 3 je projekt napredoval. Danes AI in analitika nista vec samo razvojni nastavek:
+
+- `/api/ai/review-initiative` obstaja v lokalnem `scripts/dev-server.mjs` in kot Vercel entrypoint `api/ai/review-initiative.js`,
+- endpoint ima rate limiting in uporablja lokalni fallback, ce `HF_TOKEN` ali zunanji model nista dosegljiva,
+- `supabase/analytics.sql` razsiri osnovno analitiko z `analytics_events`, `analytics_clarity_snapshots`, `analytics_daily_snapshots` in `analytics_*` SQL view-i,
+- `api/analytics/[...path].js` usmerja sistemsko in Clarity analitiko,
+- admin sistemska analitika, osebna analitika in Clarity agregati so loceni pogledi z locenimi pravicami.
+
+Zgodovinski opis Iteracije 3 spodaj je zato treba brati kot zacetni obseg, ne kot celoten trenutni obseg projekta.
+
 Ta dokument opisuje omejen obseg Iteracije 3: oddaja pobud, pregled/iskanje/filtriranje, glasovanje, komentiranje, napredna analitika in AI predpregled ustreznosti. Ostali moduli naj ostanejo nespremenjeni.
 
 ## Funkcionalni obseg
@@ -44,7 +60,7 @@ Osnovna shema ostaja normalizirana:
 
 - `initiatives`: jedro pobude in zadnja AI ocena,
 - `votes`: glasovi z unikatno omejitvijo `(initiative_id, voter_ref)`,
-- `signatures`: demo podpisi z metodo podpisa,
+- `signatures`: SI-PASS/SI-CeS podpisi z metodo podpisa,
 - `comments`: javna razprava,
 - `initiative_ai_reviews`: zgodovina AI presoj in surov odgovor ponudnika,
 - `initiative_analytics`: pogled za glasove, podpise, komentarje in delez glasov,
@@ -65,7 +81,7 @@ Priporocen tok:
 
 Tokena za Hugging Face se ne sme poslati v brskalnik. Prava vrednost `HF_TOKEN` spada v `.env.local` ali sistemsko okolje.
 
-Trenutno je endpoint implementiran v razvojnem strezniku za demo uporabo. Za produkcijo mora biti isti tok premaknjen v Supabase Edge Function ali namenski backend, kjer se dodajo preverjanje identitete, rate limiting in audit zapis v `initiative_ai_reviews`.
+Endpoint je zdaj implementiran v razvojnem strezniku in kot Vercel serverless funkcija. Za polno produkcijo ostaja odprto predvsem merjenje dejanske porabe pri AI ponudniku, stroga audit politika in morebitna selitev v namenski backend/Supabase Edge Function, ce bo to zahtevalo produkcijsko okolje.
 
 ## Hugging Face uporaba
 

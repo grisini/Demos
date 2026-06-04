@@ -1,5 +1,9 @@
 # Mermaid diagrami
 
+Datum revizije: 2026-06-04
+
+Krovni povzetek zadnje verzije je v `docs/stanje-zadnje-verzije.md`.
+
 Diagrami pokrivajo obseg pobud, glasovanja, komentarjev, SI-PASS podpisov, izvoza dokumentov, analitike in AI presoje. Glavni uporabniki so neprijavljen uporabnik, SI-PASS prijavljen uporabnik in admin.
 
 ## Uporabniski diagram

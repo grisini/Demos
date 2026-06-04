@@ -1,5 +1,9 @@
 # Hybrid search pobud
 
+Datum revizije: 2026-06-04
+
+Krovni povzetek zadnje verzije je v `docs/stanje-zadnje-verzije.md`.
+
 Ta dokument opisuje Supabase hybrid search za polje **Iskanje** v pregledu pobud.
 
 ## Namen
@@ -30,6 +34,8 @@ V Supabase SQL Editorju izvedite skripte v tem vrstnem redu:
 -- 2. hybrid search
 -- supabase/search.sql
 ```
+
+Celoten vrstni red vseh Supabase skript za zadnjo verzijo je zapisan v `docs/supabase.md`.
 
 Za frontend mora biti runtime nastavljen na Supabase:
 

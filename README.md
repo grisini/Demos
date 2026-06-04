@@ -175,7 +175,7 @@ Fizicne tabele baze, ki jih projekt uporablja v osnovni shemi in dodatnih Supaba
 
 - `initiatives` - pobude z avtorjem, statusom, vsebino in AI povzetkom.
 - `votes` - glasovi uporabnikov oziroma anonimnih sej za posamezno pobudo.
-- `signatures` - SI-PASS/SI-CES evidenca podpisov, vkljucno s statusom podpisa in potjo podpisanega dokumenta.
+- `signatures` - SI-PASS/SI-CeS evidenca podpisov, vkljucno s statusom podpisa in potjo podpisanega dokumenta.
 - `comments` - komentarji na pobude.
 - `initiative_ai_reviews` - zgodovina AI presoj in surovi odgovori modela.
 - `system_analytics_events` - tehnicni in admin dogodki, ki jih zapisuje backend.
@@ -655,6 +655,8 @@ Ce zelite, da admin sistemska analitika na Vercelu bere skupne dogodke vseh upor
 
 SI-PASS podpis pobude uporablja backend endpoint `/api/signatures`, zato za produkcijski podpis dodajte server-only `SUPABASE_SERVICE_ROLE_KEY` in v Supabase izvedite `supabase/signatures-security.sql`, ki zapre direktno vstavljanje podpisov prek javnega anon kljuca.
 
+Ce uporabljate SI-CeS oziroma zelite zadnjo verzijo podpisnih polj, po osnovni shemi izvedite tudi `supabase/sices-signatures.sql`. SI-CeS helperji so pripravljeni v `server/sices.mjs` in lokalnem dev strezniku; loceni Vercel `api/sices/*` endpointi trenutno se niso dodani.
+
 Za razsirjeno shranjevanje vseh analiticnih dogodkov, dnevne snapshot-e in SQL porocila po `supabase/schema.sql` izvedite se `supabase/analytics.sql`.
 
 Za Supabase RPC hybrid search funkciji, ki podpirata iskanje pobud prek full-text + fuzzy ujemanja, po `supabase/schema.sql` izvedite se `supabase/search.sql`. Ta dva SQL skripta morata biti posodobljena tudi zaradi stolpca `notification_email`, ki ga uporablja dnevni email povzetek ustvarjalcu pobude. Ko je `DATA_SOURCE=supabase` in uporabnik vnese iskalni niz, aplikacija uporabi RPC `search_initiatives`; brez iskalnega niza ostane lokalno filtriranje ze nalozenih pobud.
@@ -689,7 +691,7 @@ Coverage ukaz ustvari `coverage/lcov.info`, ki ga GitHub workflow poslje v Sonar
 - javni pregled aktualnih pobud za neprijavljene uporabnike,
 - anonimno glasovanje z omejitvijo enega glasu na pobudo na lokalni brskalniski ID,
 - glasovanje, SI-PASS evidencni podpis, komentarji in statusi,
-- PDF tiskanje, PDF prenos in DOCX/Word prenos pobude za DZ pri statusih `signature_collection` in `submitted`, tudi za SI-PASS prijavljenega uporabnika,
+- PDF tiskanje, PDF prenos, DOCX/Word in ODT prenos pobude za DZ pri statusih `signature_collection` in `submitted`, tudi za SI-PASS prijavljenega uporabnika,
 - email obvestila ustvarjalcu pobude ob spremembi statusa in dnevni povzetek novih glasov, podpisov ter komentarjev,
 - napredna statistika glasov na pobudo, kategorije, komentarje in AI tveganja,
 - osebna analitika pobud za prijavljenega uporabnika,
@@ -702,6 +704,7 @@ Coverage ukaz ustvari `coverage/lcov.info`, ki ga GitHub workflow poslje v Sonar
 - varnostni HTTP headerji in CSP za Vercel ter lokalni razvojni streznik,
 - Supabase SQL shema in konfiguracijski nastavki,
 - povzetek SI-PASS testnega okolja,
+- delno pripravljen SI-CeS strezniski tok za podpisni zahtevek, callback in razsirjena podpisna polja,
 - celostni E2E smoke test lokalnega streznika in osnovnih API tokov,
 - performance budget test za zacetni payload in lazy-loading DOCX/ODT izvoza.
 
@@ -718,6 +721,7 @@ Razvojna demo prijava ni locena glavna vloga. Uporablja se samo za lokalno preve
 ## Dokumentacija
 
 - `docs/pregled-projekta.md` - celovit tehnicni in funkcionalni pregled projekta,
+- `docs/stanje-zadnje-verzije.md` - krovni povzetek zadnje verzije, vlog, funkcionalnosti, baze, API-jev in iteracij,
 - `docs/funkcionalnosti.md` - zivi register funkcionalnosti, statusov, dokazov v kodi in preverjanja,
 - `docs/analitika.md` - tri analiticne plasti in navodila za Vercel, Clarity in admin pogled,
 - `docs/varnost.md` - Turnstile, WAF/CDN, ZAP in produkcijske varnostne omejitve,
@@ -732,14 +736,13 @@ Razvojna demo prijava ni locena glavna vloga. Uporablja se samo za lokalno preve
 - `docs/erDiagram.mmd` - izvor ER diagrama,
 - `docs/sequenceDiagram.mmd` - izvor zaporednega diagrama,
 - `docs/flowchart LR.mmd` - izvor Mermaid use-case diagrama glavnih uporabnikov,
-- `docs/ci-cd-pipeline.md` - predlagan GitHub Actions pipeline,
+- `docs/ci-cd-pipeline.md` - trenutni GitHub Actions pipeline,
 - `docs/supabase.md` - Supabase povezava,
 - `docs/baza-porocilo.md` - porocilo o zasnovi baze in razlogih za podatkovni model,
 - `docs/si-pass-testno-okolje.md` - razvojne opombe za SI-PASS,
 - `docs/sipass-podpisi.md` - SI-PASS evidencni podpis pobude prek backend endpointa,
-- `docs/sipass-sicas-ces-priklop.md` - podrobnejsi opis SI-PASS, SI-CAS in SI-CES priklopa,
-- `docs/sicas-vps-vzpostavitev.md` - zapisnik izvedene VPS/Shibboleth vzpostavitve,
-- `docs/sicas-sices-vps-checklist.md` - kratek VPS checklist za SI-CAS/SI-CES,
+- `docs/sipass-sicas-ces-priklop.md` - podrobnejsi opis SI-PASS, SI-CAS in SI-CeS priklopa,
+- `docs/sicas-vps-vzpostavitev.md` - zapisnik izvedene VPS/Shibboleth vzpostavitve in VPS checklist,
 - `docs/sicas-sp-metadata.xml` - staticni SI-CAS SP metadata izvoz brez Shibboleth opozorilnega komentarja.
 
 ## Hitri pregled po konceptih

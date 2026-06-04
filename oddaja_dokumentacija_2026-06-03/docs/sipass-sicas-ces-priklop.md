@@ -1,10 +1,14 @@
-# SI-PASS, SI-CAS in SI-CES priklop
+# SI-PASS, SI-CAS in SI-CeS priklop
+
+Datum revizije: 2026-06-04
+
+Krovni povzetek zadnje verzije je v `docs/stanje-zadnje-verzije.md`.
 
 Ta dokument razloci tri povezane, vendar razlicne sklope integracije:
 
 - **SI-PASS**: uporabniska prijava oziroma drzavna e-identiteta.
 - **SI-CAS**: tehnicna avtentikacijska pot prek SAML/Shibboleth okolja.
-- **SI-CES**: elektronsko podpisovanje dokumentov oziroma zahtevkov.
+- **SI-CeS**: elektronsko podpisovanje dokumentov oziroma zahtevkov.
 
 Trenutno stanje projekta: aplikacija ima demo prijavo in SI-PASS gumb. SI-CAS redirect tece prek Shibboleth SP na `auth.demokracija-20.si`, aplikacijska seja pa je pripravljena prek VPS auth bridge endpointa in Vercel session endpointa.
 
@@ -15,7 +19,8 @@ Trenutno stanje projekta: aplikacija ima demo prijavo in SI-PASS gumb. SI-CAS re
 | Prijava | Demo uporabnik in SI-PASS session adapter | `src/lib/auth.js`, `src/main.js` |
 | SI-PASS konfiguracija | Javni login/session endpointi in VPS auth bridge | `src/config.js`, `api/auth`, `scripts/dev-server.mjs`, `server/sipass-session.mjs` |
 | Podpis | SI-PASS evidencni podpis prek backend endpointa | `src/main.js`, `api/signatures.js`, `server/signatures.mjs`, `supabase/signatures-security.sql` |
-| Podatkovni model | `signatures.method` podpira nacin podpisa | `supabase/schema.sql` |
+| SI-CeS helper | Delno pripravljen strezniski tok za podpisni zahtevek, callback in zakljucek podpisa | `server/sices.mjs`, `scripts/dev-server.mjs`, `supabase/sices-signatures.sql`, `tests/domain.test.mjs` |
+| Podatkovni model | `signatures.method` in dodatna SI-CeS polja podpirajo nacin podpisa | `supabase/schema.sql`, `supabase/sices-signatures.sql` |
 | Dokumentacija | Testno okolje, podpisi, VPS zapisnik in zdruzena navodila | `docs/si-pass-testno-okolje.md`, `docs/sipass-podpisi.md`, `docs/sicas-vps-vzpostavitev.md`, `docs/uporabniska-dokumentacija.md` |
 
 ## Ciljna produkcijska arhitektura
@@ -27,7 +32,7 @@ Priporocena pot za produkcijo:
 3. Backend po uspesni prijavi izda aplikacijsko sejo.
 4. Backend v bazo zapisuje anonimiziran stabilni identifikator uporabnika.
 5. Glasovi in podpisi se ne zapisujejo neposredno iz brskalnika z javnim anon kljucem.
-6. SI-CES podpisovanje se izvaja samo na strezniku, kjer so certifikati in zasebni kljuci.
+6. SI-CeS podpisovanje se izvaja samo na strezniku, kjer so certifikati in zasebni kljuci.
 
 ## SI-PASS / SI-CAS prijavni tok
 
@@ -190,17 +195,19 @@ Podpis pobude trenutno tece prek backend endpointa `POST /api/signatures`. Front
 
 Za utrditev Supabase izvedite `supabase/signatures-security.sql`, ki odstrani direktni `insert` v tabelo `signatures` za javni anon kljuc. Podrobnosti so v `docs/sipass-podpisi.md`.
 
-## SI-CES podpisni tok
+## SI-CeS podpisni tok
 
-Predlagan tok:
+Delno implementiran/pripravljen tok:
 
 1. Uporabnik izbere podpis pobude.
-2. Frontend poklice backend pot, npr. `POST /api/signatures`.
+2. Frontend poklice backend pot za zacetek SI-CeS podpisa.
 3. Backend preveri prijavljeno SI-PASS/SI-CAS identiteto.
-4. Backend pripravi podpisni zahtevek za SI-CES.
-5. Backend izvede SI-CES klic z ustreznim klient certifikatom.
+4. Backend pripravi podpisni zahtevek za SI-CeS.
+5. Backend izvede SI-CeS klic z ustreznim klient certifikatom.
 6. Rezultat podpisa se shrani v tabelo `signatures` z `method = 'sices'`.
 7. V revizijsko sled se shrani cas, rezultat, pobuda in anonimiziran uporabnik.
+
+V kodi to trenutno pokrivajo `server/sices.mjs`, lokalne poti `/api/sices/start`, `/api/sices/callback` in `/api/sices/complete` v `scripts/dev-server.mjs`, frontend konfiguracija za `SICES_ENABLED` ter `supabase/sices-signatures.sql`. Loceni Vercel `api/sices/*` endpointi se niso dodani, zato je SI-CeS del pripravljen za lokalni oziroma locen backend tok, ne pa se zakljucen produkcijski Vercel tok.
 
 Zasebni kljuc in certifikati ne smejo biti v gitu, frontendu ali javnem buildu.
 
@@ -214,12 +221,12 @@ Zasebni kljuc in certifikati ne smejo biti v gitu, frontendu ali javnem buildu.
 - Omejiti spreminjanje statusov na administratorje.
 - Dodati revizijsko sled za podpise in statusne spremembe.
 - Aplikacijski rate limiting razsiriti tudi na prihodnje backend poti za oddajo pobud, glasove in komentarje; AI pregled in SI-PASS podpis sta ze omejena na trenutnih API endpointih.
-- Odstraniti vsak zacasni hardkodan demo prejemnik email obvestil.
+- Produkcijsko urediti email prejemnike, predloge, odjave oziroma pravno podlago za obvestila.
 
 ## Varnostni minimum
 
 - `.env.local` ne sme biti commitan.
-- `HF_TOKEN`, SMTP gesla, SAML private key in SI-CES certifikati ne smejo biti v repozitoriju.
+- `HF_TOKEN`, SMTP gesla, SAML private key in SI-CeS certifikati ne smejo biti v repozitoriju.
 - Callback URL-ji morajo biti registrirani pri ustrezni SI-CAS/SI-PASS ekipi.
 - Produkcijski promet mora teci prek HTTPS.
 - Osebni podatki morajo biti minimizirani.

@@ -1,5 +1,9 @@
 # Porocilo o zasnovi baze
 
+Datum revizije: 2026-06-04
+
+Krovni povzetek zadnje verzije je v `docs/stanje-zadnje-verzije.md`.
+
 ## Namen baze
 
 Baza je bila zasnovana za prototip spletne platforme **Demokracija 2.0**, kjer uporabniki oddajajo zakonodajne pobude, glasujejo, komentirajo in spremljajo analitiko ter osnovno AI presojo pobud.
@@ -25,7 +29,9 @@ Zaradi tega je bila izbrana **relacijska zasnova**, kjer je entiteta `initiative
 - glasovi,
 - podpisi,
 - komentarji,
-- AI pregledi.
+- AI pregledi,
+- sistemski in analiticni dogodki,
+- Clarity in dnevni snapshot-i.
 
 Tak pristop je primeren zato, ker:
 
@@ -46,6 +52,10 @@ Na njo so vezane naslednje odvisne entitete:
 - `signatures`
 - `comments`
 - `initiative_ai_reviews`
+- `system_analytics_events`
+- `analytics_events`
+- `analytics_clarity_snapshots`
+- `analytics_daily_snapshots`
 
 Logika relacij:
 
@@ -53,6 +63,7 @@ Logika relacij:
 - ena pobuda ima lahko vec podpisov,
 - ena pobuda ima lahko vec komentarjev,
 - ena pobuda ima lahko vec AI pregledov.
+- ena pobuda ima lahko vec analiticnih dogodkov v `analytics_events`.
 
 To pomeni, da je model zasnovan po principu:
 
@@ -60,6 +71,9 @@ To pomeni, da je model zasnovan po principu:
 - `initiatives 1:N signatures`
 - `initiatives 1:N comments`
 - `initiatives 1:N initiative_ai_reviews`
+- `initiatives 1:N analytics_events`
+
+`USER_IDENTITY` v ER diagramih ni fizicna tabela. Predstavlja stabilni identifikator uporabnika ali seje, ki je zapisan v poljih `author_ref`, `voter_ref`, `signer_ref` ali `user_ref`.
 
 ## Opis tabel
 
@@ -122,14 +136,20 @@ Shranjuje:
 - povezavo na pobudo,
 - identifikator podpisnika,
 - ime podpisnika,
-- nacin podpisa (`method`), npr. `demo` ali kasneje `sipass`,
+- nacin podpisa (`method`), npr. `sipass` ali `sices`,
+- SI-CeS request ID (`sices_request_id`),
+- SI-CeS CES ID (`sices_ces_id`),
+- pot podpisanega dokumenta (`signed_document_path`),
+- hash podpisanega dokumenta (`signed_document_hash`),
+- certifikatno verigo (`certificate_chain`),
+- status podpisa (`signature_status`),
 - cas podpisa.
 
 Tudi tukaj je uporabljena omejitev:
 
 - `unique (initiative_id, signer_ref)`
 
-S tem se prepreci podvajanje podpisov iste osebe.
+S tem se prepreci podvajanje podpisov iste osebe. SI-CeS dodatna polja so dodana prek `supabase/sices-signatures.sql`.
 
 ### `comments`
 
@@ -161,7 +181,62 @@ Trenutno aplikacija v razvojnem okolju uporablja Hugging Face predpregled prek v
 - dodatne kontrole (`checks`),
 - surov odgovor modela (`raw_response`).
 
-Ta zasnova omogoca revizijsko sled zunanjega modela, ko bo razvojni endpoint premaknjen v produkcijsko backend ali Supabase Edge Function okolje.
+Ta zasnova omogoca revizijsko sled zunanjega modela. Endpoint obstaja v lokalnem dev serverju in kot Vercel funkcija; v produkciji je treba dolociti se politiko trajnega audit zapisa in merjenje dejanske porabe ponudnika.
+
+### `system_analytics_events`
+
+Tabela `system_analytics_events` hrani sistemske dogodke, ki jih prek backend endpointa posilja aplikacija.
+
+Shranjuje:
+
+- tip dogodka (`event_type`),
+- vir (`source`),
+- uporabnika oziroma sejo (`user_ref`, `user_role`, `session_id`),
+- pot (`path`),
+- dodatne podatke (`data`),
+- cas nastanka.
+
+Uporablja se za admin sistemsko analitiko. V produkciji naj do nje dostopa samo backend s `SUPABASE_SERVICE_ROLE_KEY`.
+
+### `analytics_events`
+
+Tabela `analytics_events` je centralni tok analiticnih dogodkov iz `supabase/analytics.sql`.
+
+Shranjuje:
+
+- zunanji enolicni ID (`external_id`),
+- tip dogodka,
+- vir,
+- uporabnika/sejo,
+- opcijsko povezavo na pobudo (`initiative_id`),
+- cas dogodka (`occurred_at`),
+- dodatne podatke (`data`).
+
+Triggerji v `supabase/analytics.sql` lahko v to tabelo zapisujejo dogodke ob nastanku pobud, spremembah statusa, glasovih, podpisih, komentarjih in AI pregledih.
+
+### `analytics_clarity_snapshots`
+
+Tabela hrani uvoze iz Microsoft Clarity Data Export API.
+
+Shranjuje:
+
+- datum metrike,
+- stevilo dni zajema,
+- dimenzijo,
+- surov payload,
+- normalizirane metrike,
+- cas pridobitve.
+
+### `analytics_daily_snapshots`
+
+Tabela hrani dnevne agregate za porocila:
+
+- stevilo pobud, glasov, podpisov in komentarjev,
+- stevilo AI in email dogodkov,
+- ocenjeno porabo tokenov,
+- anonimne glasove,
+- unikatne seje in udelezence,
+- statusne, kategorijske in event breakdown JSON sezname.
 
 ## Uporaba enum tipov
 

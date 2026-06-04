@@ -1,5 +1,9 @@
 # Dostopnost
 
+Datum revizije: 2026-06-04
+
+Krovni povzetek zadnje verzije je v `docs/stanje-zadnje-verzije.md`.
+
 Projekt cilja na skladnost s standardom EN 301 549 v3.2.1, ki za spletni del uporablja WCAG 2.1 na nivoju AA.
 
 ## Pristop

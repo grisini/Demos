@@ -1,6 +1,65 @@
 # Dnevnik dopolnitev
 
-Ta dnevnik je namenjen sprotnemu vodenju sprememb. Vkljucuje povzetek dosedanjih commitov na veji `main` in zadnji nezakljuceni razvojni cikel.
+Datum revizije: 2026-06-04
+
+Ta dnevnik je namenjen sprotnemu vodenju sprememb. Krovni povzetek zadnje verzije je v `docs/stanje-zadnje-verzije.md`, podrobni DevWork cikli pa v `docs/devwork-loop.md`.
+
+## Cikel: dokumentacija, diagrami in Vercel konfiguracija
+
+Datum: 2026-06-04
+
+Cilj:
+
+- Uskladiti vse glavne dokumente z zadnjo verzijo projekta.
+- Popraviti Mermaid diagrame glavnih uporabnikov in podatkovnega modela.
+- Odpraviti Vercel napako `Invalid vercel.json file provided`.
+
+Izvedeno:
+
+- Use-case diagrami uporabljajo samo neprijavljenega uporabnika, SI-PASS prijavljenega uporabnika in admina.
+- Podatkovni/ER diagrami vkljucujejo `analytics_events`, `analytics_clarity_snapshots`, `analytics_daily_snapshots` in SI-CeS polja v `signatures`.
+- Dodan `docs/stanje-zadnje-verzije.md` kot krovni dokument.
+- Roadmap, pregled projekta, Supabase, CI/CD, funkcionalnosti, git zgodovina in DevWork so posodobljeni na stanje 2026-06-04.
+- Iz `vercel.json` je odstranjen UTF-8 BOM in dodan `$schema`.
+
+Preverjanje:
+
+- Render vseh Mermaid diagramov.
+- `npm run test:domain`.
+- JSON parse `vercel.json`.
+- Lokalni `npx vercel build --yes` ni vec padel na `vercel.json`.
+
+## Cikel: SI-CeS priprava
+
+Datum: 2026-06-03
+
+Izvedeno:
+
+- Dodan `server/sices.mjs` s konfiguracijo, SOAP helperji in parserji.
+- Lokalni dev-server ima poti `/api/sices/start`, `/api/sices/callback` in `/api/sices/complete`.
+- Dodan `supabase/sices-signatures.sql`.
+- Popravljeni CSP, SOAP in TLS detajli.
+
+Opomba:
+
+- SI-CeS je delno implementiran/pripravljen. Za produkcijsko uporabo se mora zakljuciti routing v ciljnem VPS/Vercel okolju in izvesti test z uradnim testnim sistemom.
+
+## Cikel: backend, varnost in testiranje
+
+Datum: 2026-06-01
+
+Izvedeno:
+
+- Backend poti za pobude, komentarje, statusne spremembe in SI-PASS podpise.
+- Dnevni digest ustvarjalcu pobude.
+- Turnstile, rate limiting, CSP in varnostni headerji.
+- E2E smoke testi in performance budget.
+- Uporabniska dokumentacija.
+
+Odprto:
+
+- Glasovanje mora za produkcijo v celoti skozi backend.
+- Prototipni `ADMIN_EMAILS` model je treba zamenjati s produkcijskim IAM/SI-PASS modelom.
 
 ## Cikel: varnostna utrditev
 
@@ -40,13 +99,13 @@ Izvedeno:
 - Dodan staticni Vercel Speed Insights loader v `src/lib/vercel-speed-insights.js`, ker projekt trenutno ne uporablja Next.js komponente.
 - Integracije prikazejo runtime stanje Vercel Speed Insights loaderja, script taga in trenutnega SPA route.
 - Dodan Microsoft Clarity loader v `src/lib/clarity.js`.
-- Dodan Clarity Data Export proxy `api/analytics/clarity.js`, da se agregirani Clarity grafi lahko prikazejo v aplikaciji brez razkritja API tokena.
+- Dodan Clarity Data Export proxy, danes zdruzen v `api/analytics/[...path].js` in `server/analytics-clarity.mjs`, da se agregirani Clarity grafi lahko prikazejo v aplikaciji brez razkritja API tokena.
 - Dodana normalizacija Clarity metrik v `src/domain/clarity-insights.js` in frontend odjemalec `src/lib/clarity-insights.js`.
 - Zavihek `Analitika pobud` prikaze Clarity grafe za prijavljene uporabnike, ce je nastavljen `CLARITY_API_TOKEN`.
 - Dodana runtime nastavitev `MICROSOFT_CLARITY_PROJECT_ID`.
 - Dostop do interne sistemske analitike je omejen na admin email iz `ADMIN_EMAILS`.
 - Dodana lokalna sistemska telemetrija v `src/lib/telemetry.js`.
-- Dodana Vercel serverless funkcija `api/analytics/system.js` za sistemske dogodke.
+- Dodana Vercel serverless funkcija za sistemske dogodke, danes zdruzena v `api/analytics/[...path].js` in `server/analytics-system.mjs`.
 - Dodana Supabase tabela `system_analytics_events` za skupni admin pregled na Vercelu.
 - Frontend sistemsko telemetrijo posilja na `SYSTEM_ANALYTICS_ENDPOINT`, lokalni `localStorage` ostane fallback.
 - Razsirjen `src/domain/analytics.js` z uporabnisko in sistemsko analitiko.
@@ -68,7 +127,7 @@ Preverjanje:
 - `node --check src/lib/clarity.js`
 - `node --check src/lib/clarity-insights.js`
 - `node --check src/domain/clarity-insights.js`
-- `node --check api/analytics/clarity.js`
+- `node --check api/analytics/[...path].js`
 - `node --check src/lib/vercel-analytics.js`
 - `node --check src/lib/vercel-speed-insights.js`
 - `node --check src/lib/telemetry.js`
@@ -99,9 +158,9 @@ Opombe:
 | 2026-05-14 | `c038e75` | implementacija mailinga | Dodani email modul, odjemalec in razvojni endpoint s SMTP/outbox podporo. |
 | 2026-05-14 | `8058118` | Osnovni CI/CD pipeline | Dodan GitHub Actions workflow. |
 | 2026-05-14 | `9dd08c1` | CI/CD pipeline popravek #1 | Popravljena oziroma poenostavljena pipeline konfiguracija. |
-| 2026-05-14 | `c4c2ecd` | pipeline docs in si pass checklist | Dodana CI/CD dokumentacija in SI-CAS/SI-CES checklist. |
+| 2026-05-14 | `c4c2ecd` | pipeline docs in si pass checklist | Dodana CI/CD dokumentacija in SI-CAS/SI-CeS checklist. |
 | 2026-05-14 | `ab343db` | Merge branch 'main' | Zdruzitev oddaljene veje v lokalni `main`. |
-| 2026-05-16 | `01f87e8` | Dodana dokumentacija in diagrami projekta | Dodani register funkcionalnosti, pregled projekta, git zgodovina, Mermaid datoteke in SI-PASS/SI-CAS/SI-CES dokumentacija. |
+| 2026-05-16 | `01f87e8` | Dodana dokumentacija in diagrami projekta | Dodani register funkcionalnosti, pregled projekta, git zgodovina, Mermaid datoteke in SI-PASS/SI-CAS/SI-CeS dokumentacija. |
 | 2026-05-16 | `96b29a5` | docs za vzpostavitev vps in Shibboleth/certfikati metadata za poslat za SI-PASS | Dodani VPS/Shibboleth zapisnik in staticni SI-CAS SP metadata. |
 | 2026-05-16 | `d94d816` | resolved conflict | Razresen merge konflikt. |
 | 2026-05-18 | `68f69e1` | kompletna izboljsava vmesnika, responsive, dodan gumb za meni | Prenovljen responsive UI, stranski meni in slog aplikacije. |

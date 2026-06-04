@@ -1,5 +1,9 @@
 # Uporabniska dokumentacija Demokracija 2.0
 
+Datum revizije: 2026-06-04
+
+Krovni povzetek zadnje verzije je v `docs/stanje-zadnje-verzije.md`.
+
 ## Namen dokumenta
 
 Ta dokument zdruzuje uporabniska, administratorska in operativna navodila za projekt **Demokracija 2.0**. Namenjen je temu, da lahko uporabnik, ocenjevalec ali upravljavec iz enega mesta razume:
@@ -204,7 +208,7 @@ Zahteva vsebuje `action: "comment"` in `initiativeId`. Backend prebere prijavlje
 
 ### SI-PASS podpis pobude
 
-SI-PASS podpis je evidencni podpis podpore pobudi. Ne gre za SI-CES kvalificiran elektronski podpis dokumenta.
+SI-PASS podpis je evidencni podpis podpore pobudi. Ne gre za SI-CeS kvalificiran elektronski podpis dokumenta.
 
 Tok je:
 
@@ -244,22 +248,22 @@ supabase/signatures-security.sql
 
 Ta skripta zapre direktno vstavljanje podpisov prek javnega anon kljuca.
 
-### Razlika med SI-PASS podpisom in SI-CES podpisom
+### Razlika med SI-PASS podpisom in SI-CeS podpisom
 
-V projektu trenutno obstaja SI-PASS evidencni podpis. To pomeni:
+Osnovni tok v aplikaciji je SI-PASS evidencni podpis. To pomeni:
 
 ```text
 preverjen SI-PASS uporabnik je podprl to pobudo
 ```
 
-SI-CES podpis bi pomenil kriptografski podpis dokumenta ali podpisnega zahtevka prek drzavne podpisne storitve. To bi zahtevalo:
+SI-CeS je v zadnji verziji pripravljen kot delno implementiran strezniski tok za kvalificirano elektronsko podpisovanje dokumenta ali zahtevka. Projekt vsebuje:
 
-- pripravo podpisnega dokumenta ali zahtevka,
-- klic SI-CES storitve,
-- klient certifikat in zasebni kljuc na strezniku,
-- shranjen rezultat podpisa, hash dokumenta, status in cas podpisa.
+- `server/sices.mjs` za pripravo zahtevka, SOAP klic in zakljucevanje podpisa,
+- lokalne dev poti `/api/sices/start`, `/api/sices/callback` in `/api/sices/complete` v `scripts/dev-server.mjs`,
+- frontend konfiguracijo za `SICES_ENABLED`, `SICES_START_ENDPOINT` in `SICES_COMPLETE_ENDPOINT`,
+- `supabase/sices-signatures.sql`, ki tabeli `signatures` doda polja za SI-CeS request, CES ID, podpisan dokument, hash, certifikatno verigo in status.
 
-V tej aplikaciji se za pobude uporablja SI-PASS evidencni podpis.
+Obicajni produkcijski tok za pobude zato se vedno uporablja SI-PASS evidencni podpis, razen ce je SI-CeS izrecno vklopljen z okoljsko spremenljivko `SICES_ENABLED=true` in so pripravljeni ustrezni strezniski endpointi ter certifikati. V Vercel mapi trenutno ni locenih `api/sices/*` endpointov, zato je SI-CeS dokumentiran kot pripravljen/delni tok, ne kot zakljucena produkcijska integracija.
 
 ### Izvoz pobude
 
@@ -453,6 +457,8 @@ Pomembni endpointi:
 - `/api/analytics/clarity` - Clarity agregati,
 - `/api/security/turnstile` - server-side Turnstile preverjanje.
 
+Lokalni razvojni streznik dodatno vsebuje SI-CeS poti `/api/sices/start`, `/api/sices/callback` in `/api/sices/complete`. Za produkcijski Vercel deploy bi bilo treba dodati ustrezne `api/sices/*` serverless vstopne tocke ali SI-CeS tok izvesti na locenem backendu/VPS.
+
 ## Supabase
 
 ### Osnovna shema
@@ -471,6 +477,9 @@ Definira:
 - `comments`,
 - `initiative_ai_reviews`,
 - `system_analytics_events`,
+- `analytics_events`,
+- `analytics_clarity_snapshots`,
+- `analytics_daily_snapshots`,
 - enum tipe,
 - indekse,
 - RLS politike,
@@ -483,6 +492,7 @@ Po potrebi izvedite:
 ```text
 supabase/search.sql
 supabase/analytics.sql
+supabase/sices-signatures.sql
 supabase/signatures-security.sql
 supabase/backend-write-security.sql
 supabase/seed.sql
@@ -493,9 +503,10 @@ Vrstni red izvedbe:
 1. `supabase/schema.sql`,
 2. `supabase/search.sql`,
 3. `supabase/analytics.sql`,
-4. `supabase/signatures-security.sql`,
-5. `supabase/backend-write-security.sql`,
-6. `supabase/seed.sql`, ce zelite demo podatke.
+4. `supabase/sices-signatures.sql`, ce uporabljate SI-CeS ali zelite zadnjo verzijo podpisnih polj,
+5. `supabase/signatures-security.sql`,
+6. `supabase/backend-write-security.sql`,
+7. `supabase/seed.sql`, ce zelite demo podatke.
 
 `signatures-security.sql` izvedite v okoljih, kjer mora podpis nastajati samo prek backend endpointa.
 `backend-write-security.sql` izvedite v okoljih, kjer oddaja pobud in komentiranje potekata prek backend endpointov.
@@ -507,7 +518,14 @@ Glavna tabela je `initiatives`. Nanjo so vezane:
 - `votes`,
 - `signatures`,
 - `comments`,
-- `initiative_ai_reviews`.
+- `initiative_ai_reviews`,
+- `analytics_events`.
+
+Locene sistemske in analiticne tabele so:
+
+- `system_analytics_events`,
+- `analytics_clarity_snapshots`,
+- `analytics_daily_snapshots`.
 
 Glavna podatkovna pravila:
 
@@ -534,7 +552,7 @@ Osnovni `schema.sql` pripravi tabele, tipe, indekse, poglede in RLS politike. Do
 
 - SI-PASS: uporabniska prijava oziroma drzavna e-identiteta.
 - SI-CAS: tehnicna avtentikacijska pot prek SAML/Shibboleth.
-- SI-CES: elektronsko podpisovanje dokumentov ali zahtevkov.
+- SI-CeS: elektronsko podpisovanje dokumentov ali zahtevkov.
 
 ### Trenutni SI-PASS/SI-CAS tok
 
@@ -583,7 +601,7 @@ Ce je port zaseden, razvojni streznik uporabi naslednji prosti port.
 npm test
 ```
 
-Testi preverjajo domensko logiko, AI fallback, glasovanje, podpise, komentarje, analitiko, email pravila, SI-PASS session, SI-PASS podpisni backend in Turnstile.
+Testi preverjajo domensko logiko, AI fallback, glasovanje, podpise, komentarje, analitiko, email pravila, SI-PASS session, SI-PASS podpisni backend, SI-CeS konfiguracijo in helperje, Turnstile, lokalni E2E smoke test, varnostne headerje ter performance budget z lazy-loading DOCX/ODT izvoza.
 
 ### Vercel deployment
 
@@ -789,7 +807,11 @@ npm run dev
 - `votes`,
 - `signatures`,
 - `comments`,
-- `system_analytics_events`.
+- `initiative_ai_reviews`,
+- `system_analytics_events`,
+- `analytics_events`,
+- `analytics_clarity_snapshots`,
+- `analytics_daily_snapshots`.
 
 6. Na Vercelu preverite:
 
@@ -803,6 +825,7 @@ npm run dev
 Ta dokument zdruzuje vsebino in navodila iz:
 
 - `README.md`,
+- `docs/stanje-zadnje-verzije.md`,
 - `docs/pregled-projekta.md`,
 - `docs/funkcionalnosti.md`,
 - `docs/analitika.md`,

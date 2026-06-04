@@ -1,5 +1,9 @@
 # Varnostni mehanizmi
 
+Datum revizije: 2026-06-04
+
+Krovni povzetek zadnje verzije je v `docs/stanje-zadnje-verzije.md`.
+
 Ta dokument opisuje trenutno stanje varnosti v projektu Demokracija 2.0 in dodatne nastavitve, ki morajo biti vklopljene v produkciji.
 
 ## Implementirano v projektu
@@ -88,6 +92,8 @@ supabase/signatures-security.sql
 
 Ta odstrani javni `insert` v `signatures`, pusti javno branje za prikaz stevcev in dovoli pisanje samo prek `service_role`.
 
+Za SI-CeS je pripravljena locena razsiritev `supabase/sices-signatures.sql`, ki doda polja za SI-CeS request ID, CES ID, podpisan dokument, hash dokumenta, certifikatno verigo in status podpisa. Zasebni kljuci, PFX datoteke in SI-CeS gesla morajo ostati samo v server-only okolju (`SICES_PFX_BASE64` ali `SICES_PFX_PATH`, `SICES_PFX_PASSPHRASE`, endpoint URL-ji) in ne smejo biti del frontend konfiguracije.
+
 ### Integriteta podatkov
 
 Supabase shema vsebuje:
@@ -153,7 +159,7 @@ To je se vedno prototip. Pred produkcijo ostaja:
 - prestaviti oddajo pobude, glasovanje, komentarje in statusne spremembe iz direktnega Supabase anon dostopa na backend,
 - zapreti prototipne RLS politike v `supabase/schema.sql`,
 - uvesti moderator/admin avtorizacijo za statusne spremembe,
-- odstraniti zacasnega hardkodanega demo prejemnika email obvestil,
+- produkcijsko urediti email prejemnike, predloge, odjave oziroma pravno podlago za obvestila,
 - dodati revizijsko sled za statusne spremembe, glasove in podpise,
 - redno izvajati DAST skeniranje na testnem okolju,
 - preveriti Cloudflare Security Events po vklopu strozijih WAF pravil.
@@ -166,6 +172,7 @@ Trenutni `npm test` preverja:
 - deduplikacijo glasov in podpisov,
 - SI-PASS session sifriranje in obnovo,
 - SI-PASS podpis prek backenda,
+- SI-CeS konfiguracijo, callback helperje in obnasanje ob manjkajocih certifikatih,
 - Turnstile odzive brez secreta, z veljavnim tokenom in z napacnim hostname,
 - rate limiter pri presezenem stevilu zahtevkov,
 - E2E smoke test API endpointov,

@@ -1,5 +1,9 @@
 # SI-CAS VPS vzpostavitev
 
+Datum revizije: 2026-06-04
+
+Krovni povzetek zadnje verzije je v `docs/stanje-zadnje-verzije.md`.
+
 Ta dokument povzema, kaj je bilo izvedeno pri vzpostavitvi VPS streznika za SI-CAS avtentikacijo.
 
 ## Povzetek
@@ -42,6 +46,7 @@ Trenutni SI-CAS SP podatki:
 - Apache proxy preusmeri javno pot `/auth/sipass/` na Node auth bridge.
 - Apache pot `/auth/sipass/complete` zahteva Shibboleth session.
 - `attribute-map.xml` vsebuje mapiranje za `sicas_emso`, `sicas_ds`, `sicas_ime`, `sicas_priimek` in `sicas_token`.
+- Projekt vsebuje tudi SI-CeS helperje v `server/sices.mjs` in lokalne razvojne poti `/api/sices/start`, `/api/sices/callback` ter `/api/sices/complete`. Produkcijske Vercel `api/sices/*` poti se niso loceno dodane.
 
 ## Validacija
 
@@ -127,9 +132,9 @@ Ta datoteka je staticni izvoz nase SP metadata
 
 ## Kaj se manjka
 
-- Na Vercel je treba deployati novo kodo z `/api/auth/session` in `/api/auth/logout`.
-- Na Vercel je treba dodati SI-PASS session env spremenljivke in narediti redeploy.
+- Na Vercel je treba preveriti, da sta `/api/auth/session` in `/api/auth/logout` deployana z zadnjo kodo.
+- Na Vercel je treba dodati oziroma preveriti SI-PASS session env spremenljivke in narediti redeploy po vsaki spremembi.
 - Po pravi testni prijavi prek SI-PASS je treba preveriti prejete atribute na Shibboleth session endpointu.
 - Preveriti je treba, ali Apache `X-SIPASS-*` header mapping ujame dejanska imena atributov iz Shibboleth sessiona.
 - Preveriti je treba celoten povratek po prijavi nazaj na `https://demokracija-20.si`.
-- SI-CES podpisovanje se dela posebej kasneje.
+- Za SI-CeS produkcijo je treba dodati oziroma povezati strezniske endpoint-e, nastaviti certifikate (`SICES_PFX_BASE64` ali `SICES_PFX_PATH`) in preveriti celoten podpisni tok z zunanjim SI-CeS okoljem.

@@ -1,5 +1,9 @@
 # Analiticne plasti projekta
 
+Datum revizije: 2026-06-04
+
+Krovni povzetek zadnje verzije je v `docs/stanje-zadnje-verzije.md`.
+
 Projekt ima tri locene analiticne plasti. Namenoma niso zdruzene, ker imajo razlicne uporabnike, podatke in pravice dostopa.
 
 ## 1. Vercel Web Analytics in Speed Insights
@@ -39,7 +43,8 @@ Vir: https://vercel.com/docs/speed-insights/quickstart
 **Implementacija v projektu:**
 
 - `src/lib/telemetry.js` lokalno belezi sistemske dogodke v `localStorage`,
-- `api/analytics/system.js` sprejema sistemske dogodke na Vercelu,
+- `api/analytics/[...path].js` sprejema sistemske dogodke na Vercelu na poti `/api/analytics/system`,
+- `server/analytics-system.mjs` vsebuje skupno backend logiko,
 - ce sta nastavljena `SUPABASE_URL` in server-only `SUPABASE_SERVICE_ROLE_KEY`, funkcija dogodke zapise v tabelo `system_analytics_events`,
 - ce service key ni nastavljen, funkcija dogodke samo sprejme in zabelezi v Vercel logs,
 - `src/domain/analytics.js` racuna `calculateSystemAnalytics()`,
@@ -71,15 +76,16 @@ Nato se v stranskem prijavnem obrazcu prijavite z emailom, ki je naveden v `ADMI
 
 **Navodila za Vercel/Supabase skupni admin pogled:**
 
-1. V Supabase SQL editorju izvedite zadnjo verzijo `supabase/schema.sql` oziroma vsaj del za `system_analytics_events`.
-2. V Vercel dodajte server-only env:
+1. V Supabase SQL editorju izvedite `supabase/schema.sql`.
+2. Za razsirjen tok dogodkov, dnevne snapshot-e in SQL porocila izvedite se `supabase/analytics.sql`.
+3. V Vercel dodajte server-only env:
 
 ```bash
 SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
-3. Preverite, da `SUPABASE_SERVICE_ROLE_KEY` ni nastavljen kot `VITE_*`.
-4. Po redeployu bo frontend posiljal dogodke na `/api/analytics/system`; admin pogled jih bo bral nazaj prek iste Vercel funkcije.
+4. Preverite, da `SUPABASE_SERVICE_ROLE_KEY` ni nastavljen kot `VITE_*`.
+5. Po redeployu bo frontend posiljal dogodke na `/api/analytics/system`; admin pogled jih bo bral nazaj prek iste Vercel funkcije.
 
 **Pomembna omejitev:** trenutni podatki o tokenih so ocena iz dolzine besedila, ne racun ponudnika. Anonimno glasovanje uporablja lokalni brskalniski ID, zato je to prototipna zascita in ne prava produkcijska identiteta. Za produkcijo morajo pravi podatki priti iz backend logov, AI provider usage podatkov, Vercel observability, Supabase metrik in server-side omejitev.
 
@@ -116,12 +122,13 @@ Aplikacija dodatno bere agregirane Clarity metrike prek Clarity Data Export API 
 **Implementacija v projektu:**
 
 - `src/lib/clarity.js` dinamicno nalozi `https://www.clarity.ms/tag/<PROJECT_ID>`,
-- `api/analytics/clarity.js` na Vercelu varno klice Clarity Data Export API,
+- `api/analytics/[...path].js` na Vercelu varno usmeri `/api/analytics/clarity`,
+- `server/analytics-clarity.mjs` klice Clarity Data Export API,
 - `src/lib/clarity-insights.js` iz frontenda bere agregate prek `/api/analytics/clarity`,
 - `src/domain/clarity-insights.js` normalizira Clarity odziv v grafe za UI,
 - `src/main.js` ob prijavi poklice Clarity Identify API,
 - aplikacija nastavlja custom tags: `app_view`, `data_source`, `auth_state`, `user_role`, `initiative_category`,
-- aplikacija posilja events: `view_dashboard`, `view_analytics`, `initiative_selected`, `initiative_created`, `initiative_voted`, `initiative_signed`, `comment_created`, `ai_preview_requested`.
+- aplikacija posilja events: `view_dashboard`, `view_analytics`, `initiative_selected`, `initiative_created`, `initiative_voted`, `initiative_voted_anonymous`, `initiative_signed`, `sices_signature_started`, `sices_signature_completed`, `comment_created`, `ai_preview_requested`, `initiative_pdf_printed`, `initiative_pdf_downloaded`, `initiative_docx_downloaded`, `initiative_odt_downloaded`.
 
 **Navodila za vklop Clarity:**
 

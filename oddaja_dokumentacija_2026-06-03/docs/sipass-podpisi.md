@@ -1,6 +1,10 @@
 # SI-PASS podpisi pobud
 
-Ta dokument opisuje trenutni podpisni tok za pobude v aplikaciji Demokracija 2.0. Gre za evidencni SI-PASS podpis pobude v aplikaciji, ne za poln SI-CES kvalificiran elektronski podpis dokumenta.
+Datum revizije: 2026-06-04
+
+Krovni povzetek zadnje verzije je v `docs/stanje-zadnje-verzije.md`.
+
+Ta dokument opisuje trenutni podpisni tok za pobude v aplikaciji Demokracija 2.0. Gre za evidencni SI-PASS podpis pobude v aplikaciji, ne za poln SI-CeS kvalificiran elektronski podpis dokumenta.
 
 ## Povzetek
 
@@ -13,7 +17,8 @@ Glavne datoteke:
 - `server/signatures.mjs` - skupna backend logika podpisa,
 - `scripts/dev-server.mjs` - lokalni endpoint za razvoj,
 - `server/sipass-session.mjs` - branje sifrirane SI-PASS seje,
-- `supabase/signatures-security.sql` - zapiranje direktnega insert dostopa do podpisov.
+- `supabase/signatures-security.sql` - zapiranje direktnega insert dostopa do podpisov,
+- `supabase/sices-signatures.sql` - dodatna polja za SI-CeS podpisni tok, kadar je ta vklopljen.
 
 ## Tok podpisa
 
@@ -79,10 +84,12 @@ SIGNATURES_ENDPOINT=/api/signatures
 Po osnovni shemi `supabase/schema.sql` izvedite se:
 
 ```sql
+\i supabase/sices-signatures.sql
 \i supabase/signatures-security.sql
 ```
 
 Ce uporabljate Supabase SQL editor, vsebino datoteke `supabase/signatures-security.sql` prilepite in izvedite rocno.
+Ce uporabljate SI-CeS oziroma zelite zadnjo verzijo podpisnih polj, pred tem izvedite tudi vsebino `supabase/sices-signatures.sql`.
 
 Ta skripta:
 
@@ -115,11 +122,13 @@ Ce je cilj mocnejsa zasebnost, je treba dodatno:
 - v Supabase omejiti direktni insert v `comments`,
 - v javnih pogledih ne vracati polnih imen podpisnikov ali komentatorjev.
 
-## Razlika do SI-CES
+## Razlika do SI-CeS
 
 Ta tok je SI-PASS evidencni podpis v aplikaciji. Uporabnikova identiteta je potrjena prek SI-PASS/SI-CAS seje, rezultat pa je vrstica v tabeli `signatures`.
 
-SI-CES bi bil locen podpisni tok, kjer backend pripravi podpisni zahtevek, komunicira s SI-CES storitvijo in hrani rezultat elektronskega podpisa dokumenta oziroma zahtevka. Ta del se ni implementiran.
+SI-CeS je locen podpisni tok, kjer backend pripravi podpisni zahtevek, komunicira s SI-CeS storitvijo in hrani rezultat elektronskega podpisa dokumenta oziroma zahtevka. V projektu je ta tok pripravljen delno: `server/sices.mjs` vsebuje strezniske helperje, lokalni dev server ima `/api/sices/start`, `/api/sices/callback` in `/api/sices/complete`, `supabase/sices-signatures.sql` pa razsiri tabelo `signatures`.
+
+Obicajni tok v aplikaciji zato ostaja SI-PASS evidencni podpis. SI-CeS se uporablja samo, ce je nastavljen `SICES_ENABLED=true`, so konfigurirani certifikati in endpointi ter je dodana produkcijska vstopna tocka. V mapi `api/` trenutno ni locenih Vercel `api/sices/*` endpointov.
 
 ## Preverjanje
 
@@ -134,7 +143,8 @@ Pricakovani testi:
 - SI-PASS session ustvari stabilen `sipass-*` identifikator,
 - SI-PASS podpis backend zavrne zahtevo brez seje,
 - SI-PASS podpis backend sam zapise `method = "sipass"`,
-- podpis ostane dedupliciran po `initiative_id + signer_ref`.
+- podpis ostane dedupliciran po `initiative_id + signer_ref`,
+- SI-CeS konfiguracija in helperji se ob manjkajocih nastavitvah obnasajo predvidljivo.
 
 Rocno v aplikaciji:
 

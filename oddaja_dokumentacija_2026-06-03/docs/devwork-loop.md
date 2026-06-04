@@ -1,5 +1,9 @@
 # DevWork loop porocila
 
+Datum revizije: 2026-06-04
+
+Krovni povzetek zadnje verzije je v `docs/stanje-zadnje-verzije.md`. Ta dokument hrani razvojne cikle in pojasnjuje, kako se je projekt iterativno premikal od lokalnega prototipa do zadnjega stanja z Vercel, Supabase, SI-PASS, SI-CeS, Turnstile, analitiko, izvozom dokumentov in posodobljeno dokumentacijo.
+
 Namen tega dokumenta je, da je po vsakem razvojnem ciklu viden napredek: kaj je bilo pregledano, kaj spremenjeno, kako je preverjeno in kaj ostaja odprto.
 
 ## DevWork koncept programiranja
@@ -23,6 +27,24 @@ Kakovostna pravila tega koncepta:
 - prototipne omejitve se dokumentirajo odkrito,
 - vsaka funkcionalnost naj ima dokaz v kodi in po moznosti test ali sprejemni kriterij.
 
+## Povzetek zadnjih iteracij
+
+Do 2026-06-04 so zakljuceni ali delno zakljuceni naslednji vecji sklopi:
+
+- osnovni prototip, pobude, validacija, lokalni repozitorij in Supabase nastavek,
+- napredni AI predpregled in analitika,
+- email, dnevni digest in Vercel cron,
+- CI/CD, coverage in SonarCloud,
+- Vercel runtime config in serverless endpointi,
+- Vercel Analytics, Speed Insights, Microsoft Clarity, uporabniska in sistemska analitika,
+- Supabase hybrid search,
+- PDF/DOCX/ODT izvoz za DZ,
+- SI-PASS session, backend SI-PASS podpis in UTF-8 popravljanje imen,
+- backend oddaja pobud, komentarjev in admin statusov,
+- Cloudflare Turnstile, rate limiting, CSP in varnostni headerji,
+- SI-CeS helperji in dodatna podpisna SQL polja,
+- Mermaid in splosna dokumentacijska uskladitev.
+
 ## Cikel: 2026-05-16
 
 ### Cilj
@@ -36,7 +58,7 @@ Raziskati projekt in git zgodovino ter dokumentacijo dopolniti tako, da so funkc
 - Dodan register funkcionalnosti v `docs/funkcionalnosti.md`.
 - Dodan tehnicni pregled projekta v `docs/pregled-projekta.md`.
 - Dodan povzetek git zgodovine v `docs/git-zgodovina.md`.
-- Dodan podrobnejsi dokument za SI-PASS, SI-CAS in SI-CES priklop v `docs/sipass-sicas-ces-priklop.md`.
+- Dodan podrobnejsi dokument za SI-PASS, SI-CAS in SI-CeS priklop v `docs/sipass-sicas-ces-priklop.md`.
 - V `docs/devwork-loop.md` je eksplicitno razlozen DevWork koncept programiranja.
 - `README.md` je dopolnjen s potjo za hiter ocenjevalni pregled.
 - CI dokumentacija in GitHub Actions workflow sta usklajena s kljucnimi dokumentacijskimi datotekami.
@@ -57,10 +79,10 @@ Raziskati projekt in git zgodovino ter dokumentacijo dopolniti tako, da so funkc
 
 ### Naslednji koraki
 
-- Odstraniti zacasnega hardkodanega email prejemnika in ga nadomestiti s konfiguracijo.
+- Preveriti konfiguracijo email prejemnikov in dnevnega digest-a v realnem okolju.
 - Dodati E2E test za tok oddaja pobude -> glasovanje -> podpis -> komentar.
-- Produkcijsko utrditi SI-PASS/SI-CAS prijavo in SI-CES podpisovanje.
-- Premakniti AI in pisanje v Supabase v backend ali Edge Function.
+- Produkcijsko utrditi SI-PASS/SI-CAS prijavo in SI-CeS podpisovanje.
+- Ohraniti AI in pisalne poti na backendu oziroma jih po potrebi premakniti v namenski backend/Edge Function.
 
 ## Cikel: 2026-05-19
 
@@ -84,7 +106,7 @@ Vzpostaviti tri jasno locene analiticne plasti: Vercel za hosting/SEO, admin not
 - Sistemska analitika je razsirjena z uporabniskimi sledmi, anonimnimi glasovi, javno vidnimi pobudami, statusi, temami, telemetry sejami in dogodki po tipu.
 - Neprijavljenim uporabnikom je omejen UI: vidijo samo aktualne pobude, javni detail in en anonimni glas na pobudo.
 - Zavihek `Integracije` je omejen samo na demo admina.
-- Dodana Vercel funkcija `api/analytics/system.js`, da sistemska telemetrija na deployu ni odvisna samo od `localStorage`.
+- Dodana Vercel funkcija za sistemsko telemetrijo, danes zdruzena v `api/analytics/[...path].js` in `server/analytics-system.mjs`, da deploy ni odvisen samo od `localStorage`.
 - Dodana Supabase tabela `system_analytics_events` za centralni zapis admin dogodkov prek server-only `SUPABASE_SERVICE_ROLE_KEY`.
 - Dodana dokumenta `docs/analitika.md` in `docs/dnevnik-dopolnitev.md`.
 - Posodobljena README in register funkcionalnosti.
@@ -96,11 +118,11 @@ Vzpostaviti tri jasno locene analiticne plasti: Vercel za hosting/SEO, admin not
 - `node --check src/lib/clarity.js` - uspesno.
 - `node --check src/lib/clarity-insights.js` - uspesno.
 - `node --check src/domain/clarity-insights.js` - uspesno.
-- `node --check api/analytics/clarity.js` - uspesno.
+- `node --check api/analytics/[...path].js` - uspesno.
 - `node --check src/lib/vercel-analytics.js` - uspesno.
 - `node --check src/lib/vercel-speed-insights.js` - uspesno.
 - `node --check src/lib/telemetry.js` - uspesno.
-- `node --check api/analytics/system.js` - uspesno.
+- `node --check server/analytics-system.mjs` - uspesno.
 
 ### Tveganja
 
@@ -198,6 +220,158 @@ Povezati Iteracijo 3 z zunanjim AI ponudnikom in posodobiti uporabniski prikaz A
 - Prenesti AI endpoint v Supabase Edge Function ali namenski backend.
 - Dodati audit zapis v `initiative_ai_reviews` za vsako zunanjo presojo.
 - Dodati E2E test, ki preveri rocen AI predpregled in oddajo pobude.
+
+## Cikel: 2026-05-21
+
+### Cilj
+
+Premakniti projekt iz lokalnega prototipa proti realnejsemu deploymentu: Supabase hybrid search, izvoz dokumentov, SI-PASS session in VPS bridge.
+
+### Izvedeno
+
+- Dodan Supabase hybrid search v `supabase/search.sql`.
+- `SupabaseInitiativeRepository.search()` uporablja RPC, kadar je `DATA_SOURCE=supabase`.
+- Dodan PDF tisk/prenos pobude za DZ.
+- Pripravljen SI-PASS session tok prek VPS/Shibboleth bridgea.
+- Dodani auth endpointi za session/logout/demo login.
+- Posodobljeni SI-PASS/VPS dokumenti.
+
+### Preverjanje
+
+- Rocni lokalni zagon aplikacije.
+- Pregled runtime configa `/config.local.js`.
+- Pregled Supabase RPC pogodbe.
+
+### Tveganja
+
+- SI-CAS je odvisen od zunanjega testnega okolja in registriranih callback URL-jev.
+- Hybrid search potrebuje izveden `supabase/search.sql` v Supabase projektu.
+
+## Cikel: 2026-05-22 do 2026-05-26
+
+### Cilj
+
+Dopolniti varnost, dostopnost in izvoz dokumentov.
+
+### Izvedeno
+
+- Dodan Cloudflare Turnstile na oddajo pobude.
+- Dodan dostopnostni pogled in uporabniske prilagoditve.
+- Dodan DOCX/ODT izvoz v `src/lib/docx-export.js`.
+- DOCX/ODT generator se nalaga dinamicno, sele ob prenosu.
+- Posodobljeni diagrami in dokumentacija za statusne pravice.
+
+### Preverjanje
+
+- `npm test`
+- Rocni pregled UI in izvoza.
+
+### Tveganja
+
+- PDF izvoz je namenjen tiskanju in ni oznacen kot popolnoma dostopen PDF.
+- DOCX/ODT dokumenta pred uradno objavo potrebujeta rocni pregled.
+
+## Cikel: 2026-05-30 do 2026-06-01
+
+### Cilj
+
+Utrditi backend, varnost in uporabnisko dokumentacijo.
+
+### Izvedeno
+
+- Dodani backend endpointi za oddajo pobud, komentarje in admin statusne spremembe.
+- Dodan backend SI-PASS podpis prek `/api/signatures`.
+- Dodan `supabase/signatures-security.sql`.
+- Dodan `supabase/backend-write-security.sql`.
+- Dodan dnevni email digest ustvarjalcu pobude.
+- Dodani E2E smoke in performance testi.
+- Dodani rate limiting, CSP in varnostni headerji.
+- Dodana obsezna uporabniska dokumentacija.
+
+### Preverjanje
+
+- `npm test`
+- `npm run test:e2e`
+- `npm run test:performance`
+
+### Tveganja
+
+- Glasovanje je za produkcijo se treba v celoti premakniti na backend.
+- `ADMIN_EMAILS` ostaja prototipni admin model.
+
+## Cikel: 2026-06-02
+
+### Cilj
+
+Izboljsati kakovost, CI in podatkovne razsiritve.
+
+### Izvedeno
+
+- Dodan oziroma posodobljen SonarCloud scan.
+- Razsirjen CI pipeline z coverage in syntax checkom.
+- Dodan email kot atribut za obvestila.
+- Posodobljena dokumentacija glavnega stanja.
+- Dodane analiticne SQL razsiritve v `supabase/analytics.sql`.
+
+### Preverjanje
+
+- `npm run test:coverage`
+- GitHub Actions pipeline.
+
+### Tveganja
+
+- Analiticne view-e in snapshot-e mora v realnem Supabase okolju izvajati `service_role`.
+
+## Cikel: 2026-06-03
+
+### Cilj
+
+Pripraviti SI-CeS podpisni tok in utrditi CSP/VPS povezave.
+
+### Izvedeno
+
+- Dodan `server/sices.mjs` s konfiguracijo, SOAP helperji, start/complete/callback logiko in parserji.
+- Lokalni dev-server izpostavi `/api/sices/start`, `/api/sices/callback` in `/api/sices/complete`.
+- Dodan `supabase/sices-signatures.sql` za SI-CeS polja v `signatures`.
+- Popravljena CSP pravila za auth domeno.
+- Popravljeni SOAP/TLS detajli.
+- Dodani testi SI-CeS konfiguracije in helperjev.
+
+### Preverjanje
+
+- `npm test`
+- Rocni pregled SI-CeS env spremenljivk in dokumentacije.
+
+### Tveganja
+
+- Vercel `api/sices/*` entrypointi se niso loceno dodani.
+- Pravi SI-CeS E2E test zahteva zunanje testno okolje, certifikate in callback.
+
+## Cikel: 2026-06-04
+
+### Cilj
+
+Uskladiti dokumentacijo, Mermaid diagrame, glavne uporabnike in Vercel konfiguracijo z zadnjo verzijo projekta.
+
+### Izvedeno
+
+- Use-case diagrami uporabljajo samo neprijavljenega uporabnika, SI-PASS prijavljenega uporabnika in admina.
+- ER diagrami vkljucujejo realne Supabase tabele zadnje sheme, tudi `analytics_*` in SI-CeS podpisna polja.
+- Dokumentacija jasno pove, da demo prijava ni locena glavna vloga.
+- SI-PASS uporabnik ima v dokumentaciji izvoz PDF/DOCX/ODT.
+- Dodan krovni dokument `docs/stanje-zadnje-verzije.md`.
+- Odstranjen UTF-8 BOM iz `vercel.json` in dodan `$schema`.
+
+### Preverjanje
+
+- Render vseh Mermaid diagramov.
+- `npm run test:domain`
+- `node` JSON parse `vercel.json`.
+- Lokalni `npx vercel build --yes` ni vec padel zaradi `vercel.json`.
+
+### Tveganja
+
+- Oddajna arhivska kopija dokumentacije mora biti ob vsaki vecji spremembi znova sinhronizirana z `docs`.
 
 ## Predloga za naslednja porocila
 

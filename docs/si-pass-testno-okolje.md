@@ -1,5 +1,9 @@
 # SI-PASS testno okolje
 
+Datum revizije: 2026-06-04
+
+Krovni povzetek zadnje verzije je v `docs/stanje-zadnje-verzije.md`.
+
 Povzetek iz dokumenta `Testiranje v razvojnem okolju.docx`.
 
 ## Kaj je pomembno za razvoj
@@ -22,5 +26,7 @@ AUTH_SESSION_ENDPOINT=/api/auth/session
 AUTH_LOGOUT_ENDPOINT=/api/auth/logout
 ```
 
-Trenutna aplikacija ima SI-PASS gumb in session endpointa. Po uspesni prijavi Shibboleth SP na VPS posreduje atribute bridge endpointu, ta pa vrne sifriran session cookie za spletno aplikacijo. Za delovanje je treba na VPS se nastaviti protected path `/auth/sipass/complete`, `attribute-map.xml` in Apache proxy/header mapping iz `docs/sipass-sicas-ces-priklop.md`.
+Trenutna aplikacija ima SI-PASS gumb, session endpointa in backend SI-PASS evidencni podpis pobude. Po uspesni prijavi Shibboleth SP na VPS posreduje atribute bridge endpointu, ta pa vrne sifriran session cookie za spletno aplikacijo. Za delovanje morajo biti na VPS pravilno nastavljeni protected path `/auth/sipass/complete`, `attribute-map.xml` in Apache proxy/header mapping iz `docs/sipass-sicas-ces-priklop.md`.
+
+Zadnja verzija vsebuje tudi delno pripravljene SI-CeS helperje za podpisni zahtevek in zakljucek podpisa. Ti niso nadomestilo za SI-PASS prijavo; uporabijo se sele, ko je `SICES_ENABLED=true`, so nastavljeni certifikati in je produkcijski backend priklopljen na zunanje SI-CeS okolje.
 
