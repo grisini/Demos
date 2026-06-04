@@ -14,54 +14,34 @@ flowchart LR
     direction TB
 
     subgraph PublicCases[Javni primeri uporabe]
-      direction TB
-      PublicList([Pregled aktualnih pobud])
+      direction LR
+      PublicList([Pregled javnih pobud])
       Search([Iskanje in filtriranje])
       AnonymousVote([Anonimno glasovanje])
     end
 
     subgraph SipassCases[SI-PASS primeri uporabe]
-      direction TB
+      direction LR
       Submit([Oddaja pobude])
-      VoteComment([Glasovanje in komentiranje])
+      Vote([Glasovanje])
+      Comment([Komentiranje])
       SipassSign([SI-PASS podpis])
       ExportDocs([Izvoz PDF DOCX ODT])
       UserAnalytics([Osebna analitika])
     end
 
     subgraph AdminCases[Admin primeri uporabe]
-      direction TB
+      direction LR
       StatusAdmin([Urejanje statusov])
       Integrations([Integracije])
       SystemAnalytics([Sistemska analitika])
     end
   end
 
-  AI[AI presoja]
-  Database[(Supabase / localStorage)]
-
-  Anonymous --> PublicList
-  Anonymous --> Search
-  Anonymous --> AnonymousVote
-
-  Sipass --> PublicList
-  Sipass --> Search
-  Sipass --> Submit
-  Sipass --> VoteComment
-  Sipass --> SipassSign
-  Sipass --> ExportDocs
-  Sipass --> UserAnalytics
-
-  Admin --> StatusAdmin
-  Admin --> Integrations
-  Admin --> SystemAnalytics
-
-  Submit --> AI
-  Submit --> Database
-  AnonymousVote --> Database
-  VoteComment --> Database
-  SipassSign --> Database
-  StatusAdmin --> Database
+  Anonymous --> PublicCases
+  Sipass --> PublicCases
+  Sipass --> SipassCases
+  Admin --> AdminCases
 ```
 
 ## Tok oddaje pobude
@@ -218,39 +198,38 @@ classDiagram
 
 ## ER shema
 
+`USER_IDENTITY` je konceptualni identifikator uporabnika oziroma seje. V trenutni Supabase shemi ni fizicna tabela; vrednosti so zapisane v poljih `author_ref`, `voter_ref`, `signer_ref`, `author_ref` in `user_ref`.
+
 ```mermaid
 erDiagram
+  %% USER_IDENTITY je konceptualni identifikator uporabnika, ne fizicna Supabase tabela.
+  USER_IDENTITY ||--o{ INITIATIVES : authors
+  USER_IDENTITY ||--o{ VOTES : casts
+  USER_IDENTITY ||--o{ SIGNATURES : signs
+  USER_IDENTITY ||--o{ COMMENTS : writes
+  USER_IDENTITY ||--o{ SYSTEM_ANALYTICS_EVENTS : produces
   INITIATIVES ||--o{ VOTES : has
   INITIATIVES ||--o{ SIGNATURES : has
   INITIATIVES ||--o{ COMMENTS : has
   INITIATIVES ||--o{ INITIATIVE_AI_REVIEWS : reviewed_by
 
+  USER_IDENTITY {
+    text user_ref PK
+    text display_name
+    text provider
+    text role
+  }
+
   INITIATIVES {
     uuid id PK
-    text title
-    text summary
-    text description
-    text category
-    text legal_reference
-    text expected_impact
-    text legislative_text
-    text article_explanation
-    text financial_impact
-    text budget_funding
-    text comparative_review
-    text impact_assessment
-    text public_participation
-    text proposer_representatives
-    text affected_provisions
-    initiative_status status
     text author_ref
     text author_name
+    text title
+    text category
+    initiative_status status
     text notification_email
     integer ai_score
     text ai_risk
-    jsonb ai_findings
-    jsonb ai_checks
-    timestamptz ai_reviewed_at
     timestamptz created_at
     timestamptz updated_at
   }
@@ -289,21 +268,18 @@ erDiagram
     integer score
     text risk
     text suitability
-    text suggested_category
     jsonb findings
-    jsonb checks
     jsonb raw_response
     timestamptz created_at
   }
 
   SYSTEM_ANALYTICS_EVENTS {
     uuid id PK
-    text event_type
-    text source
     text user_ref
     text user_role
+    text event_type
+    text source
     text session_id
-    text path
     jsonb data
     timestamptz created_at
   }

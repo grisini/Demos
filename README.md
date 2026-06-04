@@ -105,9 +105,9 @@ E2E test zazene `scripts/dev-server.mjs`, preveri aplikacijsko lupino, runtime c
 
 Glavne vloge aplikacije so:
 
-- **Neprijavljen uporabnik**: pregleda aktualne pobude, isce in filtrira javni seznam ter odda en anonimen glas na pobudo.
-- **SI-PASS prijavljen uporabnik**: odda pobudo, glasuje, komentira, izvede SI-PASS evidencni podpis, vidi osebno analitiko ter izvozi PDF/DOCX/ODT dokument pri statusih `signature_collection` in `submitted`.
-- **Admin**: ureja statuse pobud ter vidi integracije in sistemsko analitiko.
+- **Neprijavljen uporabnik**: pregleda javno vidne aktualne pobude, isce in filtrira javni seznam ter odda en anonimen glas na pobudo.
+- **SI-PASS prijavljen uporabnik**: uporablja vse javne funkcije, odda pobudo, glasuje, komentira, izvede SI-PASS evidencni podpis, vidi osebno analitiko ter izvozi PDF/DOCX/ODT dokument pri statusih `signature_collection` in `submitted`.
+- **Admin**: uporablja administrativne funkcije za urejanje statusov, pregled integracij in sistemsko analitiko. Admin pravica je locena od SI-PASS podpisa; SI-PASS podpis se izvede samo s SI-PASS sejo.
 
 Razvojna demo prijava ni locena glavna vloga. Uporablja se samo za lokalno preverjanje zgornjih scenarijev, kadar prava SI-PASS seja ali admin prijava nista na voljo.
 
