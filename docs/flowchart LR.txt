@@ -16,6 +16,7 @@ flowchart LR
     subgraph SipassCases[SI-PASS primeri uporabe]
       direction LR
       Submit([Oddaja pobude])
+      AiReview([AI predpregled pobude])
       Vote([Glasovanje])
       Comment([Komentiranje])
       SipassSign([SI-PASS podpis])
@@ -26,7 +27,7 @@ flowchart LR
     subgraph AdminCases[Admin primeri uporabe]
       direction LR
       StatusAdmin([Urejanje statusov])
-      Integrations([Integracije])
+      Integrations([Pregled integracij])
       SystemAnalytics([Sistemska analitika])
     end
   end

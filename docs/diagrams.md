@@ -23,6 +23,7 @@ flowchart LR
     subgraph SipassCases[SI-PASS primeri uporabe]
       direction LR
       Submit([Oddaja pobude])
+      AiReview([AI predpregled pobude])
       Vote([Glasovanje])
       Comment([Komentiranje])
       SipassSign([SI-PASS podpis])
@@ -33,7 +34,7 @@ flowchart LR
     subgraph AdminCases[Admin primeri uporabe]
       direction LR
       StatusAdmin([Urejanje statusov])
-      Integrations([Integracije])
+      Integrations([Pregled integracij])
       SystemAnalytics([Sistemska analitika])
     end
   end
@@ -198,7 +199,9 @@ classDiagram
 
 ## ER shema
 
-`USER_IDENTITY` je konceptualni identifikator uporabnika oziroma seje. V trenutni Supabase shemi ni fizicna tabela; vrednosti so zapisane v poljih `author_ref`, `voter_ref`, `signer_ref`, `author_ref` in `user_ref`.
+Fizicne Supabase tabele, ki jih diagram zajema: `initiatives`, `votes`, `signatures`, `comments`, `initiative_ai_reviews`, `system_analytics_events`, `analytics_events`, `analytics_clarity_snapshots` in `analytics_daily_snapshots`.
+
+`USER_IDENTITY` je konceptualni identifikator uporabnika oziroma seje. V trenutni Supabase shemi ni fizicna tabela; vrednosti so zapisane v poljih `initiatives.author_ref`, `votes.voter_ref`, `signatures.signer_ref`, `comments.author_ref`, `system_analytics_events.user_ref` in `analytics_events.user_ref`.
 
 ```mermaid
 erDiagram
@@ -207,11 +210,13 @@ erDiagram
   USER_IDENTITY ||--o{ VOTES : casts
   USER_IDENTITY ||--o{ SIGNATURES : signs
   USER_IDENTITY ||--o{ COMMENTS : writes
-  USER_IDENTITY ||--o{ SYSTEM_ANALYTICS_EVENTS : produces
+  USER_IDENTITY o|--o{ SYSTEM_ANALYTICS_EVENTS : produces
+  USER_IDENTITY o|--o{ ANALYTICS_EVENTS : appears_in
   INITIATIVES ||--o{ VOTES : has
   INITIATIVES ||--o{ SIGNATURES : has
   INITIATIVES ||--o{ COMMENTS : has
   INITIATIVES ||--o{ INITIATIVE_AI_REVIEWS : reviewed_by
+  INITIATIVES o|--o{ ANALYTICS_EVENTS : tracked_by
 
   USER_IDENTITY {
     text user_ref PK
@@ -225,11 +230,17 @@ erDiagram
     text author_ref
     text author_name
     text title
-    text category
+    text summary
+    text description
+    initiative_category category
     initiative_status status
     text notification_email
+    text legislative_text
+    text financial_impact
     integer ai_score
-    text ai_risk
+    ai_risk_level ai_risk
+    jsonb ai_findings
+    jsonb ai_checks
     timestamptz created_at
     timestamptz updated_at
   }
@@ -248,6 +259,12 @@ erDiagram
     text signer_ref
     text signer_name
     text method
+    text sices_request_id
+    text sices_ces_id
+    text signed_document_path
+    text signed_document_hash
+    jsonb certificate_chain
+    text signature_status
     timestamptz created_at
   }
 
@@ -266,22 +283,74 @@ erDiagram
     text provider
     text model
     integer score
-    text risk
-    text suitability
+    ai_risk_level risk
+    ai_suitability suitability
+    initiative_category suggested_category
     jsonb findings
+    jsonb checks
     jsonb raw_response
     timestamptz created_at
   }
 
   SYSTEM_ANALYTICS_EVENTS {
     uuid id PK
-    text user_ref
-    text user_role
     text event_type
     text source
+    text user_ref
+    text user_role
     text session_id
+    text path
     jsonb data
     timestamptz created_at
+  }
+
+  ANALYTICS_EVENTS {
+    uuid id PK
+    text external_id UK
+    text event_type
+    text source
+    text user_ref
+    text user_role
+    text session_id
+    text path
+    uuid initiative_id FK
+    timestamptz occurred_at
+    jsonb data
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  ANALYTICS_CLARITY_SNAPSHOTS {
+    uuid id PK
+    date metric_date
+    smallint days
+    text dimension
+    timestamptz fetched_at
+    jsonb payload
+    jsonb normalized
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  ANALYTICS_DAILY_SNAPSHOTS {
+    date snapshot_date PK
+    integer initiative_count
+    integer vote_count
+    integer signature_count
+    integer comment_count
+    integer stored_ai_review_count
+    integer system_event_count
+    integer ai_event_count
+    integer email_event_count
+    integer anonymous_vote_count
+    integer unique_session_count
+    integer unique_participant_count
+    integer public_initiative_count
+    jsonb status_breakdown
+    jsonb category_breakdown
+    jsonb event_type_breakdown
+    timestamptz generated_at
+    timestamptz updated_at
   }
 ```
 

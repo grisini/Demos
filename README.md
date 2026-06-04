@@ -16,38 +16,43 @@ Sistem je zgrajen kot majhna web aplikacija brez klasicnega frameworka. Frontend
 
 ```mermaid
 flowchart LR
-  Citizen[Drzavljan / uporabnik]
-  Anonymous[Neprijavljen obiskovalec]
-  Creator[Ustvarjalec pobude]
-  Admin[Demo admin]
-  Sipass[SI-PASS uporabnik]
+  Anonymous[Neprijavljen uporabnik]
+  Sipass[SI-PASS prijavljen uporabnik]
+  Admin[Admin]
 
-  Browse((Pregled pobud))
-  Search((Iskanje in filtriranje))
-  Vote((Anonimni ali prijavljeni glas))
-  Submit((Oddaja pobude))
-  AiReview((AI predpregled))
-  Comment((Komentiranje))
-  Sign((SI-PASS podpis))
-  Export((PDF/DOCX/ODT izvoz za DZ))
-  Analytics((Analitika pobud))
-  SystemAnalytics((Sistemska analitika))
-  DailyDigest((Dnevni email povzetek))
+  subgraph App[Demokracija 2.0]
+    direction TB
 
-  Anonymous --> Browse
-  Anonymous --> Search
-  Anonymous --> Vote
-  Citizen --> Browse
-  Citizen --> Search
-  Citizen --> Vote
-  Citizen --> Submit
-  Citizen --> AiReview
-  Citizen --> Comment
-  Creator --> DailyDigest
-  Sipass --> Sign
-  Admin --> Export
-  Admin --> Analytics
-  Admin --> SystemAnalytics
+    subgraph PublicCases[Javni primeri uporabe]
+      direction LR
+      PublicList([Pregled javnih pobud])
+      Search([Iskanje in filtriranje])
+      AnonymousVote([Anonimno glasovanje])
+    end
+
+    subgraph SipassCases[SI-PASS primeri uporabe]
+      direction LR
+      Submit([Oddaja pobude])
+      AiReview([AI predpregled pobude])
+      Vote([Glasovanje])
+      Comment([Komentiranje])
+      SipassSign([SI-PASS podpis])
+      ExportDocs([Izvoz PDF DOCX ODT])
+      UserAnalytics([Osebna analitika])
+    end
+
+    subgraph AdminCases[Admin primeri uporabe]
+      direction LR
+      StatusAdmin([Urejanje statusov])
+      Integrations([Pregled integracij])
+      SystemAnalytics([Sistemska analitika])
+    end
+  end
+
+  Anonymous --> PublicCases
+  Sipass --> PublicCases
+  Sipass --> SipassCases
+  Admin --> AdminCases
 ```
 
 ### Kontekstni diagram sistema
@@ -166,24 +171,55 @@ flowchart TB
 
 ### Podatkovni model in ER diagram
 
+Fizicne tabele baze, ki jih projekt uporablja v osnovni shemi in dodatnih Supabase skriptah (`supabase/schema.sql`, `supabase/analytics.sql`, `supabase/sices-signatures.sql`):
+
+- `initiatives` - pobude z avtorjem, statusom, vsebino in AI povzetkom.
+- `votes` - glasovi uporabnikov oziroma anonimnih sej za posamezno pobudo.
+- `signatures` - SI-PASS/SI-CES evidenca podpisov, vkljucno s statusom podpisa in potjo podpisanega dokumenta.
+- `comments` - komentarji na pobude.
+- `initiative_ai_reviews` - zgodovina AI presoj in surovi odgovori modela.
+- `system_analytics_events` - tehnicni in admin dogodki, ki jih zapisuje backend.
+- `analytics_events` - centralni tok analiticnih dogodkov z opcijsko povezavo na pobudo.
+- `analytics_clarity_snapshots` - uvozeni Microsoft Clarity snapshot-i.
+- `analytics_daily_snapshots` - dnevni agregati pobud, glasov, podpisov, komentarjev in dogodkov.
+
+`USER_IDENTITY` v diagramu ni fizicna tabela. Predstavlja stabilen identifikator uporabnika ali seje, ki se hrani kot `initiatives.author_ref`, `votes.voter_ref`, `signatures.signer_ref`, `comments.author_ref`, `system_analytics_events.user_ref` ali `analytics_events.user_ref`.
+
 ```mermaid
 erDiagram
-  INITIATIVES ||--o{ VOTES : receives
-  INITIATIVES ||--o{ SIGNATURES : receives
-  INITIATIVES ||--o{ COMMENTS : receives
-  INITIATIVES ||--o{ INITIATIVE_AI_REVIEWS : has
+  %% USER_IDENTITY je konceptualni identifikator uporabnika, ne fizicna Supabase tabela.
+  USER_IDENTITY ||--o{ INITIATIVES : authors
+  USER_IDENTITY ||--o{ VOTES : casts
+  USER_IDENTITY ||--o{ SIGNATURES : signs
+  USER_IDENTITY ||--o{ COMMENTS : writes
+  USER_IDENTITY o|--o{ SYSTEM_ANALYTICS_EVENTS : produces
+  USER_IDENTITY o|--o{ ANALYTICS_EVENTS : appears_in
+  INITIATIVES ||--o{ VOTES : has
+  INITIATIVES ||--o{ SIGNATURES : has
+  INITIATIVES ||--o{ COMMENTS : has
+  INITIATIVES ||--o{ INITIATIVE_AI_REVIEWS : reviewed_by
+  INITIATIVES o|--o{ ANALYTICS_EVENTS : tracked_by
+
+  USER_IDENTITY {
+    text user_ref PK
+    text display_name
+    text provider
+    text role
+  }
 
   INITIATIVES {
     uuid id PK
+    text author_ref
+    text author_name
     text title
     text summary
     text description
     initiative_category category
     initiative_status status
-    text author_ref
-    text author_name
     text notification_email
-    int ai_score
+    text legislative_text
+    text financial_impact
+    integer ai_score
     ai_risk_level ai_risk
     jsonb ai_findings
     jsonb ai_checks
@@ -205,6 +241,12 @@ erDiagram
     text signer_ref
     text signer_name
     text method
+    text sices_request_id
+    text sices_ces_id
+    text signed_document_path
+    text signed_document_hash
+    jsonb certificate_chain
+    text signature_status
     timestamptz created_at
   }
 
@@ -222,12 +264,75 @@ erDiagram
     uuid initiative_id FK
     text provider
     text model
-    int score
+    integer score
     ai_risk_level risk
     ai_suitability suitability
+    initiative_category suggested_category
     jsonb findings
     jsonb checks
+    jsonb raw_response
     timestamptz created_at
+  }
+
+  SYSTEM_ANALYTICS_EVENTS {
+    uuid id PK
+    text event_type
+    text source
+    text user_ref
+    text user_role
+    text session_id
+    text path
+    jsonb data
+    timestamptz created_at
+  }
+
+  ANALYTICS_EVENTS {
+    uuid id PK
+    text external_id UK
+    text event_type
+    text source
+    text user_ref
+    text user_role
+    text session_id
+    text path
+    uuid initiative_id FK
+    timestamptz occurred_at
+    jsonb data
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  ANALYTICS_CLARITY_SNAPSHOTS {
+    uuid id PK
+    date metric_date
+    smallint days
+    text dimension
+    timestamptz fetched_at
+    jsonb payload
+    jsonb normalized
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  ANALYTICS_DAILY_SNAPSHOTS {
+    date snapshot_date PK
+    integer initiative_count
+    integer vote_count
+    integer signature_count
+    integer comment_count
+    integer stored_ai_review_count
+    integer system_event_count
+    integer ai_event_count
+    integer email_event_count
+    integer anonymous_vote_count
+    integer unique_session_count
+    integer unique_participant_count
+    integer public_initiative_count
+    jsonb status_breakdown
+    jsonb category_breakdown
+    jsonb event_type_breakdown
+    timestamptz generated_at
+    timestamptz updated_at
   }
 ```
 
@@ -236,6 +341,7 @@ Ključni view-i:
 - `initiative_detail`: pobuda skupaj z agregiranimi `votes`, `signatures` in `comments` JSON seznami.
 - `initiative_analytics`: izracun stevila glasov, podpisov, komentarjev, support score in AI podatkov.
 - `category_analytics`: agregacija po kategorijah.
+- `analytics_*` view-i iz `supabase/analytics.sql`: dnevni dogodki, AI/email/frontend/business agregati ter povzetki pobud, kategorij in sistema.
 
 ### Stanja pobude
 
