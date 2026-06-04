@@ -1,0 +1,11 @@
+GitHub repozitorij:
+https://github.com/rotmiha/Demos
+
+Veja:
+test-sonar
+
+Zadnji lokalni commit:
+e62698dda0ff132704ca35488978f526bc2ee388
+
+Kratek opis commita:
+e62698d 2026-06-02 Update SonarCloud scan action

@@ -1,17 +1,32 @@
 sequenceDiagram
-  actor Uporabnik
+  actor Anonymous as Neprijavljen uporabnik
+  actor Sipass as SI-PASS prijavljen uporabnik
+  actor Admin
   participant UI as Frontend
   participant Repo as Repozitorij
   participant Domain as Domenska logika
-  participant DB as Podatki
+  participant Signatures as /api/signatures
+  participant Export as Izvoz dokumenta
+  participant DB as Supabase/localStorage
 
-  Uporabnik->>UI: klik Glasuj
-  UI->>Repo: vote(initiativeId, actor)
-  Repo->>Domain: voteForInitiative(initiative, actor)
+  Anonymous->>UI: klik Glasuj anonimno
+  UI->>Repo: vote(initiativeId, anonymousActor)
+  Repo->>Domain: voteForInitiative(initiative, anonymousActor)
   Domain-->>Repo: pobuda brez podvojenega glasu
-  Repo->>DB: shrani glas
-  UI->>Repo: comment(initiativeId, actor, body)
-  Repo->>Domain: addComment(initiative, actor, body)
-  Domain-->>Repo: komentar ali validacijska napaka
-  Repo->>DB: shrani komentar
-  UI-->>Uporabnik: posodobljeni glasovi in komentarji
+  Repo->>DB: shrani anonimen glas
+  Sipass->>UI: klik Glasuj ali Komentiraj
+  UI->>Repo: vote/comment(initiativeId, sipassActor)
+  Repo->>Domain: voteForInitiative/addComment
+  Domain-->>Repo: posodobljena pobuda ali validacijska napaka
+  Repo->>DB: shrani glas ali komentar
+  Sipass->>UI: klik SI-PASS podpis
+  UI->>Signatures: POST initiativeId
+  Signatures->>DB: shrani podpis method=sipass
+  Signatures-->>UI: osvezena pobuda
+  Sipass->>UI: klik PDF/DOCX/ODT izvoz
+  UI->>UI: preveri status signature_collection/submitted
+  UI->>Export: ustvari dokument za DZ
+  Export-->>Sipass: prenos ali tiskanje dokumenta
+  Admin->>UI: spremeni status pobude
+  UI->>Repo: update status
+  Repo->>DB: shrani status

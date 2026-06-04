@@ -575,15 +575,15 @@ Coverage ukaz ustvari `coverage/lcov.info`, ki ga GitHub workflow poslje v Sonar
 
 ## Trenutno pokrito
 
-- demo prijava brez SI-PASS,
+- razvojna prijava za lokalno preverjanje SI-PASS in admin scenarijev,
 - oddaja pobude z osnovno validacijo,
 - Hugging Face AI predpregled besedila pobude s score, risk, suitability, completeness in categorySuggestion,
 - lokalni AI predpregled kot fallback, kadar Hugging Face ni nastavljen ali ni dosegljiv,
 - pregled, iskanje, filtriranje in razvrscanje pobud,
 - javni pregled aktualnih pobud za neprijavljene uporabnike,
 - anonimno glasovanje z omejitvijo enega glasu na pobudo na lokalni brskalniski ID,
-- glasovanje, demo podpisovanje, komentarji in statusi,
-- PDF tiskanje, PDF prenos in DOCX/Word prenos pobude za DZ pri statusih `signature_collection` in `submitted`,
+- glasovanje, SI-PASS evidencni podpis, komentarji in statusi,
+- PDF tiskanje, PDF prenos in DOCX/Word prenos pobude za DZ pri statusih `signature_collection` in `submitted`, tudi za SI-PASS prijavljenega uporabnika,
 - email obvestila ustvarjalcu pobude ob spremembi statusa in dnevni povzetek novih glasov, podpisov ter komentarjev,
 - napredna statistika glasov na pobudo, kategorije, komentarje in AI tveganja,
 - osebna analitika pobud za prijavljenega uporabnika,
@@ -599,6 +599,16 @@ Coverage ukaz ustvari `coverage/lcov.info`, ki ga GitHub workflow poslje v Sonar
 - celostni E2E smoke test lokalnega streznika in osnovnih API tokov,
 - performance budget test za zacetni payload in lazy-loading DOCX/ODT izvoza.
 
+## Glavni uporabniki in pravice
+
+Glavne vloge aplikacije so:
+
+- **Neprijavljen uporabnik**: pregleda javno vidne aktualne pobude, isce in filtrira javni seznam ter odda en anonimen glas na pobudo.
+- **SI-PASS prijavljen uporabnik**: uporablja vse javne funkcije, odda pobudo, glasuje, komentira, izvede SI-PASS evidencni podpis, vidi osebno analitiko ter izvozi PDF/DOCX/ODT dokument pri statusih `signature_collection` in `submitted`.
+- **Admin**: uporablja administrativne funkcije za urejanje statusov, pregled integracij in sistemsko analitiko. Admin pravica je locena od SI-PASS podpisa; SI-PASS podpis se izvede samo s SI-PASS sejo.
+
+Razvojna demo prijava ni locena glavna vloga. Uporablja se samo za lokalno preverjanje zgornjih scenarijev, kadar prava SI-PASS seja ali admin prijava nista na voljo.
+
 ## Dokumentacija
 
 - `docs/pregled-projekta.md` - celovit tehnicni in funkcionalni pregled projekta,
@@ -611,11 +621,11 @@ Coverage ukaz ustvari `coverage/lcov.info`, ki ga GitHub workflow poslje v Sonar
 - `docs/roadmap.md` - izvedba po iteracijah,
 - `docs/devwork-loop.md` - sprotna porocila in kontrolne tocke,
 - `docs/iteracija-3-analitika-ai.md` - analitika, AI predpregled, shema in Hugging Face pot,
-- `docs/diagrams.md` - Mermaid uporabniski, UML, ER in zaporedni diagrami,
+- `docs/diagrams.md` - Mermaid use-case, UML, ER in zaporedni diagrami,
 - `docs/classDiagram.mmd` - izvor UML class diagrama,
 - `docs/erDiagram.mmd` - izvor ER diagrama,
 - `docs/sequenceDiagram.mmd` - izvor zaporednega diagrama,
-- `docs/flowchart LR.mmd` - izvor uporabniskega flow diagrama,
+- `docs/flowchart LR.mmd` - izvor Mermaid use-case diagrama glavnih uporabnikov,
 - `docs/ci-cd-pipeline.md` - predlagan GitHub Actions pipeline,
 - `docs/supabase.md` - Supabase povezava,
 - `docs/baza-porocilo.md` - porocilo o zasnovi baze in razlogih za podatkovni model,

@@ -41,8 +41,6 @@ https://auth.demokracija-20.si
 
 ## Vloge uporabnikov
 
-Glavne uporabniske vloge so neprijavljen uporabnik, SI-PASS prijavljen uporabnik in admin. Demo prijava je razvojni pripomocek za lokalno preverjanje teh pravic, ni pa locena glavna vloga produkcijskega modela.
-
 ### Neprijavljen uporabnik
 
 Neprijavljen uporabnik lahko:
@@ -62,7 +60,21 @@ Neprijavljen uporabnik ne more:
 
 Anonimno glasovanje je vezano na lokalni brskalniski ID.
 
-### SI-PASS prijavljen uporabnik
+### Demo uporabnik
+
+Demo uporabnik je namenjen lokalnemu razvoju in predstavitvi brez prave SI-PASS prijave.
+
+Demo uporabnik lahko:
+
+- odda pobudo,
+- glasuje,
+- komentira,
+- vidi osebno analitiko,
+- uporablja vecino uporabniskih funkcij.
+
+Demo uporabnik ne more opraviti SI-PASS podpisa pobude. Za podpis je zahtevana SI-PASS seja.
+
+### SI-PASS uporabnik
 
 SI-PASS uporabnik je uporabnik, ki se prijavi prek SI-PASS/SI-CAS toka. Aplikacija prejme stabilen anonimiziran identifikator oblike:
 
@@ -78,30 +90,25 @@ SI-PASS uporabnik lahko:
 - glasuje,
 - komentira,
 - izvede SI-PASS evidencni podpis pobude,
-- vidi osebno analitiko,
-- izvozi PDF/DOCX/ODT dokument pobude pri statusih `signature_collection` in `submitted`.
+- vidi osebno analitiko.
 
 Komentarji SI-PASS uporabnika se v uporabniskem vmesniku prikazejo samo s prvim imenom. Podpisna evidenca v Supabase hrani ime podpisnika, ker je namen podpisov dokazljivost podpore.
 
-### Admin
+### Demo admin
 
-Admin je prijavljen uporabnik z admin pravico. V trenutnem prototipu se admin pravica za lokalno in demo preverjanje doloci z emailom, navedenim v server-only spremenljivki:
+Demo admin je uporabnik, ki se v demo obrazec prijavi z emailom, navedenim v server-only spremenljivki:
 
 ```text
 ADMIN_EMAILS
 ```
 
-Admin lahko:
+Demo admin lahko:
 
 - vidi integracijski pogled,
 - vidi sistemsko analitiko,
 - spreminja statuse pobud v aplikaciji.
 
 Admin vloga se doloci na backendu. Frontend poslje email na `/api/auth/demo-login`, backend pa preveri, ali je email naveden v `ADMIN_EMAILS`.
-
-### Razvojna demo prijava
-
-Demo prijava je namenjena lokalnemu razvoju in predstavitvi brez prave SI-PASS prijave. Omogoca preverjanje oddaje pobud, glasovanja, komentarjev, osebne analitike in admin pravic, kadar je email v `ADMIN_EMAILS`. Demo uporabnik ne more opraviti SI-PASS podpisa pobude; za podpis je zahtevana SI-PASS seja.
 
 ## Osnovna uporaba aplikacije
 
