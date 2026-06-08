@@ -413,7 +413,7 @@ class DemocracyApp {
             <button class="button secondary icon-button" type="button" data-action="view" data-view="accessibility" aria-label="Dostopnost" title="Dostopnost">
               ${accessibilityIcon()}
             </button>
-            <button class="button secondary icon-button" type="button" data-action="refresh" aria-label="Osveži podatke" title="Osveži podatke">
+            <button class="button secondary icon-button" type="button" data-action="refresh" aria-label="OsveĂ„Ä…Ă„Äľi podatke" title="OsveĂ„Ä…Ă„Äľi podatke">
               ${refreshIcon()}
             </button>
           </div>
@@ -664,7 +664,7 @@ class DemocracyApp {
                 ? `
                   <div class="initiative-list-more">
                     <button class="button secondary full-width" type="button" data-action="show-more-initiatives">
-                      Poglej več pobud
+                      Poglej veÄ‚â€žÄąÂ¤ pobud
                     </button>
                     <span>Prikazanih ${visibleCount} od ${initiatives.length}</span>
                   </div>
@@ -1509,265 +1509,340 @@ class DemocracyApp {
     `;
   }
 
-  renderInitiativeDetail(initiative) {
-    const user = this.currentUser();
-    if (!user) return this.renderPublicInitiativeDetail(initiative);
+renderInitiativeDetail(initiative) {
+  const user = this.currentUser();
+  if (!user) return this.renderPublicInitiativeDetail(initiative);
 
-    const voted = user && initiative.votes.some((vote) => vote.userId === user.id);
-    const signed = user && initiative.signatures.some((signature) => (
+  const detail = this.initiativeDetailState(initiative, user);
+  return `
+    ${this.renderInitiativeDetailHeader(initiative)}
+    ${this.renderInitiativeActionBar(initiative, detail)}
+    ${this.renderInitiativeDetailMetrics(initiative, detail.review)}
+    ${this.renderInitiativeDetailAccordions(initiative, detail.review)}
+    ${this.renderCommentsSection(initiative, detail)}
+  `;
+}
+
+initiativeDetailState(initiative, user) {
+  return {
+    voted: initiative.votes.some((vote) => vote.userId === user.id),
+    signed: initiative.signatures.some((signature) => (
       signature.userId === user.id &&
       String(signature.signatureStatus || "SIGNED").toUpperCase() !== "NOTSIGNED"
-    ));
-    const canSipassSign = isSipassUser(user);
-    const signatureLabel = this.config.SICES_ENABLED ? "SI-CeS podpis" : "SI-PASS podpis";
-    const review = initiative.aiReview || { score: 0, risk: "low", findings: [] };
-    const exportReady = canExportInitiative(initiative);
-    const admin = this.isAdminUser(user);
-    const commentPage = this.commentPageFor(initiative);
-    const comments = this.commentsForPage(initiative, commentPage);
-    const commentsOpen = this.commentsOpenFor(initiative);
+    )),
+    canSipassSign: isSipassUser(user),
+    signatureLabel: this.config.SICES_ENABLED ? "SI-CeS podpis" : "SI-PASS podpis",
+    review: initiative.aiReview || { score: 0, risk: "low", findings: [] },
+    exportReady: canExportInitiative(initiative),
+    admin: this.isAdminUser(user),
+    commentPage: this.commentPageFor(initiative),
+    comments: this.commentsForPage(initiative),
+    commentsOpen: this.commentsOpenFor(initiative)
+  };
+}
 
-    return `
-      <div class="detail-header">
-        <div>
-          <p class="eyebrow">${escapeHtml(initiative.category)}</p>
-          <h2>${escapeHtml(initiative.title)}</h2>
-          <p class="detail-author">Avtor: ${escapeHtml(initiativeAuthorName(initiative))}</p>
-        </div>
-        <span class="status-badge ${initiative.status}">${statusLabel(initiative.status)}</span>
+renderInitiativeDetailHeader(initiative) {
+  return `
+    <div class="detail-header">
+      <div>
+        <p class="eyebrow">${escapeHtml(initiative.category)}</p>
+        <h2>${escapeHtml(initiative.title)}</h2>
+        <p class="detail-author">Avtor: ${escapeHtml(initiativeAuthorName(initiative))}</p>
       </div>
-      <div class="support-actions" aria-label="Dejanja pobude">
-        <button class="button primary" type="button" data-action="vote" data-id="${initiative.id}" ${voted ? "disabled" : ""}>
-          ${voted ? "Glas oddan" : "Glasuj"}
-        </button>
-        <button class="button secondary" type="button" data-action="sign" data-id="${initiative.id}" ${signed || !canSipassSign ? "disabled" : ""}>
-          ${signed ? `${signatureLabel} evidentiran` : canSipassSign ? signatureLabel : "Za podpis uporabite SI-PASS"}
-        </button>
-        ${
-          exportReady
-            ? `
-              <div class="export-actions" aria-label="Izvoz pobude za DZ">
-                <button class="button secondary icon-button" type="button" data-action="print-pdf" data-id="${initiative.id}" aria-label="Natisni izvoz za DZ" title="Natisni izvoz za DZ">
-                  ${printIcon()}
-                </button>
-                <button class="button secondary icon-button" type="button" data-action="download-pdf" data-id="${initiative.id}" aria-label="Prenesi PDF za DZ" title="Prenesi PDF za DZ">
-                  ${downloadIcon()}
-                </button>
-                <details class="export-menu">
-                  <summary class="button secondary export-menu-trigger" aria-haspopup="menu" aria-label="Prenesi dokument za DZ" title="Prenesi dokument za DZ">
-                    ${wordIcon()}
-                    <span>DOCX/ODT</span>
-                    ${chevronDownIcon()}
-                  </summary>
-                  <div class="export-menu-list" role="menu" aria-label="Format dokumenta">
-                    <button type="button" data-action="download-docx" data-id="${initiative.id}" role="menuitem">
-                      <span>Word</span>
-                      <small>.docx</small>
-                    </button>
-                    <button type="button" data-action="download-odt" data-id="${initiative.id}" role="menuitem">
-                      <span>ODT</span>
-                      <small>.odt</small>
-                    </button>
-                  </div>
-                </details>
-              </div>
-            `
-            : ""
-        }
-        ${
-          admin
-            ? `
-              <label class="status-select">
-                <span>Status</span>
-                <select data-status-id="${initiative.id}">
-                  ${STATUSES.map((status) => option(status.value, status.label, initiative.status)).join("")}
-                </select>
-              </label>
-            `
-            : ""
-        }
-      </div>
-      <div class="detail-metrics">
-        ${this.metric("Glasovi", initiative.votes.length, "en uporabnik, en glas")}
-        ${this.metric("Podpisi", initiative.signatures.length, "SI-PASS evidenca")}
-        ${this.metric("Komentarji", initiative.comments.length, "javna razprava")}
-        ${this.metric("AI ocena", `${review.score}%`, riskLabel(review.risk))}
-      </div>
-      <div class="detail-accordion-group">
-        ${this.renderDetailAccordion("Povzetek", `<p>${escapeHtml(initiative.summary)}</p>`, { open: true, meta: "Kratek opis pobude" })}
-        ${this.renderDetailAccordion(
-          "Problem in cilji",
-          `
-            <div class="two-columns">
-              <div>
-                <h3>Ocena stanja in razlogi</h3>
-                <p>${escapeHtml(initiative.description)}</p>
-              </div>
-              <div>
-                <h3>Cilji in resitve</h3>
-                <p>${escapeHtml(initiative.expectedImpact || "Ni navedeno.")}</p>
-              </div>
-            </div>
-          `,
-          { open: true, meta: "Najpomembnejse vsebinske informacije" }
-        )}
-        ${this.renderDetailAccordion("Pravna podlaga", `<p>${escapeHtml(initiative.legalReference || "Ni navedena.")}</p>`, { meta: "Zakonski okvir" })}
-        ${this.renderDetailAccordion("Besedilo clenov", `<p>${escapeHtml(initiative.legislativeText || "Ni navedeno.")}</p>`, { meta: "Predlagano besedilo" })}
-        ${this.renderDetailAccordion("Obrazlozitev clenov", `<p>${escapeHtml(initiative.articleExplanation || "Ni navedena.")}</p>`, { meta: "Razlaga predlaganih clenov" })}
-        ${this.renderDetailAccordion(
-          "Financiranje",
-          `
-            <div class="two-columns">
-              <div>
-                <h3>Financne posledice</h3>
-                <p>${escapeHtml(initiative.financialImpact || "Ni navedeno.")}</p>
-              </div>
-              <div>
-                <h3>Zagotovitev sredstev</h3>
-                <p>${escapeHtml(initiative.budgetFunding || "Ni navedena.")}</p>
-              </div>
-            </div>
-          `,
-          { meta: "Stroski in viri sredstev" }
-        )}
-        ${this.renderDetailAccordion("Primerjalni prikaz in pravo EU", `<p>${escapeHtml(initiative.comparativeReview || "Ni navedeno.")}</p>`, { meta: "Primeri iz drugih drzav" })}
-        ${this.renderDetailAccordion("Presoja posledic", `<p>${escapeHtml(initiative.impactAssessment || "Ni navedena.")}</p>`, { meta: "Ucinki predloga" })}
-        ${this.renderDetailAccordion(
-          "Sodelovanje in predlagatelji",
-          `
-            <div class="two-columns">
-              <div>
-                <h3>Sodelovanje javnosti</h3>
-                <p>${escapeHtml(initiative.publicParticipation || "Ni navedeno.")}</p>
-              </div>
-              <div>
-                <h3>Predstavniki predlagatelja</h3>
-                <p>${escapeHtml(initiative.proposerRepresentatives || "Ni navedeno.")}</p>
-              </div>
-            </div>
-          `,
-          { meta: "Javna razprava in kontaktne osebe" }
-        )}
-        ${this.renderDetailAccordion("Dolocbe, ki se spreminjajo", `<p>${escapeHtml(initiative.affectedProvisions || "Ni sprememb obstojecega zakona oziroma ni navedeno.")}</p>`, { meta: "Vpliv na obstojeco zakonodajo" })}
-        ${this.renderDetailAccordion(
-          "AI ugotovitve",
-          `
-            ${this.renderReviewFacts(review, { detailed: true })}
-            <ul class="check-list">
-              ${review.findings.map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")}
-            </ul>
-          `,
-          { meta: `${review.score}% - ${riskLabel(review.risk)}` }
-        )}
-      </div>
-      <section class="detail-section comments-section">
-        <button
-          class="comment-toggle"
-          type="button"
-          data-action="toggle-comments"
-          data-id="${escapeAttribute(initiative.id)}"
-          aria-expanded="${commentsOpen ? "true" : "false"}"
-        >
-          <span>Komentarji</span>
-          <strong>${initiative.comments.length}</strong>
-          <small>${commentsOpen ? "Skrij razpravo" : "Prikazi razpravo"}</small>
-        </button>
-        ${
-          commentsOpen
-            ? `
-              <div class="comments-panel">
-                <form class="comment-form" data-form="comment" data-id="${initiative.id}">
-                  <label class="sr-only" for="comment-body-${escapeAttribute(initiative.id)}">Dodaj komentar</label>
-                  <input id="comment-body-${escapeAttribute(initiative.id)}" name="body" placeholder="Dodaj komentar" autocomplete="off" />
-                  <button class="button secondary" type="submit">Objavi</button>
-                </form>
-                <div class="comments" aria-live="polite">
-                  ${
-                    initiative.comments.length
-                      ? comments.map((comment) => this.renderComment(comment)).join("")
-                      : `<p class="muted">Komentarjev se ni.</p>`
-                  }
-                </div>
-                ${this.renderCommentPagination(initiative, commentPage)}
-              </div>
-            `
-            : ""
-        }
-      </section>
-    `;
-  }
+      <span class="status-badge ${initiative.status}">${statusLabel(initiative.status)}</span>
+    </div>
+  `;
+}
 
-  renderDetailAccordion(title, content, options = {}) {
-    return `
-      <details class="detail-accordion" ${options.open ? "open" : ""}>
-        <summary>
-          <span>
-            <strong>${escapeHtml(title)}</strong>
-            ${options.meta ? `<small>${escapeHtml(options.meta)}</small>` : ""}
-          </span>
-          <em aria-hidden="true">${chevronDownIcon()}</em>
+renderInitiativeActionBar(initiative, detail) {
+  return `
+    <div class="support-actions" aria-label="Dejanja pobude">
+      ${this.renderVoteAction(initiative, detail)}
+      ${this.renderSignatureAction(initiative, detail)}
+      ${detail.exportReady ? this.renderExportActions(initiative) : ""}
+      ${detail.admin ? this.renderAdminStatusSelect(initiative) : ""}
+    </div>
+  `;
+}
+
+renderVoteAction(initiative, detail) {
+  return `
+    <button class="button primary" type="button" data-action="vote" data-id="${initiative.id}" ${detail.voted ? "disabled" : ""}>
+      ${detail.voted ? "Glas oddan" : "Glasuj"}
+    </button>
+  `;
+}
+
+renderSignatureAction(initiative, detail) {
+  const label = detail.signed
+    ? `${detail.signatureLabel} evidentiran`
+    : detail.canSipassSign
+      ? detail.signatureLabel
+      : "Za podpis uporabite SI-PASS";
+
+  return `
+    <button class="button secondary" type="button" data-action="sign" data-id="${initiative.id}" ${detail.signed || !detail.canSipassSign ? "disabled" : ""}>
+      ${label}
+    </button>
+  `;
+}
+
+renderExportActions(initiative) {
+  return `
+    <div class="export-actions" aria-label="Izvoz pobude za DZ">
+      <button class="button secondary icon-button" type="button" data-action="print-pdf" data-id="${initiative.id}" aria-label="Natisni izvoz za DZ" title="Natisni izvoz za DZ">
+        ${printIcon()}
+      </button>
+      <button class="button secondary icon-button" type="button" data-action="download-pdf" data-id="${initiative.id}" aria-label="Prenesi PDF za DZ" title="Prenesi PDF za DZ">
+        ${downloadIcon()}
+      </button>
+      <details class="export-menu">
+        <summary class="button secondary export-menu-trigger" aria-haspopup="menu" aria-label="Prenesi dokument za DZ" title="Prenesi dokument za DZ">
+          ${wordIcon()}
+          <span>DOCX/ODT</span>
+          ${chevronDownIcon()}
         </summary>
-        <div class="detail-accordion-content">
-          ${content}
+        <div class="export-menu-list" role="menu" aria-label="Format dokumenta">
+          <button type="button" data-action="download-docx" data-id="${initiative.id}" role="menuitem">
+            <span>Word</span>
+            <small>.docx</small>
+          </button>
+          <button type="button" data-action="download-odt" data-id="${initiative.id}" role="menuitem">
+            <span>ODT</span>
+            <small>.odt</small>
+          </button>
         </div>
       </details>
-    `;
-  }
+    </div>
+  `;
+}
 
-  commentsOpenFor(initiative) {
-    return this.state.commentThreads[initiative.id] === true;
-  }
+renderAdminStatusSelect(initiative) {
+  return `
+    <label class="status-select">
+      <span>Status</span>
+      <select data-status-id="${initiative.id}">
+        ${STATUSES.map((status) => option(status.value, status.label, initiative.status)).join("")}
+      </select>
+    </label>
+  `;
+}
 
-  commentPageFor(initiative) {
-    const pageCount = this.commentPageCount(initiative);
-    const requestedPage = Number(this.state.commentPages[initiative.id]) || 1;
-    return Math.min(pageCount, Math.max(1, requestedPage));
-  }
+renderInitiativeDetailMetrics(initiative, review) {
+  return `
+    <div class="detail-metrics">
+      ${this.metric("Glasovi", initiative.votes.length, "en uporabnik, en glas")}
+      ${this.metric("Podpisi", initiative.signatures.length, "SI-PASS evidenca")}
+      ${this.metric("Komentarji", initiative.comments.length, "javna razprava")}
+      ${this.metric("AI ocena", `${review.score}%`, riskLabel(review.risk))}
+    </div>
+  `;
+}
 
-  commentPageCount(initiative) {
-    return Math.max(1, Math.ceil((initiative.comments?.length || 0) / COMMENT_PAGE_SIZE));
-  }
+renderInitiativeDetailAccordions(initiative, review) {
+  return `
+    <div class="detail-accordion-group">
+      ${this.renderDetailAccordion("Povzetek", `<p>${escapeHtml(initiative.summary)}</p>`, { open: true, meta: "Kratek opis pobude" })}
+      ${this.renderProblemGoalsAccordion(initiative)}
+      ${this.renderDetailAccordion("Pravna podlaga", `<p>${escapeHtml(initiative.legalReference || "Ni navedena.")}</p>`, { meta: "Zakonski okvir" })}
+      ${this.renderDetailAccordion("Besedilo clenov", `<p>${escapeHtml(initiative.legislativeText || "Ni navedeno.")}</p>`, { meta: "Predlagano besedilo" })}
+      ${this.renderDetailAccordion("Obrazlozitev clenov", `<p>${escapeHtml(initiative.articleExplanation || "Ni navedena.")}</p>`, { meta: "Razlaga predlaganih clenov" })}
+      ${this.renderFinancingAccordion(initiative)}
+      ${this.renderDetailAccordion("Primerjalni prikaz in pravo EU", `<p>${escapeHtml(initiative.comparativeReview || "Ni navedeno.")}</p>`, { meta: "Primeri iz drugih drzav" })}
+      ${this.renderDetailAccordion("Presoja posledic", `<p>${escapeHtml(initiative.impactAssessment || "Ni navedena.")}</p>`, { meta: "Ucinki predloga" })}
+      ${this.renderParticipationAccordion(initiative)}
+      ${this.renderDetailAccordion("Dolocbe, ki se spreminjajo", `<p>${escapeHtml(initiative.affectedProvisions || "Ni sprememb obstojecega zakona oziroma ni navedeno.")}</p>`, { meta: "Vpliv na obstojeco zakonodajo" })}
+      ${this.renderAiFindingsAccordion(review)}
+    </div>
+  `;
+}
 
-  commentsForPage(initiative, page = this.commentPageFor(initiative)) {
-    const start = (page - 1) * COMMENT_PAGE_SIZE;
-    return (initiative.comments || []).slice(start, start + COMMENT_PAGE_SIZE);
-  }
-
-  renderCommentPagination(initiative, currentPage) {
-    const pageCount = this.commentPageCount(initiative);
-    if (pageCount <= 1) return "";
-
-    const pages = Array.from({ length: pageCount }, (_, index) => index + 1);
-    return `
-      <nav class="comment-pagination" aria-label="Strani komentarjev">
-        <span>Strani komentarjev</span>
+renderProblemGoalsAccordion(initiative) {
+  return this.renderDetailAccordion(
+    "Problem in cilji",
+    `
+      <div class="two-columns">
         <div>
-          ${pages.map((page) => `
-            <button
-              class="comment-page-button ${page === currentPage ? "active" : ""}"
-              type="button"
-              data-action="comment-page"
-              data-id="${escapeAttribute(initiative.id)}"
-              data-page="${page}"
-              aria-current="${page === currentPage ? "page" : "false"}"
-              ${page === currentPage ? "disabled" : ""}
-            >${page}</button>
-          `).join("")}
+          <h3>Ocena stanja in razlogi</h3>
+          <p>${escapeHtml(initiative.description)}</p>
         </div>
-      </nav>
-    `;
-  }
+        <div>
+          <h3>Cilji in resitve</h3>
+          <p>${escapeHtml(initiative.expectedImpact || "Ni navedeno.")}</p>
+        </div>
+      </div>
+    `,
+    { open: true, meta: "Najpomembnejse vsebinske informacije" }
+  );
+}
 
-  renderComment(comment) {
-    return `
-      <article class="comment">
-        <strong>${escapeHtml(commentDisplayName(comment))}</strong>
-        <p>${escapeHtml(comment.body)}</p>
-      </article>
-    `;
-  }
+renderFinancingAccordion(initiative) {
+  return this.renderDetailAccordion(
+    "Financiranje",
+    `
+      <div class="two-columns">
+        <div>
+          <h3>Financne posledice</h3>
+          <p>${escapeHtml(initiative.financialImpact || "Ni navedeno.")}</p>
+        </div>
+        <div>
+          <h3>Zagotovitev sredstev</h3>
+          <p>${escapeHtml(initiative.budgetFunding || "Ni navedena.")}</p>
+        </div>
+      </div>
+    `,
+    { meta: "Stroski in viri sredstev" }
+  );
+}
 
-  renderRanking(initiative, index) {
+renderParticipationAccordion(initiative) {
+  return this.renderDetailAccordion(
+    "Sodelovanje in predlagatelji",
+    `
+      <div class="two-columns">
+        <div>
+          <h3>Sodelovanje javnosti</h3>
+          <p>${escapeHtml(initiative.publicParticipation || "Ni navedeno.")}</p>
+        </div>
+        <div>
+          <h3>Predstavniki predlagatelja</h3>
+          <p>${escapeHtml(initiative.proposerRepresentatives || "Ni navedeno.")}</p>
+        </div>
+      </div>
+    `,
+    { meta: "Javna razprava in kontaktne osebe" }
+  );
+}
+
+renderAiFindingsAccordion(review) {
+  return this.renderDetailAccordion(
+    "AI ugotovitve",
+    `
+      ${this.renderReviewFacts(review, { detailed: true })}
+      <ul class="check-list">
+        ${review.findings.map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")}
+      </ul>
+    `,
+    { meta: `${review.score}% - ${riskLabel(review.risk)}` }
+  );
+}
+
+renderCommentsSection(initiative, detail) {
+  return `
+    <section class="detail-section comments-section">
+      ${this.renderCommentsToggle(initiative, detail.commentsOpen)}
+      ${detail.commentsOpen ? this.renderCommentsPanel(initiative, detail) : ""}
+    </section>
+  `;
+}
+
+renderCommentsToggle(initiative, commentsOpen) {
+  return `
+    <button
+      class="comment-toggle"
+      type="button"
+      data-action="toggle-comments"
+      data-id="${escapeAttribute(initiative.id)}"
+      aria-expanded="${commentsOpen ? "true" : "false"}"
+    >
+      <span>Komentarji</span>
+      <strong>${initiative.comments.length}</strong>
+      <small>${commentsOpen ? "Skrij razpravo" : "Prikazi razpravo"}</small>
+    </button>
+  `;
+}
+
+renderCommentsPanel(initiative, detail) {
+  return `
+    <div class="comments-panel">
+      <form class="comment-form" data-form="comment" data-id="${initiative.id}">
+        <label class="sr-only" for="comment-body-${escapeAttribute(initiative.id)}">Dodaj komentar</label>
+        <input id="comment-body-${escapeAttribute(initiative.id)}" name="body" placeholder="Dodaj komentar" autocomplete="off" />
+        <button class="button secondary" type="submit">Objavi</button>
+      </form>
+      <div class="comments" aria-live="polite">
+        ${this.renderVisibleComments(initiative, detail.comments)}
+      </div>
+      ${this.renderCommentPagination(initiative, detail.commentPage)}
+    </div>
+  `;
+}
+
+renderVisibleComments(initiative, comments) {
+  if (!initiative.comments.length) return `<p class="muted">Komentarjev se ni.</p>`;
+  return comments.map((comment) => this.renderComment(comment)).join("");
+}
+renderDetailAccordion(title, content, options = {}) {
+  return `
+    <details class="detail-accordion" ${options.open ? "open" : ""}>
+      <summary>
+        <span>
+          <strong>${escapeHtml(title)}</strong>
+          ${options.meta ? `<small>${escapeHtml(options.meta)}</small>` : ""}
+        </span>
+        <em aria-hidden="true">${chevronDownIcon()}</em>
+      </summary>
+      <div class="detail-accordion-content">
+        ${content}
+      </div>
+    </details>
+  `;
+}
+
+commentsOpenFor(initiative) {
+  return this.state.commentThreads[initiative.id] === true;
+}
+
+commentPageFor(initiative) {
+  const pageCount = this.commentPageCount(initiative);
+  const requestedPage = Number(this.state.commentPages[initiative.id]) || 1;
+  return Math.min(pageCount, Math.max(1, requestedPage));
+}
+
+commentPageCount(initiative) {
+  return Math.max(1, Math.ceil((initiative.comments?.length || 0) / COMMENT_PAGE_SIZE));
+}
+
+commentsForPage(initiative, page = this.commentPageFor(initiative)) {
+  const start = (page - 1) * COMMENT_PAGE_SIZE;
+  return (initiative.comments || []).slice(start, start + COMMENT_PAGE_SIZE);
+}
+
+renderCommentPagination(initiative, currentPage) {
+  const pageCount = this.commentPageCount(initiative);
+  if (pageCount <= 1) return "";
+
+  const pages = Array.from({ length: pageCount }, (_, index) => index + 1);
+  return `
+    <nav class="comment-pagination" aria-label="Strani komentarjev">
+      <span>Strani komentarjev</span>
+      <div>
+        ${pages.map((page) => `
+          <button
+            class="comment-page-button ${page === currentPage ? "active" : ""}"
+            type="button"
+            data-action="comment-page"
+            data-id="${escapeAttribute(initiative.id)}"
+            data-page="${page}"
+            aria-current="${page === currentPage ? "page" : "false"}"
+            ${page === currentPage ? "disabled" : ""}
+          >${page}</button>
+        `).join("")}
+      </div>
+    </nav>
+  `;
+}
+
+renderComment(comment) {
+  return `
+    <article class="comment">
+      <strong>${escapeHtml(commentDisplayName(comment))}</strong>
+      <p>${escapeHtml(comment.body)}</p>
+    </article>
+  `;
+}
+
+renderRanking(initiative, index) {
     const support = initiative.votes.length + initiative.signatures.length;
     return `
       <div class="rank-row">
@@ -3211,119 +3286,119 @@ function escapeAttribute(value) {
 }
 
 const SLOVENIAN_UI_REPLACEMENTS = [
-  [/Drzavnega zbora/g, "Državnega zbora"],
-  [/Drzavni zbor/g, "Državni zbor"],
-  [/Drzavni/g, "Državni"],
-  [/Drzavno/g, "Državno"],
-  [/drzavnega/g, "državnega"],
-  [/drzavni/g, "državni"],
-  [/drzavna/g, "državna"],
-  [/drzavo/g, "državo"],
-  [/drzave/g, "države"],
-  [/drzava/g, "država"],
-  [/Digitalna drzava/g, "Digitalna država"],
-  [/zasciteno/g, "zaščiteno"],
-  [/zasciten/g, "zaščiten"],
-  [/zascita/g, "zaščita"],
-  [/Zascitena/g, "Zaščitena"],
-  [/zascitena/g, "zaščitena"],
-  [/strezniskem/g, "strežniškem"],
-  [/strezniku/g, "strežniku"],
-  [/streznik/g, "strežnik"],
-  [/brskalniski/g, "brskalniški"],
+  [/Drzavnega zbora/g, "DrĂ„Ä…Ă„Äľavnega zbora"],
+  [/Drzavni zbor/g, "DrĂ„Ä…Ă„Äľavni zbor"],
+  [/Drzavni/g, "DrĂ„Ä…Ă„Äľavni"],
+  [/Drzavno/g, "DrĂ„Ä…Ă„Äľavno"],
+  [/drzavnega/g, "drĂ„Ä…Ă„Äľavnega"],
+  [/drzavni/g, "drĂ„Ä…Ă„Äľavni"],
+  [/drzavna/g, "drĂ„Ä…Ă„Äľavna"],
+  [/drzavo/g, "drĂ„Ä…Ă„Äľavo"],
+  [/drzave/g, "drĂ„Ä…Ă„Äľave"],
+  [/drzava/g, "drĂ„Ä…Ă„Äľava"],
+  [/Digitalna drzava/g, "Digitalna drĂ„Ä…Ă„Äľava"],
+  [/zasciteno/g, "zaĂ„Ä…Ă‹â€ˇÄ‚â€žÄąÂ¤iteno"],
+  [/zasciten/g, "zaĂ„Ä…Ă‹â€ˇÄ‚â€žÄąÂ¤iten"],
+  [/zascita/g, "zaĂ„Ä…Ă‹â€ˇÄ‚â€žÄąÂ¤ita"],
+  [/Zascitena/g, "ZaĂ„Ä…Ă‹â€ˇÄ‚â€žÄąÂ¤itena"],
+  [/zascitena/g, "zaĂ„Ä…Ă‹â€ˇÄ‚â€žÄąÂ¤itena"],
+  [/strezniskem/g, "streĂ„Ä…Ă„ÄľniĂ„Ä…Ă‹â€ˇkem"],
+  [/strezniku/g, "streĂ„Ä…Ă„Äľniku"],
+  [/streznik/g, "streĂ„Ä…Ă„Äľnik"],
+  [/brskalniski/g, "brskalniĂ„Ä…Ă‹â€ˇki"],
   [/brskalnik/g, "brskalnik"],
-  [/posiljanje/g, "pošiljanje"],
-  [/posiljanja/g, "pošiljanja"],
-  [/posiljanje/g, "pošiljanje"],
-  [/posiljanja/g, "pošiljanja"],
-  [/posilj/g, "pošilj"],
-  [/poslje/g, "pošlje"],
+  [/posiljanje/g, "poĂ„Ä…Ă‹â€ˇiljanje"],
+  [/posiljanja/g, "poĂ„Ä…Ă‹â€ˇiljanja"],
+  [/posiljanje/g, "poĂ„Ä…Ă‹â€ˇiljanje"],
+  [/posiljanja/g, "poĂ„Ä…Ă‹â€ˇiljanja"],
+  [/posilj/g, "poĂ„Ä…Ă‹â€ˇilj"],
+  [/poslje/g, "poĂ„Ä…Ă‹â€ˇlje"],
   [/poslana/g, "poslana"],
-  [/zabelezijo/g, "zabeležijo"],
-  [/zabelezen/g, "zabeležen"],
-  [/zabelezena/g, "zabeležena"],
-  [/zabelezilo/g, "zabeležilo"],
-  [/nalozijo/g, "naložijo"],
-  [/naloziti/g, "naložiti"],
-  [/nalozen/g, "naložen"],
-  [/nalozena/g, "naložena"],
-  [/nalozi/g, "naloži"],
-  [/Osvezi/g, "Osveži"],
-  [/osvezi/g, "osveži"],
-  [/Pocisti/g, "Počisti"],
-  [/pocisti/g, "počisti"],
-  [/clenov/g, "členov"],
-  [/clenom/g, "členom"],
-  [/clenu/g, "členu"],
-  [/cleni/g, "členi"],
-  [/clen/g, "člen"],
-  [/Clen/g, "Člen"],
-  [/Cilji, nacela in poglavitne resitve/g, "Cilji, načela in poglavitne rešitve"],
-  [/nacrtovanje/g, "načrtovanje"],
-  [/nacela/g, "načela"],
-  [/resitve/g, "rešitve"],
-  [/Resitve/g, "Rešitve"],
-  [/dolocb/g, "določb"],
-  [/dolocbe/g, "določbe"],
-  [/doloca/g, "določa"],
-  [/dolocen/g, "določen"],
-  [/dolocitev/g, "določitev"],
-  [/obrazlozitve/g, "obrazložitve"],
-  [/Obrazlozitev/g, "Obrazložitev"],
-  [/obrazlozitev/g, "obrazložitev"],
-  [/proracunsko/g, "proračunsko"],
-  [/proracunskih/g, "proračunskih"],
-  [/proracunske/g, "proračunske"],
-  [/proracunska/g, "proračunska"],
-  [/proracun/g, "proračun"],
-  [/Financne/g, "Finančne"],
-  [/financne/g, "finančne"],
-  [/obcutljive/g, "občutljive"],
-  [/ocitnih/g, "očitnih"],
-  [/tocke/g, "točke"],
-  [/Tocke/g, "Točke"],
-  [/splosnih/g, "splošnih"],
-  [/splosne/g, "splošne"],
-  [/boljse/g, "boljše"],
-  [/cakalnih/g, "čakalnih"],
-  [/cakalna/g, "čakalna"],
-  [/cakalne/g, "čakalne"],
-  [/bolnisnica/g, "bolnišnica"],
-  [/sodisce/g, "sodišče"],
-  [/tozilstvo/g, "tožilstvo"],
-  [/sola/g, "šola"],
-  [/student/g, "študent"],
-  [/ucitelj/g, "učitelj"],
-  [/ucni/g, "učni"],
-  [/placa/g, "plača"],
-  [/mogoce/g, "mogoče"],
-  [/omogocen/g, "omogočen"],
-  [/omogocena/g, "omogočena"],
+  [/zabelezijo/g, "zabeleĂ„Ä…Ă„Äľijo"],
+  [/zabelezen/g, "zabeleĂ„Ä…Ă„Äľen"],
+  [/zabelezena/g, "zabeleĂ„Ä…Ă„Äľena"],
+  [/zabelezilo/g, "zabeleĂ„Ä…Ă„Äľilo"],
+  [/nalozijo/g, "naloĂ„Ä…Ă„Äľijo"],
+  [/naloziti/g, "naloĂ„Ä…Ă„Äľiti"],
+  [/nalozen/g, "naloĂ„Ä…Ă„Äľen"],
+  [/nalozena/g, "naloĂ„Ä…Ă„Äľena"],
+  [/nalozi/g, "naloĂ„Ä…Ă„Äľi"],
+  [/Osvezi/g, "OsveĂ„Ä…Ă„Äľi"],
+  [/osvezi/g, "osveĂ„Ä…Ă„Äľi"],
+  [/Pocisti/g, "PoÄ‚â€žÄąÂ¤isti"],
+  [/pocisti/g, "poÄ‚â€žÄąÂ¤isti"],
+  [/clenov/g, "Ä‚â€žÄąÂ¤lenov"],
+  [/clenom/g, "Ä‚â€žÄąÂ¤lenom"],
+  [/clenu/g, "Ä‚â€žÄąÂ¤lenu"],
+  [/cleni/g, "Ä‚â€žÄąÂ¤leni"],
+  [/clen/g, "Ä‚â€žÄąÂ¤len"],
+  [/Clen/g, "Ä‚â€žÄąĹˇlen"],
+  [/Cilji, nacela in poglavitne resitve/g, "Cilji, naÄ‚â€žÄąÂ¤ela in poglavitne reĂ„Ä…Ă‹â€ˇitve"],
+  [/nacrtovanje/g, "naÄ‚â€žÄąÂ¤rtovanje"],
+  [/nacela/g, "naÄ‚â€žÄąÂ¤ela"],
+  [/resitve/g, "reĂ„Ä…Ă‹â€ˇitve"],
+  [/Resitve/g, "ReĂ„Ä…Ă‹â€ˇitve"],
+  [/dolocb/g, "doloÄ‚â€žÄąÂ¤b"],
+  [/dolocbe/g, "doloÄ‚â€žÄąÂ¤be"],
+  [/doloca/g, "doloÄ‚â€žÄąÂ¤a"],
+  [/dolocen/g, "doloÄ‚â€žÄąÂ¤en"],
+  [/dolocitev/g, "doloÄ‚â€žÄąÂ¤itev"],
+  [/obrazlozitve/g, "obrazloĂ„Ä…Ă„Äľitve"],
+  [/Obrazlozitev/g, "ObrazloĂ„Ä…Ă„Äľitev"],
+  [/obrazlozitev/g, "obrazloĂ„Ä…Ă„Äľitev"],
+  [/proracunsko/g, "proraÄ‚â€žÄąÂ¤unsko"],
+  [/proracunskih/g, "proraÄ‚â€žÄąÂ¤unskih"],
+  [/proracunske/g, "proraÄ‚â€žÄąÂ¤unske"],
+  [/proracunska/g, "proraÄ‚â€žÄąÂ¤unska"],
+  [/proracun/g, "proraÄ‚â€žÄąÂ¤un"],
+  [/Financne/g, "FinanÄ‚â€žÄąÂ¤ne"],
+  [/financne/g, "finanÄ‚â€žÄąÂ¤ne"],
+  [/obcutljive/g, "obÄ‚â€žÄąÂ¤utljive"],
+  [/ocitnih/g, "oÄ‚â€žÄąÂ¤itnih"],
+  [/tocke/g, "toÄ‚â€žÄąÂ¤ke"],
+  [/Tocke/g, "ToÄ‚â€žÄąÂ¤ke"],
+  [/splosnih/g, "sploĂ„Ä…Ă‹â€ˇnih"],
+  [/splosne/g, "sploĂ„Ä…Ă‹â€ˇne"],
+  [/boljse/g, "boljĂ„Ä…Ă‹â€ˇe"],
+  [/cakalnih/g, "Ä‚â€žÄąÂ¤akalnih"],
+  [/cakalna/g, "Ä‚â€žÄąÂ¤akalna"],
+  [/cakalne/g, "Ä‚â€žÄąÂ¤akalne"],
+  [/bolnisnica/g, "bolniĂ„Ä…Ă‹â€ˇnica"],
+  [/sodisce/g, "sodiĂ„Ä…Ă‹â€ˇÄ‚â€žÄąÂ¤e"],
+  [/tozilstvo/g, "toĂ„Ä…Ă„Äľilstvo"],
+  [/sola/g, "Ă„Ä…Ă‹â€ˇola"],
+  [/student/g, "Ă„Ä…Ă‹â€ˇtudent"],
+  [/ucitelj/g, "uÄ‚â€žÄąÂ¤itelj"],
+  [/ucni/g, "uÄ‚â€žÄąÂ¤ni"],
+  [/placa/g, "plaÄ‚â€žÄąÂ¤a"],
+  [/mogoce/g, "mogoÄ‚â€žÄąÂ¤e"],
+  [/omogocen/g, "omogoÄ‚â€žÄąÂ¤en"],
+  [/omogocena/g, "omogoÄ‚â€žÄąÂ¤ena"],
   [/dosegljiv/g, "dosegljiv"],
-  [/pricakovan/g, "pričakovan"],
-  [/sifriran/g, "šifriran"],
-  [/uspesen/g, "uspešen"],
-  [/uspesno/g, "uspešno"],
+  [/pricakovan/g, "priÄ‚â€žÄąÂ¤akovan"],
+  [/sifriran/g, "Ă„Ä…Ă‹â€ˇifriran"],
+  [/uspesen/g, "uspeĂ„Ä…Ă‹â€ˇen"],
+  [/uspesno/g, "uspeĂ„Ä…Ă‹â€ˇno"],
   [/uspelo/g, "uspelo"],
-  [/vkljuceno/g, "vključeno"],
-  [/vkljucen/g, "vključen"],
-  [/kljuca/g, "ključa"],
-  [/kljuc/g, "ključ"],
-  [/Najvec/g, "Največ"],
-  [/najvec/g, "največ"],
-  [/Povprecje/g, "Povprečje"],
-  [/povprecje/g, "povprečje"],
-  [/racun/g, "račun"],
-  [/nacin/g, "način"],
-  [/Nacin/g, "Način"],
-  [/režim/g, "režim"],
-  [/rezim/g, "režim"],
-  [/\bCe\b/g, "Če"],
-  [/\bce\b/g, "če"],
-  [/\bze\b/g, "že"],
+  [/vkljuceno/g, "vkljuÄ‚â€žÄąÂ¤eno"],
+  [/vkljucen/g, "vkljuÄ‚â€žÄąÂ¤en"],
+  [/kljuca/g, "kljuÄ‚â€žÄąÂ¤a"],
+  [/kljuc/g, "kljuÄ‚â€žÄąÂ¤"],
+  [/Najvec/g, "NajveÄ‚â€žÄąÂ¤"],
+  [/najvec/g, "najveÄ‚â€žÄąÂ¤"],
+  [/Povprecje/g, "PovpreÄ‚â€žÄąÂ¤je"],
+  [/povprecje/g, "povpreÄ‚â€žÄąÂ¤je"],
+  [/racun/g, "raÄ‚â€žÄąÂ¤un"],
+  [/nacin/g, "naÄ‚â€žÄąÂ¤in"],
+  [/Nacin/g, "NaÄ‚â€žÄąÂ¤in"],
+  [/reĂ„Ä…Ă„Äľim/g, "reĂ„Ä…Ă„Äľim"],
+  [/rezim/g, "reĂ„Ä…Ă„Äľim"],
+  [/\bCe\b/g, "Ä‚â€žÄąĹˇe"],
+  [/\bce\b/g, "Ä‚â€žÄąÂ¤e"],
+  [/\bze\b/g, "Ă„Ä…Ă„Äľe"],
   [/\bse nalo/g, "se nalo"],
-  [/\bse ni\b/g, "še ni"],
-  [/\bse nima\b/g, "še nima"]
+  [/\bse ni\b/g, "Ă„Ä…Ă‹â€ˇe ni"],
+  [/\bse nima\b/g, "Ă„Ä…Ă‹â€ˇe nima"]
 ];
 
 const SLOVENIAN_UI_LOCALIZED_ATTRIBUTES = ["placeholder", "aria-label", "title"];
@@ -3440,7 +3515,7 @@ function formatAnnualDeadlineDate(value) {
 }
 
 function annualDeadlineAccessibleLabel(countdown) {
-  return `Do letnega zaprtja pobud je še ${countdown.days} dni, ${countdown.hours} ur, ${countdown.minutes} minut in ${countdown.seconds} sekund. Rok je ${formatAnnualDeadlineDate(countdown.deadline)}.`;
+  return `Do letnega zaprtja pobud je Ă„Ä…Ă‹â€ˇe ${countdown.days} dni, ${countdown.hours} ur, ${countdown.minutes} minut in ${countdown.seconds} sekund. Rok je ${formatAnnualDeadlineDate(countdown.deadline)}.`;
 }
 
 function padCountdownValue(value) {
@@ -3564,10 +3639,10 @@ function pdfSafeText(value) {
   return String(value ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[đĐ]/g, "d")
-    .replace(/[–—]/g, "-")
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
+    .replace(/[Ä‚â€žĂ˘â‚¬ÂÄ‚â€žĂ‚Â]/g, "d")
+    .replace(/[Ä‚ËĂ˘â€šÂ¬Ă˘â‚¬Ĺ›Ä‚ËĂ˘â€šÂ¬Ă˘â‚¬ĹĄ]/g, "-")
+    .replace(/[Ä‚ËĂ˘â€šÂ¬Äąâ€şÄ‚ËĂ˘â€šÂ¬ÄąÄ„]/g, '"')
+    .replace(/[Ä‚ËĂ˘â€šÂ¬Ă‚ÂÄ‚ËĂ˘â€šÂ¬Ă˘â€žË]/g, "'")
     .replace(/[^\x20-\x7E]/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -4171,7 +4246,7 @@ function pdfFileName(initiative) {
   const title = String(initiative?.title || "pobuda")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[đĐ]/g, "d")
+    .replace(/[Ä‚â€žĂ˘â‚¬ÂÄ‚â€žĂ‚Â]/g, "d")
     .replace(/[^a-zA-Z0-9._ -]+/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")

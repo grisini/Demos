@@ -137,7 +137,8 @@ export class SupabaseInitiativeRepository {
   }
 
   async request(path, options = {}) {
-    const response = await fetch(`${this.url}${path}`, {
+    const requestUrl = this.buildRequestUrl(path);
+    const response = await fetch(requestUrl, {
       ...options,
       headers: {
         apikey: this.anonKey,
@@ -169,6 +170,26 @@ export class SupabaseInitiativeRepository {
 
     const text = await response.text();
     return text ? JSON.parse(text) : null;
+  }
+
+  buildRequestUrl(path) {
+    const requestPath = String(path || "");
+    const baseUrl = new URL(`${this.url}/`);
+
+    if (
+      !requestPath.startsWith("/rest/v1/") ||
+      requestPath.startsWith("//") ||
+      /[\u0000-\u001f\u007f\\]/u.test(requestPath)
+    ) {
+      throw new Error("Neveljavna Supabase REST pot.");
+    }
+
+    const requestUrl = new URL(requestPath, baseUrl);
+    if (requestUrl.origin !== baseUrl.origin || !requestUrl.pathname.startsWith("/rest/v1/")) {
+      throw new Error("Neveljavna Supabase REST pot.");
+    }
+
+    return requestUrl.toString();
   }
 
   async requestAll(path, options = {}) {
