@@ -16,7 +16,7 @@ export class SupabaseInitiativeRepository {
   }
 
   async list() {
-    const initiatives = await this.request(
+    const initiatives = await this.requestAll(
       "/rest/v1/initiatives?select=*&order=created_at.desc"
     );
     const ids = initiatives.map((initiative) => initiative.id);
@@ -24,9 +24,9 @@ export class SupabaseInitiativeRepository {
 
     const filter = `initiative_id=in.(${ids.join(",")})`;
     const [votes, signatures, comments] = await Promise.all([
-      this.request(`/rest/v1/votes?select=*&${filter}`),
-      this.request(`/rest/v1/signatures?select=*&${filter}`),
-      this.request(`/rest/v1/comments?select=*&${filter}&order=created_at.asc`)
+      this.requestAll(`/rest/v1/votes?select=*&${filter}`),
+      this.requestAll(`/rest/v1/signatures?select=*&${filter}`),
+      this.requestAll(`/rest/v1/comments?select=*&${filter}&order=created_at.asc`)
     ]);
 
     return initiatives.map((row) => mapInitiative(row, votes, signatures, comments));
@@ -51,9 +51,9 @@ export class SupabaseInitiativeRepository {
 
     const filter = `initiative_id=in.(${ids.join(",")})`;
     const [votes, signatures, comments] = await Promise.all([
-      this.request(`/rest/v1/votes?select=*&${filter}`),
-      this.request(`/rest/v1/signatures?select=*&${filter}`),
-      this.request(`/rest/v1/comments?select=*&${filter}&order=created_at.asc`)
+      this.requestAll(`/rest/v1/votes?select=*&${filter}`),
+      this.requestAll(`/rest/v1/signatures?select=*&${filter}`),
+      this.requestAll(`/rest/v1/comments?select=*&${filter}&order=created_at.asc`)
     ]);
 
     return rows.map((row) => ({
@@ -169,6 +169,25 @@ export class SupabaseInitiativeRepository {
 
     const text = await response.text();
     return text ? JSON.parse(text) : null;
+  }
+
+  async requestAll(path, options = {}) {
+    const pageSize = 1000;
+    const rows = [];
+
+    for (let offset = 0; ; offset += pageSize) {
+      const page = await this.request(path, {
+        ...options,
+        headers: {
+          ...(options.headers || {}),
+          Range: `${offset}-${offset + pageSize - 1}`
+        }
+      });
+
+      if (!Array.isArray(page)) return page;
+      rows.push(...page);
+      if (page.length < pageSize) return rows;
+    }
   }
 
   async backendRequest(endpoint, options = {}) {

@@ -135,9 +135,9 @@ export async function fetchInitiativeDetail(client, id) {
 
   const filter = `initiative_id=eq.${encodeURIComponent(id)}`;
   const [votes, signatures, comments] = await Promise.all([
-    requestJson(client, `/rest/v1/votes?select=*&${filter}`),
-    requestJson(client, `/rest/v1/signatures?select=*&${filter}`),
-    requestJson(client, `/rest/v1/comments?select=*&${filter}&order=created_at.asc`)
+    requestAllJson(client, `/rest/v1/votes?select=*&${filter}`),
+    requestAllJson(client, `/rest/v1/signatures?select=*&${filter}`),
+    requestAllJson(client, `/rest/v1/comments?select=*&${filter}&order=created_at.asc`)
   ]);
 
   return mapInitiative(initiative, votes, signatures, comments);
@@ -165,6 +165,25 @@ export async function requestJson(client, path, options = {}) {
   if (response.status === 204) return null;
   const text = await response.text();
   return text ? JSON.parse(text) : null;
+}
+
+export async function requestAllJson(client, path, options = {}) {
+  const pageSize = 1000;
+  const rows = [];
+
+  for (let offset = 0; ; offset += pageSize) {
+    const page = await requestJson(client, path, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Range: `${offset}-${offset + pageSize - 1}`
+      }
+    });
+
+    if (!Array.isArray(page)) return page;
+    rows.push(...page);
+    if (page.length < pageSize) return rows;
+  }
 }
 
 async function fetchInitiative(client, id) {
