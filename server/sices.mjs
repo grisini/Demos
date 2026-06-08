@@ -32,9 +32,10 @@ export async function startSicesSignature(request, payload = {}, env = process.e
     mimeType: "application/xml",
     signatureLevel: config.signatureLevel,
     signaturePackaging: config.signaturePackaging,
+    signerLocation: config.signerLocation,
     trustLevel: config.trustLevel
   });
-  const result = parsePutRequestResponse(await sendSicesSoap(soap, config));
+  const result = parsePutRequestResponse(await sendSicesSoap(soap, config, "putRequest"));
 
   await upsertPendingSignature(client, {
     initiativeId,
@@ -80,7 +81,7 @@ export async function completeSicesSignature(request, query = {}, env = process.
     serviceProvider: config.serviceProvider,
     requestId
   });
-  const signedData = parseGetSignedDataResponse(await sendSicesSoap(soap, config));
+  const signedData = parseGetSignedDataResponse(await sendSicesSoap(soap, config, "getSignedData"));
   if (signedData.status !== "SIGNED") {
     await updateSignatureSicesStatus(client, signature.id, {
       signatureStatus: signedData.status || "NOTSIGNED"
@@ -167,9 +168,18 @@ export function sicesConfig(env = process.env) {
     pfx: pfxPath ? readFileSync(pfxPath) : Buffer.from(pfxBase64.replace(/\s+/g, ""), "base64"),
     pfxPassword,
     callbackUrl: callback,
-    trustLevel: firstValue(env.SICES_TRUST_LEVEL, "MEDIUM").toUpperCase(),
+    trustLevel: normalizeTrustLevel(firstValue(env.SICES_TRUST_LEVEL, "Medium")),
     signatureLevel: firstValue(env.SICES_SIGNATURE_LEVEL, "XAdES_BASELINE_B"),
     signaturePackaging: firstValue(env.SICES_SIGNATURE_PACKAGING, "ENVELOPED"),
+    signerLocation: {
+      city: firstValue(env.SICES_SIGNER_CITY, "Maribor"),
+      country: firstValue(env.SICES_SIGNER_COUNTRY, "Slovenija"),
+      locality: firstValue(env.SICES_SIGNER_LOCALITY, "Maribor"),
+      postalAddress: firstValue(env.SICES_SIGNER_POSTAL_ADDRESS),
+      postalCode: firstValue(env.SICES_SIGNER_POSTAL_CODE, "2000"),
+      stateOrProvince: firstValue(env.SICES_SIGNER_STATE_OR_PROVINCE, "Slovenija")
+    },
+    tlsVersion: firstValue(env.SICES_TLS_VERSION, "TLSv1.2"),
     timeoutMs: positiveInteger(env.SICES_SOAP_TIMEOUT_MS, 8000)
   };
 }
@@ -193,6 +203,7 @@ export function buildPutRequestSoap(options) {
           <encryptionAlgorithm>RSA</encryptionAlgorithm>
           <signatureLevel>${xml(options.signatureLevel)}</signatureLevel>
           <signaturePackaging>${xml(options.signaturePackaging)}</signaturePackaging>
+          ${signerLocationXml(options.signerLocation)}
         </parameters>
       </item>
       <trustLevel>${xml(options.trustLevel)}</trustLevel>
@@ -219,8 +230,25 @@ function soapEnvelope(body) {
 </soapenv:Envelope>`;
 }
 
-async function sendSicesSoap(soap, config) {
+function signerLocationXml(location = {}) {
+  const entries = [
+    ["city", location.city],
+    ["country", location.country],
+    ["locality", location.locality],
+    ["postalAddress", location.postalAddress],
+    ["postalCode", location.postalCode],
+    ["stateOrProvince", location.stateOrProvince]
+  ].filter(([, value]) => firstValue(value));
+
+  if (!entries.length) return "";
+  return `<signerLocation>
+            ${entries.map(([tag, value]) => `<${tag}>${xml(value)}</${tag}>`).join("\n            ")}
+          </signerLocation>`;
+}
+
+async function sendSicesSoap(soap, config, operation = "") {
   const endpoint = new URL(config.endpoint);
+  const soapAction = operation ? `http://ws.sign.sices.osi.si/SicesSign/${operation}Request` : "";
   return new Promise((resolve, reject) => {
     const req = https.request(
       {
@@ -231,8 +259,11 @@ async function sendSicesSoap(soap, config) {
         method: "POST",
         pfx: config.pfx,
         passphrase: config.pfxPassword,
+        minVersion: config.tlsVersion,
+        maxVersion: config.tlsVersion,
         headers: {
           "Content-Type": "text/xml; charset=utf-8",
+          ...(soapAction ? { SOAPAction: soapAction } : {}),
           "Content-Length": Buffer.byteLength(soap, "utf8")
         },
         timeout: config.timeoutMs
@@ -433,6 +464,13 @@ function firstValue(...values) {
     if (text) return text;
   }
   return "";
+}
+
+function normalizeTrustLevel(value) {
+  const normalized = firstValue(value, "Medium").toLowerCase();
+  if (normalized === "low") return "Low";
+  if (normalized === "high") return "High";
+  return "Medium";
 }
 
 function clean(value, maxLength) {
