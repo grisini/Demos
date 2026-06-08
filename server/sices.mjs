@@ -35,14 +35,38 @@ export async function startSicesSignature(request, payload = {}, env = process.e
     signerLocation: config.signerLocation,
     trustLevel: config.trustLevel
   });
-  const result = parsePutRequestResponse(await sendSicesSoap(soap, config, "putRequest"));
+
+  let result = null;
+  try {
+    result = parsePutRequestResponse(await sendSicesSoap(soap, config, "putRequest"));
+  } catch (error) {
+    if (!config.fallbackUnverified) throw error;
+
+    await upsertPendingSignature(client, {
+      initiativeId,
+      signerRef: user.id,
+      signerName: user.name || "SI-PASS uporabnik",
+      requestId: "",
+      documentHash: sha256Hex(document),
+      signatureStatus: "UNVERIFIED"
+    });
+
+    return {
+      fallbackSignature: true,
+      signed: false,
+      signatureStatus: "UNVERIFIED",
+      error: "SI-CeS podpis se ni avtenticiran; poskus podpisa je evidentiran.",
+      initiative: await fetchInitiativeDetail(client, initiativeId)
+    };
+  }
 
   await upsertPendingSignature(client, {
     initiativeId,
     signerRef: user.id,
     signerName: user.name || "SI-PASS uporabnik",
     requestId: result.requestId,
-    documentHash: sha256Hex(document)
+    documentHash: sha256Hex(document),
+    signatureStatus: "PENDING"
   });
 
   return {
@@ -179,6 +203,7 @@ export function sicesConfig(env = process.env) {
       postalCode: firstValue(env.SICES_SIGNER_POSTAL_CODE, "2000"),
       stateOrProvince: firstValue(env.SICES_SIGNER_STATE_OR_PROVINCE, "Slovenija")
     },
+    fallbackUnverified: stringBoolean(env.SICES_FALLBACK_UNVERIFIED, true),
     tlsVersion: firstValue(env.SICES_TLS_VERSION, "TLSv1.2"),
     timeoutMs: positiveInteger(env.SICES_SOAP_TIMEOUT_MS, 8000)
   };
@@ -336,9 +361,9 @@ async function upsertPendingSignature(client, signature) {
     signer_ref: signature.signerRef,
     signer_name: signature.signerName,
     method: "sices",
-    sices_request_id: signature.requestId,
+    sices_request_id: signature.requestId || null,
     signed_document_hash: signature.documentHash,
-    signature_status: "PENDING"
+    signature_status: signature.signatureStatus || "PENDING"
   };
 
   if (existing.length) {
@@ -471,6 +496,12 @@ function normalizeTrustLevel(value) {
   if (normalized === "low") return "Low";
   if (normalized === "high") return "High";
   return "Medium";
+}
+
+function stringBoolean(value, fallback) {
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text) return fallback;
+  return ["1", "true", "yes", "on"].includes(text);
 }
 
 function clean(value, maxLength) {

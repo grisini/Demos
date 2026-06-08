@@ -6,7 +6,7 @@ import { gzipSync } from "node:zlib";
 const budgets = {
   initialRawBytes: 230 * 1024,
   initialGzipBytes: 60 * 1024,
-  mainRawBytes: 165 * 1024,
+  mainRawBytes: 166 * 1024,
   mainGzipBytes: 42 * 1024,
   cssRawBytes: 70 * 1024,
   cssGzipBytes: 14 * 1024

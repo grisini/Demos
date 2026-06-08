@@ -52,7 +52,8 @@ import {
   buildPutRequestSoap,
   parseGetSignedDataResponse,
   parsePutRequestResponse,
-  sicesConfig
+  sicesConfig,
+  startSicesSignature
 } from "../server/sices.mjs";
 import { verifyTurnstileToken } from "../server/turnstile.mjs";
 import { checkRateLimit, rateLimitHeaders } from "../server/rate-limit.mjs";
@@ -663,6 +664,90 @@ test("SI-PASS podpis backend zavrne zahtevo brez seje", async () => {
     ),
     /SI-PASS podpis/
   );
+});
+
+test("SI-CeS fallback evidentira neavtenticiran podpis ob napaki zunanjega servisa", async () => {
+  const user = {
+    id: "sipass-sices-ref",
+    name: "Ana Novak",
+    firstName: "Ana",
+    lastName: "Novak",
+    emso: "",
+    taxNumber: "",
+    email: "",
+    role: "citizen",
+    provider: "sipass",
+    signedInAt: "2026-06-08T10:00:00.000Z"
+  };
+  const initiativeId = "11111111-1111-4111-8111-111111111111";
+  const cookie = createSipassSessionToken(user, sipassEnv.SIPASS_SESSION_SECRET);
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    calls.push({ url, options });
+    const parsed = new URL(url);
+    const path = parsed.pathname;
+    const search = parsed.search;
+
+    if (path.endsWith("/initiatives") && search.includes("id=eq.")) {
+      return jsonResponse([{
+        id: initiativeId,
+        title: validInput.title,
+        summary: validInput.summary,
+        description: validInput.description,
+        category: validInput.category,
+        status: "active",
+        author_ref: actor.id,
+        author_name: actor.name,
+        notification_email: actor.email,
+        legal_reference: validInput.legalReference,
+        expected_impact: validInput.expectedImpact,
+        legislative_text: validInput.legislativeText,
+        article_explanation: validInput.articleExplanation,
+        ai_score: 80,
+        ai_risk: "low",
+        ai_findings: [],
+        ai_checks: {},
+        created_at: "2026-06-08T09:00:00.000Z",
+        updated_at: "2026-06-08T09:00:00.000Z"
+      }]);
+    }
+
+    if (path.endsWith("/signatures") && options.method === "POST") return emptyResponse();
+    if (path.endsWith("/initiatives") && options.method === "PATCH") return emptyResponse();
+    if (path.endsWith("/votes")) return jsonResponse([]);
+    if (path.endsWith("/comments")) return jsonResponse([]);
+    if (path.endsWith("/signatures")) return jsonResponse([]);
+
+    throw new Error(`Unexpected Supabase mock call: ${url}`);
+  };
+
+  const result = await startSicesSignature(
+    { headers: { cookie: `__Secure-demos_sipass=${cookie}` } },
+    { initiativeId },
+    {
+      ...sipassEnv,
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+      SICES_PFX_BASE64: Buffer.from("not-a-real-pfx").toString("base64"),
+      SICES_PFX_PASSWORD: "geslo",
+      SICES_CALLBACK_URL: "https://example.test/api/sices/callback",
+      SICES_FALLBACK_UNVERIFIED: "true"
+    },
+    fetchImpl
+  );
+
+  const signatureInsert = calls.find((call) => call.url.includes("/rest/v1/signatures") && call.options.method === "POST");
+  assert.ok(signatureInsert);
+  const body = JSON.parse(signatureInsert.options.body);
+  assert.equal(body.initiative_id, initiativeId);
+  assert.equal(body.signer_ref, user.id);
+  assert.equal(body.signer_name, user.name);
+  assert.equal(body.method, "sices");
+  assert.equal(body.sices_request_id, null);
+  assert.equal(body.signature_status, "UNVERIFIED");
+  assert.equal(result.fallbackSignature, true);
+  assert.equal(result.signatureStatus, "UNVERIFIED");
+  assert.equal(result.initiative.id, initiativeId);
 });
 
 test("oddaja pobude gre prek backend service role in doloci avtorja na strezniku", async () => {

@@ -2411,6 +2411,12 @@ renderRanking(initiative, index) {
     });
     const payload = await response.json().catch(() => ({}));
 
+    if (response.ok && payload?.fallbackSignature) {
+      await this.refresh();
+      this.toast("Podpis evidentiran; SI-CeS potrditev caka.");
+      return;
+    }
+
     if (!response.ok || !payload?.redirectUrl) {
       throw new Error(payload?.error || `SI-CeS podpis ni uspel (${response.status}).`);
     }
