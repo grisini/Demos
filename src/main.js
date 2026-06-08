@@ -413,7 +413,7 @@ class DemocracyApp {
             <button class="button secondary icon-button" type="button" data-action="view" data-view="accessibility" aria-label="Dostopnost" title="Dostopnost">
               ${accessibilityIcon()}
             </button>
-            <button class="button secondary icon-button" type="button" data-action="refresh" aria-label="OsveĂ„Ä…Ă„Äľi podatke" title="OsveĂ„Ä…Ă„Äľi podatke">
+            <button class="button secondary icon-button" type="button" data-action="refresh" aria-label="Osvezi podatke" title="Osvezi podatke">
               ${refreshIcon()}
             </button>
           </div>
@@ -664,7 +664,7 @@ class DemocracyApp {
                 ? `
                   <div class="initiative-list-more">
                     <button class="button secondary full-width" type="button" data-action="show-more-initiatives">
-                      Poglej veÄ‚â€žÄąÂ¤ pobud
+                      Poglej ve\u010d pobud
                     </button>
                     <span>Prikazanih ${visibleCount} od ${initiatives.length}</span>
                   </div>
@@ -3286,119 +3286,115 @@ function escapeAttribute(value) {
 }
 
 const SLOVENIAN_UI_REPLACEMENTS = [
-  [/Drzavnega zbora/g, "DrĂ„Ä…Ă„Äľavnega zbora"],
-  [/Drzavni zbor/g, "DrĂ„Ä…Ă„Äľavni zbor"],
-  [/Drzavni/g, "DrĂ„Ä…Ă„Äľavni"],
-  [/Drzavno/g, "DrĂ„Ä…Ă„Äľavno"],
-  [/drzavnega/g, "drĂ„Ä…Ă„Äľavnega"],
-  [/drzavni/g, "drĂ„Ä…Ă„Äľavni"],
-  [/drzavna/g, "drĂ„Ä…Ă„Äľavna"],
-  [/drzavo/g, "drĂ„Ä…Ă„Äľavo"],
-  [/drzave/g, "drĂ„Ä…Ă„Äľave"],
-  [/drzava/g, "drĂ„Ä…Ă„Äľava"],
-  [/Digitalna drzava/g, "Digitalna drĂ„Ä…Ă„Äľava"],
-  [/zasciteno/g, "zaĂ„Ä…Ă‹â€ˇÄ‚â€žÄąÂ¤iteno"],
-  [/zasciten/g, "zaĂ„Ä…Ă‹â€ˇÄ‚â€žÄąÂ¤iten"],
-  [/zascita/g, "zaĂ„Ä…Ă‹â€ˇÄ‚â€žÄąÂ¤ita"],
-  [/Zascitena/g, "ZaĂ„Ä…Ă‹â€ˇÄ‚â€žÄąÂ¤itena"],
-  [/zascitena/g, "zaĂ„Ä…Ă‹â€ˇÄ‚â€žÄąÂ¤itena"],
-  [/strezniskem/g, "streĂ„Ä…Ă„ÄľniĂ„Ä…Ă‹â€ˇkem"],
-  [/strezniku/g, "streĂ„Ä…Ă„Äľniku"],
-  [/streznik/g, "streĂ„Ä…Ă„Äľnik"],
-  [/brskalniski/g, "brskalniĂ„Ä…Ă‹â€ˇki"],
+  [/Drzavnega zbora/g, "Dr\u017eavnega zbora"],
+  [/Drzavni zbor/g, "Dr\u017eavni zbor"],
+  [/Drzavni/g, "Dr\u017eavni"],
+  [/Drzavno/g, "Dr\u017eavno"],
+  [/drzavnega/g, "dr\u017eavnega"],
+  [/drzavni/g, "dr\u017eavni"],
+  [/drzavna/g, "dr\u017eavna"],
+  [/drzavo/g, "dr\u017eavo"],
+  [/drzave/g, "dr\u017eave"],
+  [/drzava/g, "dr\u017eava"],
+  [/Digitalna drzava/g, "Digitalna dr\u017eava"],
+  [/zasciteno/g, "za\u0161\u010diteno"],
+  [/zasciten/g, "za\u0161\u010diten"],
+  [/zascita/g, "za\u0161\u010dita"],
+  [/Zascitena/g, "Za\u0161\u010ditena"],
+  [/zascitena/g, "za\u0161\u010ditena"],
+  [/strezniskem/g, "stre\u017eni\u0161kem"],
+  [/strezniku/g, "stre\u017eniku"],
+  [/streznik/g, "stre\u017enik"],
+  [/brskalniski/g, "brskalni\u0161ki"],
   [/brskalnik/g, "brskalnik"],
-  [/posiljanje/g, "poĂ„Ä…Ă‹â€ˇiljanje"],
-  [/posiljanja/g, "poĂ„Ä…Ă‹â€ˇiljanja"],
-  [/posiljanje/g, "poĂ„Ä…Ă‹â€ˇiljanje"],
-  [/posiljanja/g, "poĂ„Ä…Ă‹â€ˇiljanja"],
-  [/posilj/g, "poĂ„Ä…Ă‹â€ˇilj"],
-  [/poslje/g, "poĂ„Ä…Ă‹â€ˇlje"],
+  [/posiljanja/g, "po\u0161iljanja"],
+  [/posiljanje/g, "po\u0161iljanje"],
+  [/posilj/g, "po\u0161ilj"],
+  [/poslje/g, "po\u0161lje"],
   [/poslana/g, "poslana"],
-  [/zabelezijo/g, "zabeleĂ„Ä…Ă„Äľijo"],
-  [/zabelezen/g, "zabeleĂ„Ä…Ă„Äľen"],
-  [/zabelezena/g, "zabeleĂ„Ä…Ă„Äľena"],
-  [/zabelezilo/g, "zabeleĂ„Ä…Ă„Äľilo"],
-  [/nalozijo/g, "naloĂ„Ä…Ă„Äľijo"],
-  [/naloziti/g, "naloĂ„Ä…Ă„Äľiti"],
-  [/nalozen/g, "naloĂ„Ä…Ă„Äľen"],
-  [/nalozena/g, "naloĂ„Ä…Ă„Äľena"],
-  [/nalozi/g, "naloĂ„Ä…Ă„Äľi"],
-  [/Osvezi/g, "OsveĂ„Ä…Ă„Äľi"],
-  [/osvezi/g, "osveĂ„Ä…Ă„Äľi"],
-  [/Pocisti/g, "PoÄ‚â€žÄąÂ¤isti"],
-  [/pocisti/g, "poÄ‚â€žÄąÂ¤isti"],
-  [/clenov/g, "Ä‚â€žÄąÂ¤lenov"],
-  [/clenom/g, "Ä‚â€žÄąÂ¤lenom"],
-  [/clenu/g, "Ä‚â€žÄąÂ¤lenu"],
-  [/cleni/g, "Ä‚â€žÄąÂ¤leni"],
-  [/clen/g, "Ä‚â€žÄąÂ¤len"],
-  [/Clen/g, "Ä‚â€žÄąĹˇlen"],
-  [/Cilji, nacela in poglavitne resitve/g, "Cilji, naÄ‚â€žÄąÂ¤ela in poglavitne reĂ„Ä…Ă‹â€ˇitve"],
-  [/nacrtovanje/g, "naÄ‚â€žÄąÂ¤rtovanje"],
-  [/nacela/g, "naÄ‚â€žÄąÂ¤ela"],
-  [/resitve/g, "reĂ„Ä…Ă‹â€ˇitve"],
-  [/Resitve/g, "ReĂ„Ä…Ă‹â€ˇitve"],
-  [/dolocb/g, "doloÄ‚â€žÄąÂ¤b"],
-  [/dolocbe/g, "doloÄ‚â€žÄąÂ¤be"],
-  [/doloca/g, "doloÄ‚â€žÄąÂ¤a"],
-  [/dolocen/g, "doloÄ‚â€žÄąÂ¤en"],
-  [/dolocitev/g, "doloÄ‚â€žÄąÂ¤itev"],
-  [/obrazlozitve/g, "obrazloĂ„Ä…Ă„Äľitve"],
-  [/Obrazlozitev/g, "ObrazloĂ„Ä…Ă„Äľitev"],
-  [/obrazlozitev/g, "obrazloĂ„Ä…Ă„Äľitev"],
-  [/proracunsko/g, "proraÄ‚â€žÄąÂ¤unsko"],
-  [/proracunskih/g, "proraÄ‚â€žÄąÂ¤unskih"],
-  [/proracunske/g, "proraÄ‚â€žÄąÂ¤unske"],
-  [/proracunska/g, "proraÄ‚â€žÄąÂ¤unska"],
-  [/proracun/g, "proraÄ‚â€žÄąÂ¤un"],
-  [/Financne/g, "FinanÄ‚â€žÄąÂ¤ne"],
-  [/financne/g, "finanÄ‚â€žÄąÂ¤ne"],
-  [/obcutljive/g, "obÄ‚â€žÄąÂ¤utljive"],
-  [/ocitnih/g, "oÄ‚â€žÄąÂ¤itnih"],
-  [/tocke/g, "toÄ‚â€žÄąÂ¤ke"],
-  [/Tocke/g, "ToÄ‚â€žÄąÂ¤ke"],
-  [/splosnih/g, "sploĂ„Ä…Ă‹â€ˇnih"],
-  [/splosne/g, "sploĂ„Ä…Ă‹â€ˇne"],
-  [/boljse/g, "boljĂ„Ä…Ă‹â€ˇe"],
-  [/cakalnih/g, "Ä‚â€žÄąÂ¤akalnih"],
-  [/cakalna/g, "Ä‚â€žÄąÂ¤akalna"],
-  [/cakalne/g, "Ä‚â€žÄąÂ¤akalne"],
-  [/bolnisnica/g, "bolniĂ„Ä…Ă‹â€ˇnica"],
-  [/sodisce/g, "sodiĂ„Ä…Ă‹â€ˇÄ‚â€žÄąÂ¤e"],
-  [/tozilstvo/g, "toĂ„Ä…Ă„Äľilstvo"],
-  [/sola/g, "Ă„Ä…Ă‹â€ˇola"],
-  [/student/g, "Ă„Ä…Ă‹â€ˇtudent"],
-  [/ucitelj/g, "uÄ‚â€žÄąÂ¤itelj"],
-  [/ucni/g, "uÄ‚â€žÄąÂ¤ni"],
-  [/placa/g, "plaÄ‚â€žÄąÂ¤a"],
-  [/mogoce/g, "mogoÄ‚â€žÄąÂ¤e"],
-  [/omogocen/g, "omogoÄ‚â€žÄąÂ¤en"],
-  [/omogocena/g, "omogoÄ‚â€žÄąÂ¤ena"],
+  [/zabelezijo/g, "zabele\u017eijo"],
+  [/zabelezen/g, "zabele\u017een"],
+  [/zabelezena/g, "zabele\u017eena"],
+  [/zabelezilo/g, "zabele\u017eilo"],
+  [/nalozijo/g, "nalo\u017eijo"],
+  [/naloziti/g, "nalo\u017eiti"],
+  [/nalozen/g, "nalo\u017een"],
+  [/nalozena/g, "nalo\u017eena"],
+  [/nalozi/g, "nalo\u017ei"],
+  [/Osvezi/g, "Osve\u017ei"],
+  [/osvezi/g, "osve\u017ei"],
+  [/Pocisti/g, "Po\u010disti"],
+  [/pocisti/g, "po\u010disti"],
+  [/clenov/g, "\u010dlenov"],
+  [/clenom/g, "\u010dlenom"],
+  [/clenu/g, "\u010dlenu"],
+  [/cleni/g, "\u010dleni"],
+  [/clen/g, "\u010dlen"],
+  [/Clen/g, "\u010clen"],
+  [/Cilji, nacela in poglavitne resitve/g, "Cilji, na\u010dela in poglavitne re\u0161itve"],
+  [/nacrtovanje/g, "na\u010drtovanje"],
+  [/nacela/g, "na\u010dela"],
+  [/resitve/g, "re\u0161itve"],
+  [/Resitve/g, "Re\u0161itve"],
+  [/dolocb/g, "dolo\u010db"],
+  [/dolocbe/g, "dolo\u010dbe"],
+  [/doloca/g, "dolo\u010da"],
+  [/dolocen/g, "dolo\u010den"],
+  [/dolocitev/g, "dolo\u010ditev"],
+  [/obrazlozitve/g, "obrazlo\u017eitve"],
+  [/Obrazlozitev/g, "Obrazlo\u017eitev"],
+  [/obrazlozitev/g, "obrazlo\u017eitev"],
+  [/proracunsko/g, "prora\u010dunsko"],
+  [/proracunskih/g, "prora\u010dunskih"],
+  [/proracunske/g, "prora\u010dunske"],
+  [/proracunska/g, "prora\u010dunska"],
+  [/proracun/g, "prora\u010dun"],
+  [/Financne/g, "Finan\u010dne"],
+  [/financne/g, "finan\u010dne"],
+  [/obcutljive/g, "ob\u010dutljive"],
+  [/ocitnih/g, "o\u010ditnih"],
+  [/tocke/g, "to\u010dke"],
+  [/Tocke/g, "To\u010dke"],
+  [/splosnih/g, "splo\u0161nih"],
+  [/splosne/g, "splo\u0161ne"],
+  [/boljse/g, "bolj\u0161e"],
+  [/cakalnih/g, "\u010dakalnih"],
+  [/cakalna/g, "\u010dakalna"],
+  [/cakalne/g, "\u010dakalne"],
+  [/bolnisnica/g, "bolni\u0161nica"],
+  [/sodisce/g, "sodi\u0161\u010de"],
+  [/tozilstvo/g, "to\u017eilstvo"],
+  [/sola/g, "\u0161ola"],
+  [/student/g, "\u0161tudent"],
+  [/ucitelj/g, "u\u010ditelj"],
+  [/ucni/g, "u\u010dni"],
+  [/placa/g, "pla\u010da"],
+  [/mogoce/g, "mogo\u010de"],
+  [/omogocen/g, "omogo\u010den"],
+  [/omogocena/g, "omogo\u010dena"],
   [/dosegljiv/g, "dosegljiv"],
-  [/pricakovan/g, "priÄ‚â€žÄąÂ¤akovan"],
-  [/sifriran/g, "Ă„Ä…Ă‹â€ˇifriran"],
-  [/uspesen/g, "uspeĂ„Ä…Ă‹â€ˇen"],
-  [/uspesno/g, "uspeĂ„Ä…Ă‹â€ˇno"],
+  [/pricakovan/g, "pri\u010dakovan"],
+  [/sifriran/g, "\u0161ifriran"],
+  [/uspesen/g, "uspe\u0161en"],
+  [/uspesno/g, "uspe\u0161no"],
   [/uspelo/g, "uspelo"],
-  [/vkljuceno/g, "vkljuÄ‚â€žÄąÂ¤eno"],
-  [/vkljucen/g, "vkljuÄ‚â€žÄąÂ¤en"],
-  [/kljuca/g, "kljuÄ‚â€žÄąÂ¤a"],
-  [/kljuc/g, "kljuÄ‚â€žÄąÂ¤"],
-  [/Najvec/g, "NajveÄ‚â€žÄąÂ¤"],
-  [/najvec/g, "najveÄ‚â€žÄąÂ¤"],
-  [/Povprecje/g, "PovpreÄ‚â€žÄąÂ¤je"],
-  [/povprecje/g, "povpreÄ‚â€žÄąÂ¤je"],
-  [/racun/g, "raÄ‚â€žÄąÂ¤un"],
-  [/nacin/g, "naÄ‚â€žÄąÂ¤in"],
-  [/Nacin/g, "NaÄ‚â€žÄąÂ¤in"],
-  [/reĂ„Ä…Ă„Äľim/g, "reĂ„Ä…Ă„Äľim"],
-  [/rezim/g, "reĂ„Ä…Ă„Äľim"],
-  [/\bCe\b/g, "Ä‚â€žÄąĹˇe"],
-  [/\bce\b/g, "Ä‚â€žÄąÂ¤e"],
-  [/\bze\b/g, "Ă„Ä…Ă„Äľe"],
-  [/\bse nalo/g, "se nalo"],
-  [/\bse ni\b/g, "Ă„Ä…Ă‹â€ˇe ni"],
-  [/\bse nima\b/g, "Ă„Ä…Ă‹â€ˇe nima"]
+  [/vkljuceno/g, "vklju\u010deno"],
+  [/vkljucen/g, "vklju\u010den"],
+  [/kljuca/g, "klju\u010da"],
+  [/kljuc/g, "klju\u010d"],
+  [/Najvec/g, "Najve\u010d"],
+  [/najvec/g, "najve\u010d"],
+  [/Povprecje/g, "Povpre\u010dje"],
+  [/povprecje/g, "povpre\u010dje"],
+  [/racun/g, "ra\u010dun"],
+  [/nacin/g, "na\u010din"],
+  [/Nacin/g, "Na\u010din"],
+  [/rezim/g, "re\u017eim"],
+  [/\bCe\b/g, "\u010ce"],
+  [/\bce\b/g, "\u010de"],
+  [/\bze\b/g, "\u017ee"],
+  [/\bse ni\b/g, "\u0161e ni"],
+  [/\bse nima\b/g, "\u0161e nima"]
 ];
 
 const SLOVENIAN_UI_LOCALIZED_ATTRIBUTES = ["placeholder", "aria-label", "title"];
@@ -3515,7 +3511,7 @@ function formatAnnualDeadlineDate(value) {
 }
 
 function annualDeadlineAccessibleLabel(countdown) {
-  return `Do letnega zaprtja pobud je Ă„Ä…Ă‹â€ˇe ${countdown.days} dni, ${countdown.hours} ur, ${countdown.minutes} minut in ${countdown.seconds} sekund. Rok je ${formatAnnualDeadlineDate(countdown.deadline)}.`;
+  return `Do letnega zaprtja pobud je \u0161e ${countdown.days} dni, ${countdown.hours} ur, ${countdown.minutes} minut in ${countdown.seconds} sekund. Rok je ${formatAnnualDeadlineDate(countdown.deadline)}.`;
 }
 
 function padCountdownValue(value) {
@@ -3639,10 +3635,10 @@ function pdfSafeText(value) {
   return String(value ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[Ä‚â€žĂ˘â‚¬ÂÄ‚â€žĂ‚Â]/g, "d")
-    .replace(/[Ä‚ËĂ˘â€šÂ¬Ă˘â‚¬Ĺ›Ä‚ËĂ˘â€šÂ¬Ă˘â‚¬ĹĄ]/g, "-")
-    .replace(/[Ä‚ËĂ˘â€šÂ¬Äąâ€şÄ‚ËĂ˘â€šÂ¬ÄąÄ„]/g, '"')
-    .replace(/[Ä‚ËĂ˘â€šÂ¬Ă‚ÂÄ‚ËĂ˘â€šÂ¬Ă˘â€žË]/g, "'")
+    .replace(/[\u0111\u0110]/g, "d")
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/[\u201c\u201d]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
     .replace(/[^\x20-\x7E]/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -4246,7 +4242,7 @@ function pdfFileName(initiative) {
   const title = String(initiative?.title || "pobuda")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[Ä‚â€žĂ˘â‚¬ÂÄ‚â€žĂ‚Â]/g, "d")
+    .replace(/[\u0111\u0110]/g, "d")
     .replace(/[^a-zA-Z0-9._ -]+/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
