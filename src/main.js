@@ -51,6 +51,7 @@ const ANONYMOUS_VOTER_KEY = "demos.anonymousVoterId";
 const REMOTE_SEARCH_DEBOUNCE_MS = 800;
 const REMOTE_SEARCH_MIN_LENGTH = 2;
 const INITIATIVE_LIST_PAGE_SIZE = 3;
+const COMMENT_PAGE_SIZE = 6;
 const EXPORTABLE_INITIATIVE_STATUSES = ["signature_collection", "submitted"];
 const INITIATIVE_TURNSTILE_ACTION = "submit_initiative";
 // Month is zero-based because it feeds the Date constructor.
@@ -127,6 +128,8 @@ class DemocracyApp {
       category: "all",
       status: "all",
       sort: "popular",
+      commentPages: {},
+      commentThreads: {},
       visibleInitiativeCount: INITIATIVE_LIST_PAGE_SIZE,
       loginEmail: "ime@demos.si",
       draft: emptyDraft(),
@@ -157,6 +160,7 @@ class DemocracyApp {
     this.root.addEventListener("submit", (event) => this.handleSubmit(event));
     this.root.addEventListener("input", (event) => this.handleInput(event));
     this.root.addEventListener("change", (event) => this.handleChange(event));
+    this.root.addEventListener("wheel", (event) => this.handleInitiativeListWheel(event), { passive: false });
     window.addEventListener("keydown", (event) => this.handleGlobalKeydown(event));
     window.addEventListener("popstate", () => this.handleRouteChange());
   }
@@ -1519,6 +1523,9 @@ class DemocracyApp {
     const review = initiative.aiReview || { score: 0, risk: "low", findings: [] };
     const exportReady = canExportInitiative(initiative);
     const admin = this.isAdminUser(user);
+    const commentPage = this.commentPageFor(initiative);
+    const comments = this.commentsForPage(initiative, commentPage);
+    const commentsOpen = this.commentsOpenFor(initiative);
 
     return `
       <div class="detail-header">
@@ -1529,7 +1536,6 @@ class DemocracyApp {
         </div>
         <span class="status-badge ${initiative.status}">${statusLabel(initiative.status)}</span>
       </div>
-      <p class="summary">${escapeHtml(initiative.summary)}</p>
       <div class="support-actions" aria-label="Dejanja pobude">
         <button class="button primary" type="button" data-action="vote" data-id="${initiative.id}" ${voted ? "disabled" : ""}>
           ${voted ? "Glas oddan" : "Glasuj"}
@@ -1587,82 +1593,168 @@ class DemocracyApp {
         ${this.metric("Komentarji", initiative.comments.length, "javna razprava")}
         ${this.metric("AI ocena", `${review.score}%`, riskLabel(review.risk))}
       </div>
-      <section class="detail-section">
-        <h3>Ocena stanja in razlogi</h3>
-        <p>${escapeHtml(initiative.description)}</p>
+      <div class="detail-accordion-group">
+        ${this.renderDetailAccordion("Povzetek", `<p>${escapeHtml(initiative.summary)}</p>`, { open: true, meta: "Kratek opis pobude" })}
+        ${this.renderDetailAccordion(
+          "Problem in cilji",
+          `
+            <div class="two-columns">
+              <div>
+                <h3>Ocena stanja in razlogi</h3>
+                <p>${escapeHtml(initiative.description)}</p>
+              </div>
+              <div>
+                <h3>Cilji in resitve</h3>
+                <p>${escapeHtml(initiative.expectedImpact || "Ni navedeno.")}</p>
+              </div>
+            </div>
+          `,
+          { open: true, meta: "Najpomembnejse vsebinske informacije" }
+        )}
+        ${this.renderDetailAccordion("Pravna podlaga", `<p>${escapeHtml(initiative.legalReference || "Ni navedena.")}</p>`, { meta: "Zakonski okvir" })}
+        ${this.renderDetailAccordion("Besedilo clenov", `<p>${escapeHtml(initiative.legislativeText || "Ni navedeno.")}</p>`, { meta: "Predlagano besedilo" })}
+        ${this.renderDetailAccordion("Obrazlozitev clenov", `<p>${escapeHtml(initiative.articleExplanation || "Ni navedena.")}</p>`, { meta: "Razlaga predlaganih clenov" })}
+        ${this.renderDetailAccordion(
+          "Financiranje",
+          `
+            <div class="two-columns">
+              <div>
+                <h3>Financne posledice</h3>
+                <p>${escapeHtml(initiative.financialImpact || "Ni navedeno.")}</p>
+              </div>
+              <div>
+                <h3>Zagotovitev sredstev</h3>
+                <p>${escapeHtml(initiative.budgetFunding || "Ni navedena.")}</p>
+              </div>
+            </div>
+          `,
+          { meta: "Stroski in viri sredstev" }
+        )}
+        ${this.renderDetailAccordion("Primerjalni prikaz in pravo EU", `<p>${escapeHtml(initiative.comparativeReview || "Ni navedeno.")}</p>`, { meta: "Primeri iz drugih drzav" })}
+        ${this.renderDetailAccordion("Presoja posledic", `<p>${escapeHtml(initiative.impactAssessment || "Ni navedena.")}</p>`, { meta: "Ucinki predloga" })}
+        ${this.renderDetailAccordion(
+          "Sodelovanje in predlagatelji",
+          `
+            <div class="two-columns">
+              <div>
+                <h3>Sodelovanje javnosti</h3>
+                <p>${escapeHtml(initiative.publicParticipation || "Ni navedeno.")}</p>
+              </div>
+              <div>
+                <h3>Predstavniki predlagatelja</h3>
+                <p>${escapeHtml(initiative.proposerRepresentatives || "Ni navedeno.")}</p>
+              </div>
+            </div>
+          `,
+          { meta: "Javna razprava in kontaktne osebe" }
+        )}
+        ${this.renderDetailAccordion("Dolocbe, ki se spreminjajo", `<p>${escapeHtml(initiative.affectedProvisions || "Ni sprememb obstojecega zakona oziroma ni navedeno.")}</p>`, { meta: "Vpliv na obstojeco zakonodajo" })}
+        ${this.renderDetailAccordion(
+          "AI ugotovitve",
+          `
+            ${this.renderReviewFacts(review, { detailed: true })}
+            <ul class="check-list">
+              ${review.findings.map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")}
+            </ul>
+          `,
+          { meta: `${review.score}% - ${riskLabel(review.risk)}` }
+        )}
+      </div>
+      <section class="detail-section comments-section">
+        <button
+          class="comment-toggle"
+          type="button"
+          data-action="toggle-comments"
+          data-id="${escapeAttribute(initiative.id)}"
+          aria-expanded="${commentsOpen ? "true" : "false"}"
+        >
+          <span>Komentarji</span>
+          <strong>${initiative.comments.length}</strong>
+          <small>${commentsOpen ? "Skrij razpravo" : "Prikazi razpravo"}</small>
+        </button>
+        ${
+          commentsOpen
+            ? `
+              <div class="comments-panel">
+                <form class="comment-form" data-form="comment" data-id="${initiative.id}">
+                  <label class="sr-only" for="comment-body-${escapeAttribute(initiative.id)}">Dodaj komentar</label>
+                  <input id="comment-body-${escapeAttribute(initiative.id)}" name="body" placeholder="Dodaj komentar" autocomplete="off" />
+                  <button class="button secondary" type="submit">Objavi</button>
+                </form>
+                <div class="comments" aria-live="polite">
+                  ${
+                    initiative.comments.length
+                      ? comments.map((comment) => this.renderComment(comment)).join("")
+                      : `<p class="muted">Komentarjev se ni.</p>`
+                  }
+                </div>
+                ${this.renderCommentPagination(initiative, commentPage)}
+              </div>
+            `
+            : ""
+        }
       </section>
-      <section class="detail-section two-columns">
+    `;
+  }
+
+  renderDetailAccordion(title, content, options = {}) {
+    return `
+      <details class="detail-accordion" ${options.open ? "open" : ""}>
+        <summary>
+          <span>
+            <strong>${escapeHtml(title)}</strong>
+            ${options.meta ? `<small>${escapeHtml(options.meta)}</small>` : ""}
+          </span>
+          <em aria-hidden="true">${chevronDownIcon()}</em>
+        </summary>
+        <div class="detail-accordion-content">
+          ${content}
+        </div>
+      </details>
+    `;
+  }
+
+  commentsOpenFor(initiative) {
+    return this.state.commentThreads[initiative.id] === true;
+  }
+
+  commentPageFor(initiative) {
+    const pageCount = this.commentPageCount(initiative);
+    const requestedPage = Number(this.state.commentPages[initiative.id]) || 1;
+    return Math.min(pageCount, Math.max(1, requestedPage));
+  }
+
+  commentPageCount(initiative) {
+    return Math.max(1, Math.ceil((initiative.comments?.length || 0) / COMMENT_PAGE_SIZE));
+  }
+
+  commentsForPage(initiative, page = this.commentPageFor(initiative)) {
+    const start = (page - 1) * COMMENT_PAGE_SIZE;
+    return (initiative.comments || []).slice(start, start + COMMENT_PAGE_SIZE);
+  }
+
+  renderCommentPagination(initiative, currentPage) {
+    const pageCount = this.commentPageCount(initiative);
+    if (pageCount <= 1) return "";
+
+    const pages = Array.from({ length: pageCount }, (_, index) => index + 1);
+    return `
+      <nav class="comment-pagination" aria-label="Strani komentarjev">
+        <span>Strani komentarjev</span>
         <div>
-          <h3>Pravna podlaga</h3>
-          <p>${escapeHtml(initiative.legalReference || "Ni navedena.")}</p>
+          ${pages.map((page) => `
+            <button
+              class="comment-page-button ${page === currentPage ? "active" : ""}"
+              type="button"
+              data-action="comment-page"
+              data-id="${escapeAttribute(initiative.id)}"
+              data-page="${page}"
+              aria-current="${page === currentPage ? "page" : "false"}"
+              ${page === currentPage ? "disabled" : ""}
+            >${page}</button>
+          `).join("")}
         </div>
-        <div>
-          <h3>Cilji in resitve</h3>
-          <p>${escapeHtml(initiative.expectedImpact || "Ni navedeno.")}</p>
-        </div>
-      </section>
-      <section class="detail-section">
-        <h3>Besedilo clenov</h3>
-        <p>${escapeHtml(initiative.legislativeText || "Ni navedeno.")}</p>
-      </section>
-      <section class="detail-section">
-        <h3>Obrazlozitev clenov</h3>
-        <p>${escapeHtml(initiative.articleExplanation || "Ni navedena.")}</p>
-      </section>
-      <section class="detail-section two-columns">
-        <div>
-          <h3>Financne posledice</h3>
-          <p>${escapeHtml(initiative.financialImpact || "Ni navedeno.")}</p>
-        </div>
-        <div>
-          <h3>Zagotovitev sredstev</h3>
-          <p>${escapeHtml(initiative.budgetFunding || "Ni navedena.")}</p>
-        </div>
-      </section>
-      <section class="detail-section">
-        <h3>Primerjalni prikaz in pravo EU</h3>
-        <p>${escapeHtml(initiative.comparativeReview || "Ni navedeno.")}</p>
-      </section>
-      <section class="detail-section">
-        <h3>Presoja posledic</h3>
-        <p>${escapeHtml(initiative.impactAssessment || "Ni navedena.")}</p>
-      </section>
-      <section class="detail-section two-columns">
-        <div>
-          <h3>Sodelovanje javnosti</h3>
-          <p>${escapeHtml(initiative.publicParticipation || "Ni navedeno.")}</p>
-        </div>
-        <div>
-          <h3>Predstavniki predlagatelja</h3>
-          <p>${escapeHtml(initiative.proposerRepresentatives || "Ni navedeno.")}</p>
-        </div>
-      </section>
-      <section class="detail-section">
-        <h3>Dolocbe, ki se spreminjajo</h3>
-        <p>${escapeHtml(initiative.affectedProvisions || "Ni sprememb obstojecega zakona oziroma ni navedeno.")}</p>
-      </section>
-      <section class="detail-section">
-        <h3>AI ugotovitve</h3>
-        ${this.renderReviewFacts(review, { detailed: true })}
-        <ul class="check-list">
-          ${review.findings.map((finding) => `<li>${escapeHtml(finding)}</li>`).join("")}
-        </ul>
-      </section>
-      <section class="detail-section">
-        <h3>Komentarji</h3>
-        <form class="comment-form" data-form="comment" data-id="${initiative.id}">
-          <label class="sr-only" for="comment-body-${escapeAttribute(initiative.id)}">Dodaj komentar</label>
-          <input id="comment-body-${escapeAttribute(initiative.id)}" name="body" placeholder="Dodaj komentar" autocomplete="off" />
-          <button class="button secondary" type="submit">Objavi</button>
-        </form>
-        <div class="comments" aria-live="polite">
-          ${
-            initiative.comments.length
-              ? initiative.comments.map((comment) => this.renderComment(comment)).join("")
-              : `<p class="muted">Komentarjev se ni.</p>`
-          }
-        </div>
-      </section>
+      </nav>
     `;
   }
 
@@ -1919,12 +2011,34 @@ class DemocracyApp {
     this.render();
   }
 
+  handleInitiativeListWheel(event) {
+    if (event.deltaY <= 0) return;
+    const list = event.target.closest(".initiative-list");
+    if (!list) return;
+
+    const initiatives = this.filteredInitiatives();
+    if (this.state.visibleInitiativeCount >= initiatives.length) return;
+
+    const isAtListEnd = list.scrollHeight <= list.clientHeight + 1 ||
+      list.scrollTop + list.clientHeight >= list.scrollHeight - 8;
+    if (!isAtListEnd) return;
+
+    event.preventDefault();
+    this.state.visibleInitiativeCount = Math.min(
+      this.state.visibleInitiativeCount + INITIATIVE_LIST_PAGE_SIZE,
+      initiatives.length
+    );
+    this.renderPreservingScroll();
+  }
+
   async handleClick(event) {
     const target = event.target.closest("[data-action]");
     if (!target) return;
     const action = target.dataset.action;
 
     if (await this.handleViewClick(action, target, event)) return;
+    if (this.handleCommentToggleClick(action, target)) return;
+    if (this.handleCommentPageClick(action, target)) return;
     if (this.handleSimpleClick(action)) return;
     if (await this.handleAsyncUtilityClick(action)) return;
     if (this.handleSelectClick(action, target)) return;
@@ -2036,6 +2150,33 @@ class DemocracyApp {
       trackClarityEvent("initiative_selected");
     }
     this.render();
+    return true;
+  }
+
+  handleCommentPageClick(action, target) {
+    if (action !== "comment-page") return false;
+    const initiative = this.findInitiativeForAction(target.dataset.id);
+    if (!initiative) return true;
+
+    const page = Number(target.dataset.page) || 1;
+    this.state.commentPages = {
+      ...this.state.commentPages,
+      [initiative.id]: Math.min(this.commentPageCount(initiative), Math.max(1, page))
+    };
+    this.renderPreservingScroll();
+    return true;
+  }
+
+  handleCommentToggleClick(action, target) {
+    if (action !== "toggle-comments") return false;
+    const initiative = this.findInitiativeForAction(target.dataset.id);
+    if (!initiative) return true;
+
+    this.state.commentThreads = {
+      ...this.state.commentThreads,
+      [initiative.id]: !this.commentsOpenFor(initiative)
+    };
+    this.renderPreservingScroll();
     return true;
   }
 
@@ -2380,6 +2521,14 @@ class DemocracyApp {
         const body = new FormData(form).get("body");
         const updated = await this.repository.comment(form.dataset.id, actor, body);
         this.replaceInitiative(updated);
+        this.state.commentPages = {
+          ...this.state.commentPages,
+          [updated.id]: this.commentPageCount(updated)
+        };
+        this.state.commentThreads = {
+          ...this.state.commentThreads,
+          [updated.id]: true
+        };
         trackClarityEvent("comment_created");
         this.toast("Komentar je objavljen.");
         this.renderPreservingScroll();
