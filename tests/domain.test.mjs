@@ -923,8 +923,10 @@ test("SI-CeS konfiguracija zahteva PFX skrivnosti in callback", () => {
   assert.equal(config.endpoint, "https://sicas-test.sigov.si/CES-Sign/SicesSign");
   assert.equal(config.trustLevel, "Medium");
   assert.equal(config.mimeType, "XML");
-  assert.equal(config.signerLocation.city, "Maribor");
-  assert.equal(config.signerLocation.postalAddress, "Maribor");
+  assert.equal(config.signerLocation.city, "Ljubljana");
+  assert.equal(config.signerLocation.locality, "Rudnik");
+  assert.equal(config.signerLocation.postalAddress, "Ukmarjeva 2");
+  assert.equal(config.signerLocation.postalCode, "1000");
   assert.equal(config.tlsVersion, "TLSv1.2");
   assert.equal(config.timeoutMs, 5000);
 });
@@ -935,15 +937,25 @@ test("SI-CeS SOAP helperji sestavijo putRequest in preberejo odzive", () => {
     callbackUrl: "https://example.test/api/sices/callback?initiativeId=1",
     document: "<test>Vsebina</test>",
     fileName: "test.xml",
-    mimeType: "application/xml",
+    mimeType: "XML",
     signatureLevel: "XAdES_BASELINE_B",
     signaturePackaging: "ENVELOPED",
-    trustLevel: "MEDIUM"
+    trustLevel: "Medium",
+    signerLocation: {
+      city: "Ljubljana",
+      country: "Slovenija",
+      locality: "Rudnik",
+      postalAddress: "Ukmarjeva 2",
+      postalCode: "1000",
+      stateOrProvince: "Ljubljana"
+    }
   });
 
   assert.match(soap, /<serviceProvider>UNI-MB_eDemokracija<\/serviceProvider>/);
-  assert.match(soap, /<mimeTypeString>application\/xml<\/mimeTypeString>/);
+  assert.match(soap, /<mimeTypeString>XML<\/mimeTypeString>/);
   assert.match(soap, /<signatureLevel>XAdES_BASELINE_B<\/signatureLevel>/);
+  assert.match(soap, /<postalAddress>Ukmarjeva 2<\/postalAddress>/);
+  assert.match(soap, /<trustLevel>Medium<\/trustLevel>/);
 
   assert.deepEqual(parsePutRequestResponse(`
     <S:Envelope><S:Body><ns2:putRequestResponse><return>

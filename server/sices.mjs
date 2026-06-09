@@ -197,12 +197,12 @@ export function sicesConfig(env = process.env) {
     signatureLevel: firstValue(env.SICES_SIGNATURE_LEVEL, "XAdES_BASELINE_B"),
     signaturePackaging: firstValue(env.SICES_SIGNATURE_PACKAGING, "ENVELOPED"),
     signerLocation: {
-      city: firstValue(env.SICES_SIGNER_CITY, "Maribor"),
+      city: firstValue(env.SICES_SIGNER_CITY, "Ljubljana"),
       country: firstValue(env.SICES_SIGNER_COUNTRY, "Slovenija"),
-      locality: firstValue(env.SICES_SIGNER_LOCALITY, "Maribor"),
-      postalAddress: firstValue(env.SICES_SIGNER_POSTAL_ADDRESS, "Maribor"),
-      postalCode: firstValue(env.SICES_SIGNER_POSTAL_CODE, "2000"),
-      stateOrProvince: firstValue(env.SICES_SIGNER_STATE_OR_PROVINCE, "Slovenija")
+      locality: firstValue(env.SICES_SIGNER_LOCALITY, "Rudnik"),
+      postalAddress: firstValue(env.SICES_SIGNER_POSTAL_ADDRESS, "Ukmarjeva 2"),
+      postalCode: firstValue(env.SICES_SIGNER_POSTAL_CODE, "1000"),
+      stateOrProvince: firstValue(env.SICES_SIGNER_STATE_OR_PROVINCE, "Ljubljana")
     },
     fallbackUnverified: stringBoolean(env.SICES_FALLBACK_UNVERIFIED, true),
     tlsVersion: firstValue(env.SICES_TLS_VERSION, "TLSv1.2"),

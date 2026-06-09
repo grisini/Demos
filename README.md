@@ -916,8 +916,15 @@ SICES_CALLBACK_URL=https://auth.demokracija-20.si/api/sices/callback
 SICES_PFX_PATH=/opt/demos/secrets/sices-client.pfx
 SICES_PFX_PASSWORD=...
 SICES_TRUST_LEVEL=Medium
+SICES_MIME_TYPE=XML
 SICES_SIGNATURE_LEVEL=XAdES_BASELINE_B
 SICES_SIGNATURE_PACKAGING=ENVELOPED
+SICES_SIGNER_CITY=Ljubljana
+SICES_SIGNER_COUNTRY=Slovenija
+SICES_SIGNER_LOCALITY=Rudnik
+SICES_SIGNER_POSTAL_ADDRESS=Ukmarjeva 2
+SICES_SIGNER_POSTAL_CODE=1000
+SICES_SIGNER_STATE_OR_PROVINCE=Ljubljana
 SICES_TLS_VERSION=TLSv1.2
 SICES_SOAP_TIMEOUT_MS=30000
 SICES_ALLOWED_ORIGIN=https://demokracija-20.si
@@ -948,7 +955,7 @@ Backend pri zacetku podpisa poslje SOAP `putRequest`. Poenostavljen primer zahte
         <document>
           <bytes>base64-xml-dokumenta-pobude</bytes>
           <mimeType>
-            <mimeTypeString>application/xml</mimeTypeString>
+            <mimeTypeString>XML</mimeTypeString>
           </mimeType>
           <name>pobuda-...xml</name>
         </document>
@@ -958,11 +965,12 @@ Backend pri zacetku podpisa poslje SOAP `putRequest`. Poenostavljen primer zahte
           <signatureLevel>XAdES_BASELINE_B</signatureLevel>
           <signaturePackaging>ENVELOPED</signaturePackaging>
           <signerLocation>
-            <city>Maribor</city>
+            <city>Ljubljana</city>
             <country>Slovenija</country>
-            <locality>Maribor</locality>
-            <postalCode>2000</postalCode>
-            <stateOrProvince>Slovenija</stateOrProvince>
+            <locality>Rudnik</locality>
+            <postalAddress>Ukmarjeva 2</postalAddress>
+            <postalCode>1000</postalCode>
+            <stateOrProvince>Ljubljana</stateOrProvince>
           </signerLocation>
         </parameters>
       </item>
