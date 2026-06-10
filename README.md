@@ -4,7 +4,6 @@ Prototip spletne platforme za oddajo, pregled, glasovanje, komentiranje, AI pred
 
 ## Projektna dokumentacija za prevzem projekta
 
-Ta README je namenjen tudi kot glavna projektna dokumentacija. Ideja je, da lahko nov razvijalec brez dodatnega Word dokumenta razume namen sistema, arhitekturo, podatkovne tokove, model baze, glavne use case-e, kakovostne kontrole in nacin dela na projektu.
 
 ### Namen sistema
 
